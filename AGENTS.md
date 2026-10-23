@@ -164,7 +164,7 @@ version from the base branch and the title and, if the head differs, commits `ch
 branch (editing only the version lines of `package.json` and `package-lock.json`). On every push to `main` it merges
 `main` into each open same-repo PR branch and re-derives the version. It never runs code from the PR branch (it runs
 with secrets under `pull_request_target`; the zizmor suppression in the workflow explains why that is safe). If the bot
-is down, run `npx --yes github:tpetrus/ci-workflows#v1 ci-tools release write-version <version>` yourself; the failing
+is down, run `npx --yes --package=github:tpetrus/ci-workflows#v1 ci-tools release write-version <version>` yourself; the failing
 `version` check names the exact version.
 
 **What `release.yml` does:** on every push to `main`, if the tag `v<package.json version>` does not exist, it builds the
@@ -201,6 +201,8 @@ only the Chromium projects (`chromium-*`) because the shared smoke workflow inst
   `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`, because `npx` installs the TypeScript CLI under `node_modules`, where
   Node refuses to strip types. Until that is fixed in `tpetrus/ci-workflows`, run its script from a local checkout:
   `node <path-to>/ci-workflows/scripts/check-lockfile.ts package-lock.json`.
+  The fix (tpetrus/ci-workflows PR #2, to be released as v0.1.3) ships the CLI as built JavaScript; once `v1`
+  points at that release, `npm run check:lockfile` works again and this workaround goes away.
 - **The initial lockfile was repaired by hand.** The six entries Windows npm dropped were copied from the sibling
   AudioVisualizer-React lockfile (same `@tailwindcss/oxide` 4.3.3), because no `main` copy existed to restore from.
 - **No visual-regression spec yet** (see "CI and deploys").
