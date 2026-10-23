@@ -48,7 +48,7 @@ Cloudflare Workers Builds (see "CI and deploys").
 ## Where things live
 ```
 src/
-  config/site.ts        THE site-config module: SITE_URL (the one place the domain is set) and projectUrl()
+  config/site.ts        THE site-config module: SITE_URL and PROJECTS_DOMAIN (the one place the domain is set), projectUrl()
   lib/                  pure, unit-tested logic (nav.ts: nav items and the active-link helper)
   layouts/              BaseLayout.astro: head/meta, skip link, nav, View Transitions, footer
   pages/                index, photography, projects (default exports required by Astro)
@@ -61,10 +61,13 @@ scripts/smoke.ts        runs the @smoke tests against BASE_URL (Chromium project
 ```
 
 ## The domain: change it in one place
-`SITE_URL` in `src/config/site.ts` is the only place the domain is written. `astro.config.mjs` reads it for Astro's
-`site` (canonical URLs), and `projectUrl(name)` derives `https://<name>.<domain>` from it for project subdomain links.
-Switching to a custom domain is a one-line edit of `SITE_URL`. It defaults to `https://portfolio.mypoke.workers.dev`
-(the Worker named `portfolio` under the account's workers.dev subdomain); that URL is not confirmed live. There is
+`SITE_URL` and `PROJECTS_DOMAIN` in `src/config/site.ts` are the only places the domain is written. `astro.config.mjs`
+reads `SITE_URL` for Astro's `site` (canonical URLs), and `projectUrl(name)` derives `https://<name>.<PROJECTS_DOMAIN>`
+for project subdomain links. They are two separate settings: on workers.dev they differ (`SITE_URL` defaults to
+`https://portfolio.mypoke.workers.dev`, the Worker named `portfolio` under the account's workers.dev subdomain, while
+`PROJECTS_DOMAIN` is `mypoke.workers.dev`, so a sibling is `https://audio-visualizer.mypoke.workers.dev`); on a custom
+domain both become that domain. Switching to a custom domain is an edit of the two adjacent constants in
+`src/config/site.ts`. The workers.dev URL is not confirmed live. There is
 deliberately no environment-variable override: a second source of truth is what this setup avoids.
 
 Two things live outside the code and must be changed together with the domain: the repository variable `PRODUCTION_URL`

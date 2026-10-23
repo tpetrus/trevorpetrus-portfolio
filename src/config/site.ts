@@ -1,21 +1,31 @@
-// The ONE place the site's domain is configured. Switching to a custom domain later is a one-line change to SITE_URL
-// below; everything else (astro.config.mjs `site`, canonical URLs, links to project subdomains) derives from it.
+// The ONE place the site's domain is configured. Two adjacent constants, because they are two different settings:
+// SITE_URL is where this site itself lives (astro.config.mjs `site`, canonical URLs), and PROJECTS_DOMAIN is the domain
+// that project subdomains hang off. On workers.dev they differ, since every Worker is `<worker>.<account>.workers.dev`
+// and siblings share the account part. Switching to the custom domain means editing these two lines (both become the
+// bare domain, e.g. 'https://example.com' and 'example.com'), plus the PRODUCTION_URL repository variable.
 export const SITE_URL = 'https://portfolio.mypoke.workers.dev';
+export const PROJECTS_DOMAIN = 'mypoke.workers.dev';
 
 // A single DNS label: lowercase letters, digits and inner hyphens, at most 63 characters.
-const DNS_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+const DNS_LABEL_PATTERN = '[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?';
+const DNS_LABEL = new RegExp(`^${DNS_LABEL_PATTERN}$`);
+
+// A bare host: one or more dot-separated DNS labels. No protocol, path or port.
+const BARE_HOST = new RegExp(`^${DNS_LABEL_PATTERN}(?:\\.${DNS_LABEL_PATTERN})*$`);
 
 /**
- * Builds the address of a project that lives on its own subdomain: `https://<name>.<domain>`.
+ * Builds the address of a project that lives on its own subdomain: `https://<name>.<projectsDomain>`.
  *
  * @param name The project's subdomain label, e.g. `audio-visualizer`.
- * @param siteUrl The site's base URL; only its protocol and host are used, so a trailing slash or path is harmless.
- * @throws If `name` is not a valid lowercase DNS label.
+ * @param projectsDomain The bare host project subdomains hang off, e.g. `example.com` (no protocol or path).
+ * @throws If `name` is not a valid lowercase DNS label, or `projectsDomain` is not a bare host.
  */
-export function projectUrl(name: string, siteUrl: string = SITE_URL): string {
+export function projectUrl(name: string, projectsDomain: string = PROJECTS_DOMAIN): string {
     if (!DNS_LABEL.test(name)) {
         throw new Error(`Invalid project subdomain "${name}": use lowercase letters, digits and inner hyphens only.`);
     }
-    const { protocol, host } = new URL(siteUrl);
-    return `${protocol}//${name}.${host}`;
+    if (!BARE_HOST.test(projectsDomain)) {
+        throw new Error(`Invalid projects domain "${projectsDomain}": use a bare host such as "example.com".`);
+    }
+    return `https://${name}.${projectsDomain}`;
 }
