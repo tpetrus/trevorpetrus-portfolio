@@ -17,4 +17,4 @@ npm run preview    # build, then serve it like production (wrangler dev)
 Run `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm run test:coverage` and `npm run build` before
 sending a change. See [AGENTS.md](AGENTS.md) for all commands, the project layout, the CI setup and the rules.
 
-The site's domain is set in one place: `SITE_URL` in `src/config/site.ts`.
+The site's domain is set in one place: two adjacent constants, `SITE_URL` and `PROJECTS_DOMAIN`, in `src/config/site.ts`.
