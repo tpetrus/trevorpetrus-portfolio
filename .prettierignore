@@ -1,0 +1,15 @@
+dist/
+.astro/
+.wrangler/
+coverage/
+node_modules/
+package-lock.json
+public/
+# Markdown docs are hand-written (tables, wrapped prose); the agent docs are maintained separately.
+*.md
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
+.claude/
+.lighthouseci/
