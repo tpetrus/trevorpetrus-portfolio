@@ -1,0 +1,18 @@
+{
+  // The end-to-end tests are their own TypeScript program, separate from the app's (root tsconfig.json excludes
+  // tests/e2e/), so nothing exported from here is offered as an auto-import while writing app code.
+  "include": ["./**/*"],
+  "compilerOptions": {
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "types": ["node"],
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "strict": true
+  }
+}

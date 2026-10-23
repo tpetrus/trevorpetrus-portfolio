@@ -1,0 +1,14 @@
+[
+  {
+    "name": "Total JS loaded by pages: _astro chunks except the React island runtime (gzip)",
+    "path": ["dist/_astro/*.js", "!dist/_astro/client.*.js"],
+    "gzip": true,
+    "limit": "30 kB"
+  },
+  {
+    "name": "Total CSS: every stylesheet in _astro (gzip)",
+    "path": "dist/_astro/*.css",
+    "gzip": true,
+    "limit": "10 kB"
+  }
+]
