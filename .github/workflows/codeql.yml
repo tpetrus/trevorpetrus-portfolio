@@ -1,0 +1,25 @@
+name: CodeQL
+
+# Thin caller of the shared tpetrus/ci-workflows repo's codeql.yml.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # Weekly run so new queries are applied to unchanged code.
+  schedule:
+    - cron: '43 6 * * 1'
+
+permissions:
+  contents: read
+  # Needed by the reusable workflow's analyze job to upload results to the code scanning dashboard; a reusable
+  # workflow cannot be granted more than its caller grants.
+  security-events: write
+  actions: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  codeql:
+    uses: tpetrus/ci-workflows/.github/workflows/codeql.yml@c60f83bc1b43c9764123a6010cbd2c82c77218f8 # v0.1.2

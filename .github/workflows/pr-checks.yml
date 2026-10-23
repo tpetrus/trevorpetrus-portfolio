@@ -1,0 +1,33 @@
+name: PR checks
+
+# Thin caller of the shared tpetrus/ci-workflows repo's pr-checks.yml.
+#
+# Two required checks on every pull request (see "Versioning and releases" in AGENTS.md):
+#   pr-title  the title is a Conventional Commit, because the title decides the version bump and the release notes.
+#   version   package.json and package-lock.json carry the version that title calls for, and docs/ci/test titles do not
+#             change anything that ships.
+# Both only read the repository. The version bot (version-bump.yml) normally makes `version` pass by itself.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-checks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  pr-checks:
+    uses: tpetrus/ci-workflows/.github/workflows/pr-checks.yml@c60f83bc1b43c9764123a6010cbd2c82c77218f8 # v0.1.2
+    with:
+      # This repo's own shipped-paths policy: everything whose change alters what the deployed site does, so a
+      # docs/ci/test title (which releases nothing) must not touch it. The domain lives in src/config/site.ts, which
+      # the src/ prefix already covers.
+      shipped-prefixes: |
+        src/
+        public/
+      shipped-files: |
+        astro.config.mjs
+        wrangler.jsonc

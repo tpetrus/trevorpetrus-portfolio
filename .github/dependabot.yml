@@ -1,0 +1,65 @@
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    # Wait a week after a release before proposing it, so a compromised or yanked release is usually caught first.
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    # Titles become the PR title, which must be a Conventional Commit: "build(deps): ..." and "build(deps-dev): ...".
+    commit-message:
+      prefix: build
+      include: scope
+    # One PR for routine dev-tooling bumps and one for routine runtime bumps; majors arrive as separate PRs.
+    groups:
+      # astro and its integrations share a version line and break if they drift, so they update in a single PR (this
+      # group takes precedence over the generic ones below).
+      astro:
+        patterns: ['astro', '@astrojs/*']
+        update-types: [minor, patch]
+      # three.js, its types and the react-three-fiber packages move together. Declared now for the 3D hero in a later
+      # step; a group with no matching dependency does nothing.
+      three:
+        patterns: ['three', '@react-three/*', '@types/three']
+        update-types: [minor, patch]
+      dev-dependencies:
+        dependency-type: development
+        update-types: [minor, patch]
+      prod-dependencies:
+        dependency-type: production
+        update-types: [minor, patch]
+    ignore:
+      # eslint-plugin-jsx-a11y does not support ESLint 10 yet, and eslint-plugin-astro is held on 1.x (its 2.x/3.x
+      # releases require ESLint 10), so skip major bumps of eslint until both support it.
+      - dependency-name: eslint
+        update-types: ['version-update:semver-major']
+      # @eslint/js must stay on the same major as eslint (9), so it is held back together with it.
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      # eslint-plugin-astro 2.x and later peer-depend on ESLint 10, so a bump past 1.x breaks `npm ci` (ERESOLVE).
+      - dependency-name: eslint-plugin-astro
+        update-types: ['version-update:semver-major']
+      # typescript-eslint only supports TypeScript <6.1, so a TypeScript major breaks `npm ci` (ERESOLVE) until it catches up.
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
+      # @types/node must track the Node major in .nvmrc / engines (24), not the newest Node release.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    # Wait a week after a release before proposing it, so a compromised or yanked release is usually caught first.
+    cooldown:
+      default-days: 7
+    # Same reason as above: "ci(deps): ...". Workflow-only changes release nothing.
+    commit-message:
+      prefix: ci
+      include: scope
+    groups:
+      actions:
+        patterns: ['*']

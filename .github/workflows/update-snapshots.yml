@@ -1,0 +1,27 @@
+name: Update visual snapshots
+
+# Regenerates the Linux baselines for tests/e2e/visual.spec.ts and commits them back to the branch it was run on, via
+# the shared tpetrus/ci-workflows repo's update-snapshots.yml.
+# Run it from the Actions tab (choose the branch), or via the REST API:
+#   POST /repos/{owner}/{repo}/actions/workflows/update-snapshots.yml/dispatches   {"ref": "<branch>"}
+# Review the committed images in the PR diff before merging: a regenerated baseline is an accepted change.
+on:
+  workflow_dispatch:
+
+# The reusable workflow's update job needs contents: write to commit and push the regenerated snapshots; a reusable
+# workflow cannot be granted more than its caller grants.
+permissions:
+  contents: write
+
+concurrency:
+  group: update-snapshots-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  update-snapshots:
+    uses: tpetrus/ci-workflows/.github/workflows/update-snapshots.yml@c60f83bc1b43c9764123a6010cbd2c82c77218f8 # v0.1.2
+    with:
+      build-dir: dist
+      # This repo has no visual-regression spec yet, so point the snapshot workflow at the spec that will hold them
+      # (it fails with "no tests found" until one exists; see "Known gaps" in AGENTS.md).
+      snapshot-test-file: tests/e2e/visual.spec.ts

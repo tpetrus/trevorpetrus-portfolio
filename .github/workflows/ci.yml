@@ -1,0 +1,24 @@
+name: CI
+
+# Thin caller of the shared tpetrus/ci-workflows repo's node-ci.yml: one shared build job feeds quality, size,
+# lighthouse and e2e instead of each workflow building it again on its own, and "result" is the one required status
+# check instead of several.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    uses: tpetrus/ci-workflows/.github/workflows/node-ci.yml@c60f83bc1b43c9764123a6010cbd2c82c77218f8 # v0.1.2
+    with:
+      build-dir: dist
+      # The size, lighthouse, e2e and links jobs are on by default. Fails the build if any tracked file is larger.
+      max-file-size: 2MB

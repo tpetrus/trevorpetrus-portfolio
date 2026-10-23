@@ -1,0 +1,24 @@
+name: Security
+
+# Thin caller of the shared tpetrus/ci-workflows repo's security.yml.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # Weekly run so newly published advisories against unchanged dependencies are still reported.
+  schedule:
+    - cron: '17 6 * * 1'
+
+permissions:
+  contents: read
+  # Needed by the reusable workflow's dependency-review job to post its summary comment on failure; a reusable
+  # workflow cannot be granted more than its caller grants.
+  pull-requests: write
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security:
+    uses: tpetrus/ci-workflows/.github/workflows/security.yml@c60f83bc1b43c9764123a6010cbd2c82c77218f8 # v0.1.2

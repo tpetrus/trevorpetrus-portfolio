@@ -1,0 +1,23 @@
+name: Release
+
+# Thin caller of the shared tpetrus/ci-workflows repo's release.yml. Tags and publishes a GitHub Release whenever
+# main carries a version that has no tag yet (see "Versioning and releases" in AGENTS.md). It creates a tag and a
+# release only; it never pushes a commit, because every push to main is a production deploy. Safe to re-run: when the
+# tag already exists it does nothing.
+on:
+  push:
+    branches: [main]
+
+# The reusable workflow's release job needs contents: write to create the tag and the release; a reusable workflow
+# cannot be granted more than its caller grants, so this must be declared here too.
+permissions:
+  contents: write
+
+# Releases are created one at a time, in push order, and a later push must not cancel one that is half-created.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    uses: tpetrus/ci-workflows/.github/workflows/release.yml@c60f83bc1b43c9764123a6010cbd2c82c77218f8 # v0.1.2

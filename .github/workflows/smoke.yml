@@ -1,0 +1,50 @@
+name: Smoke (production)
+
+# Runs the `@smoke` Playwright tests against the live site after each production deploy, via the shared
+# tpetrus/ci-workflows repo's smoke.yml. This workflow never deploys: Cloudflare Workers Builds deploys on every push
+# to main. It is not a required status check, because it runs after the merge, not before it.
+#
+# The production URL comes from the repository variable PRODUCTION_URL (Settings > Secrets and variables > Actions >
+# Variables), so it can change with the domain without a workflow edit. While the variable is unset the job is
+# skipped instead of failing against an empty URL.
+#
+# The reusable workflow no longer decides whether to run; that decision stays here, in the caller, on the one job
+# that invokes it.
+#
+# The `check_run` trigger only fires for workflow files on the default branch. Cloudflare reports its build as the
+# check run "Workers Builds: portfolio", which is "completed / success" once the deploy has gone live, so no
+# waiting or polling is needed here. That name is the Worker name in wrangler.jsonc; it is unconfirmed until a real
+# deploy has reported it.
+on:
+  check_run:
+    types: [completed]
+  workflow_dispatch:
+  # Heartbeat: catches the site breaking without a deploy (e.g. a Cloudflare-side change).
+  schedule:
+    - cron: '17 6 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: smoke-${{ github.event.check_run.head_sha || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    # Skipped until PRODUCTION_URL is set. check_run fires for every check on every branch, so only the successful
+    # production deploy on main is let through. `head_branch` is on the check suite in the webhook payload, not on the
+    # check run itself.
+    if: >-
+      vars.PRODUCTION_URL != '' && (
+      github.event_name != 'check_run' || (
+      github.event.check_run.name == 'Workers Builds: portfolio' &&
+      github.event.check_run.conclusion == 'success' &&
+      github.event.check_run.check_suite.head_branch == 'main'))
+    uses: tpetrus/ci-workflows/.github/workflows/smoke.yml@c60f83bc1b43c9764123a6010cbd2c82c77218f8 # v0.1.2
+    with:
+      production-url: ${{ vars.PRODUCTION_URL }}
+      workers-build-check: 'Workers Builds: portfolio'
+      # A check_run run starts on the default branch's latest commit, which may be newer than the deployed one, so
+      # the reusable workflow checks out the commit that was deployed. The other triggers fall back to its default ref.
+      ref: ${{ github.event.check_run.head_sha || '' }}
