@@ -7,7 +7,7 @@
 //   2. for live projects with a subdomain, screenshots the running site to src/assets/projects/<slug>.avif.
 // Tech tags and copy are curated in the frontmatter and never rewritten. Parsing and validation live in src/lib, so
 // this file only does I/O.
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 
 import { chromium, type Browser } from '@playwright/test';
@@ -48,10 +48,20 @@ function kilobytes(bytes: number): string {
     return `${(bytes / 1024).toFixed(1)} kB`;
 }
 
+// Reads without a separate existence check, which would race with the write that follows it.
+function readIfPresent(path: string): Buffer | undefined {
+    try {
+        return readFileSync(path);
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+        throw error;
+    }
+}
+
 // Writes only when the content differs, so unchanged output keeps its timestamp and git sees no change.
 function writeIfChanged(path: string, data: Buffer | string): boolean {
     const bytes = typeof data === 'string' ? Buffer.from(data) : data;
-    if (existsSync(path) && readFileSync(path).equals(bytes)) return false;
+    if (readIfPresent(path)?.equals(bytes)) return false;
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, bytes);
     return true;
