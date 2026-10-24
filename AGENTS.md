@@ -37,8 +37,8 @@ Cloudflare Workers Builds (see "CI and deploys").
   (`tests/e2e/tsconfig.json`).
 - **Font:** self-hosted Inter via `@fontsource-variable/inter`, imported in the base layout (trivial with Astro, no
   third-party request).
-- **Deploy:** Cloudflare Workers static assets: `wrangler.jsonc` (Worker name `portfolio`) serves `dist/`. Cloudflare
-  Workers Builds is expected to deploy `main` to production and PR branches to preview URLs once it is connected (see
+- **Deploy:** Cloudflare Workers static assets: `wrangler.jsonc` (Worker name `trevorpetrus-portfolio`) serves `dist/`. Cloudflare
+  Workers Builds is connected: it deploys `main` to production and PR branches to preview URLs (see
   "One-time setup"). GitHub Actions only checks; it never deploys.
 - **Tooling:** Node 24 (`.nvmrc`), Prettier (4-space code, 2-space JSON/YAML), ESLint 9, Vitest, Playwright (Chromium and
   WebKit), size-limit, Lighthouse CI. `.github/workflows/` holds thin caller workflows; the actual CI/CD logic lives in
@@ -62,15 +62,16 @@ scripts/smoke.ts        runs the @smoke tests against BASE_URL (Chromium project
 ## The domain: change it in one place
 `SITE_URL` and `PROJECTS_DOMAIN` in `src/config/site.ts` are the only places the domain is written. `astro.config.mjs`
 reads `SITE_URL` for Astro's `site` (canonical URLs), and `projectUrl(name)` derives `https://<name>.<PROJECTS_DOMAIN>`
-for project subdomain links. They are two separate settings: on workers.dev they differ (`SITE_URL` defaults to
-`https://portfolio.mypoke.workers.dev`, the Worker named `portfolio` under the account's workers.dev subdomain, while
+for project subdomain links. They are two separate settings: on workers.dev they differ (`SITE_URL` is
+`https://trevorpetrus-portfolio.mypoke.workers.dev`, the Worker named `trevorpetrus-portfolio` under the account's
+workers.dev subdomain, while
 `PROJECTS_DOMAIN` is `mypoke.workers.dev`, so a sibling is `https://audio-visualizer.mypoke.workers.dev`); on a custom
 domain both become that domain. Switching to a custom domain is an edit of the two adjacent constants in
-`src/config/site.ts`. The workers.dev URL is not confirmed live. There is
+`src/config/site.ts`. The workers.dev URL is live. There is
 deliberately no environment-variable override: a second source of truth is what this setup avoids.
 
 Two things live outside the code and must be changed together with the domain: the repository variable `PRODUCTION_URL`
-(read by `smoke.yml`) and the custom domain/route on the Cloudflare Worker.
+(read by `smoke.yml`; it is set to the live URL above) and the custom domain/route on the Cloudflare Worker.
 
 ## Rules that matter most
 1. **Named exports only.** Default exports are allowed only where a tool requires them: Astro pages, layouts and the Astro
@@ -119,13 +120,13 @@ so they are what a branch ruleset should require. `ci / result` aggregates the o
 | `pr-checks / version` | `package.json` and `package-lock.json` carry the version the title calls for; docs/ci/test titles change nothing that ships |
 | `security / audit`, `security / dependency-review`, `security / zizmor` | known-vulnerable production dependencies, risky dependencies added by a PR, and a zizmor scan of the workflows |
 | `codeql / analyze (actions)`, `codeql / analyze (javascript-typescript)` | static security analysis of the TypeScript and the workflows |
-| Workers Builds (Cloudflare) | the PR builds and deploys to a preview URL (not connected yet: no check run has appeared) |
+| `Workers Builds: trevorpetrus-portfolio` (Cloudflare) | the PR builds and deploys to a preview URL |
 
 After a merge, Cloudflare is expected to deploy `main` to production, and "Smoke (production)" (`smoke.yml`) then runs the
 `@smoke` tests against the live site; it also runs daily. It reads the production URL from the repository variable
-`PRODUCTION_URL` and **is skipped while that variable is unset**. It waits for the check run named
-`Workers Builds: portfolio` (the Worker name in `wrangler.jsonc`); that name is unconfirmed until a real deploy reports
-it. If the smoke test fails, roll back from the Cloudflare dashboard (Workers -> portfolio -> Deployments) or with
+`PRODUCTION_URL` and is skipped if that variable is unset (it is set now). It waits for the check run named
+`Workers Builds: trevorpetrus-portfolio` (the Worker name in `wrangler.jsonc`, as observed). If the smoke test fails,
+roll back from the Cloudflare dashboard (Workers -> trevorpetrus-portfolio -> Deployments) or with
 `npx wrangler rollback`, then fix forward. Never deploy from CI.
 
 `update-snapshots.yml` regenerates visual baselines, but this repo has no visual spec yet; it points at
@@ -190,11 +191,11 @@ exits. To replace the generated notes, add `.github/release-notes/v<version>.md`
 3. In the `main` ruleset, require `ci / result`, `pr-checks / pr-title` and `pr-checks / version` (the observed names;
    add the `security /` and `codeql /` checks if wanted) and require branches to be up to date before merging. Not
    confirmed done.
-4. Connect the repository to Cloudflare Workers Builds for the Worker `portfolio` (not connected yet; production branch `main`, build command
-   `npm run build`; the deploy and preview commands are Cloudflare's defaults, `wrangler deploy` and `wrangler preview`;
-   confirm in the dashboard).
+4. Connect the repository to Cloudflare Workers Builds for the Worker `trevorpetrus-portfolio` (done; production branch
+   `main`, build command `npm run build`; the deploy and preview commands are Cloudflare's defaults, `wrangler deploy`
+   and `wrangler preview`).
 5. After the first deploy, set the repository variable `PRODUCTION_URL` (Settings -> Secrets and variables -> Actions ->
-   Variables) to the live URL so "Smoke (production)" starts running.
+   Variables) to the live URL so "Smoke (production)" runs. (Done: it is set to the live URL.)
 
 ## Testing
 Specs sit next to the file they test (`foo.ts` -> `foo.test.ts`). `npm run test:coverage` enforces 95% for lines,
