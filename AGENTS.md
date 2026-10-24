@@ -105,7 +105,8 @@ thin callers that invoke its reusable workflows with this repo's inputs.
 SHA; nobody moves tags, and releases are immutable from v0.1.4 on (v0.1.3 predates the setting). Third-party actions stay
 pinned by commit SHA. `.github/zizmor.yml` tells zizmor's `unpinned-uses` audit to expect exactly that (`tpetrus/*`
 ref-pinned, everything else hash-pinned). Dependabot's `github-actions` ecosystem bumps the exact-tag refs, and its 7-day cooldown
-exempts `tpetrus/*` (our own releases) while keeping it for third-party actions. The `npx` ref in the
+exempts `tpetrus/ci-workflows*` (our own releases, which also get their own PR group) while keeping it for every other
+action. The `npx` ref in the
 `release write-version` command below is a doc string, not a pin: use the tag `.github/workflows/` currently pins.
 
 **Check names** below are the ones observed on a real PR (a called workflow's job shows as `<caller job> / <inner job>`),
