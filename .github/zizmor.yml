@@ -1,0 +1,7 @@
+# Our own reusable workflows are pinned to an immutable release tag (ref-pin); every third-party action must be a commit SHA.
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        'tpetrus/*': ref-pin
+        '*': hash-pin

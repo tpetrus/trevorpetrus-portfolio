@@ -56,10 +56,16 @@ updates:
     # Wait a week after a release before proposing it, so a compromised or yanked release is usually caught first.
     cooldown:
       default-days: 7
+      # Our own shared workflows are trusted and should be proposed as soon as they are released.
+      exclude: ['tpetrus/ci-workflows*']
     # Same reason as above: "ci(deps): ...". Workflow-only changes release nothing.
     commit-message:
       prefix: ci
       include: scope
+    # Bumps of the shared workflows get their own PR; this group must stay above the catch-all because a dependency
+    # goes to the first group it matches.
     groups:
+      ci-workflows:
+        patterns: ['tpetrus/ci-workflows*']
       actions:
         patterns: ['*']

@@ -20,8 +20,7 @@
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install --with-deps chromium webkit",
     "test:smoke": "esbuild scripts/smoke.ts --bundle --platform=node --format=esm --log-level=warning --outfile=node_modules/.cache/smoke.mjs && node node_modules/.cache/smoke.mjs",
-    "preview": "npm run build && wrangler dev",
-    "check:lockfile": "npx --yes --package=github:tpetrus/ci-workflows#v1 ci-tools check-lockfile"
+    "preview": "npm run build && wrangler dev"
   },
   "dependencies": {
     "@astrojs/react": "^7.1.1",

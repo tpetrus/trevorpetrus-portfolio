@@ -18,7 +18,6 @@ the projects collection, photo gallery and 3D hero do not. Pages are placeholder
 | End-to-end tests (Playwright, 3 projects; the build must exist, served via wrangler) | `npm run test:e2e` (first time: `npm run test:e2e:install`) |
 | Smoke tests (Chromium projects only) against `BASE_URL`, default the site URL in `src/config/site.ts` | `npm run test:smoke` |
 | Lighthouse budget on all three pages, mobile then desktop (reads the existing build) | `npm run lighthouse` |
-| Check the lockfile for entries Windows npm drops (see "Known gaps"); runs the published `ci-tools` CLI from `tpetrus/ci-workflows` | `npm run check:lockfile` |
 | Serve the build locally like production | `npm run preview` (builds, then `wrangler dev`) |
 
 Before finishing any change: `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm run test:coverage` and
@@ -43,7 +42,7 @@ Cloudflare Workers Builds (see "CI and deploys").
   "One-time setup"). GitHub Actions only checks; it never deploys.
 - **Tooling:** Node 24 (`.nvmrc`), Prettier (4-space code, 2-space JSON/YAML), ESLint 9, Vitest, Playwright (Chromium and
   WebKit), size-limit, Lighthouse CI. `.github/workflows/` holds thin caller workflows; the actual CI/CD logic lives in
-  [`tpetrus/ci-workflows`](https://github.com/tpetrus/ci-workflows) (pinned by commit SHA, tagged v0.1.2).
+  [`tpetrus/ci-workflows`](https://github.com/tpetrus/ci-workflows) (referenced by exact release tag, currently `@v0.1.4`).
 
 ## Where things live
 ```
@@ -100,20 +99,27 @@ Two things live outside the code and must be changed together with the domain: t
 ## CI and deploys
 Every pull request runs these checks. All of the actual CI/CD logic runs in the shared
 [`tpetrus/ci-workflows`](https://github.com/tpetrus/ci-workflows) repo; the files under `.github/workflows/` here are
-thin callers that invoke its reusable workflows (pinned to a commit SHA) with this repo's inputs.
-**Caveat:** GitHub sometimes displays a job from a called reusable workflow under a compound name
-(`<caller job> / <inner job>`) rather than the inner job name alone, so the exact string a branch ruleset and PR checks
-list may not match what's written here. Treat these names as best-effort from reading the workflow files, not as
-confirmed, until they are observed on a real PR's checks, and correct this table then.
+thin callers that invoke its reusable workflows with this repo's inputs.
 
-| Check (calling workflow -> job(s) in the shared reusable workflow) | What it gates |
+**Pinning policy.** Callers reference `tpetrus/ci-workflows` by exact version tag (`@vX.Y.Z`), never `v1` and never a
+SHA; nobody moves tags, and releases are immutable from v0.1.4 on (v0.1.3 predates the setting). Third-party actions stay
+pinned by commit SHA. `.github/zizmor.yml` tells zizmor's `unpinned-uses` audit to expect exactly that (`tpetrus/*`
+ref-pinned, everything else hash-pinned). Dependabot's `github-actions` ecosystem bumps the exact-tag refs, and its 7-day cooldown
+exempts `tpetrus/ci-workflows*` (our own releases, which also get their own PR group) while keeping it for every other
+action. The `npx` ref in the
+`release write-version` command below is a doc string, not a pin: use the tag `.github/workflows/` currently pins.
+
+**Check names** below are the ones observed on a real PR (a called workflow's job shows as `<caller job> / <inner job>`),
+so they are what a branch ruleset should require. `ci / result` aggregates the other `ci /` jobs.
+
+| Check name on the PR | What it gates |
 |---|---|
-| `ci.yml` -> `result` (`node-ci.yml`) | the one required check: format, lint, typecheck, unit tests with the 95% coverage threshold, the build and the 2 MB file-size limit (`quality`, `build`, `max-file-size`) are never optional; the bundle-size budget (`size`), the Lighthouse budget (`lighthouse`), the sharded Playwright suite (`e2e-plan`/`e2e`/`e2e-result`) and an offline link check (`links`) must each pass or be cleanly skipped |
-| `pr-checks.yml` -> `pr-title` (`pr-checks.yml`) | the PR title is a Conventional Commit (see "Versioning and releases") |
-| `pr-checks.yml` -> `version` (`pr-checks.yml`) | `package.json` and `package-lock.json` carry the version the title calls for; docs/ci/test titles change nothing that ships |
-| `security.yml` (`security.yml`) | known-vulnerable production dependencies, risky dependencies added by a PR, and a zizmor scan of the workflows |
-| `codeql.yml` -> `analyze` (`codeql.yml`) | static security analysis of the TypeScript and the workflows |
-| Workers Builds (Cloudflare) | the PR builds and deploys to a preview URL (once connected) |
+| `ci / result` (`ci.yml`) | the one required check: format, lint, typecheck, unit tests with the 95% coverage threshold, the build and the 2 MB file-size limit (`quality`, `build`, `max-file-size`) are never optional; the bundle-size budget (`size`), the Lighthouse budget (`lighthouse`), the sharded Playwright suite (`e2e-plan`/`e2e`/`e2e-result`) and an offline link check (`links`) must each pass or be cleanly skipped |
+| `pr-checks / pr-title` | the PR title is a Conventional Commit (see "Versioning and releases") |
+| `pr-checks / version` | `package.json` and `package-lock.json` carry the version the title calls for; docs/ci/test titles change nothing that ships |
+| `security / audit`, `security / dependency-review`, `security / zizmor` | known-vulnerable production dependencies, risky dependencies added by a PR, and a zizmor scan of the workflows |
+| `codeql / analyze (actions)`, `codeql / analyze (javascript-typescript)` | static security analysis of the TypeScript and the workflows |
+| Workers Builds (Cloudflare) | the PR builds and deploys to a preview URL (not connected yet: no check run has appeared) |
 
 After a merge, Cloudflare is expected to deploy `main` to production, and "Smoke (production)" (`smoke.yml`) then runs the
 `@smoke` tests against the live site; it also runs daily. It reads the production URL from the repository variable
@@ -164,22 +170,27 @@ version from the base branch and the title and, if the head differs, commits `ch
 branch (editing only the version lines of `package.json` and `package-lock.json`). On every push to `main` it merges
 `main` into each open same-repo PR branch and re-derives the version. It never runs code from the PR branch (it runs
 with secrets under `pull_request_target`; the zizmor suppression in the workflow explains why that is safe). If the bot
-is down, run `npx --yes --package=github:tpetrus/ci-workflows#v1 ci-tools release write-version <version>` yourself; the failing
+is down, run `npx --yes --package=github:tpetrus/ci-workflows#vX.Y.Z ci-tools release write-version <version>` yourself (`vX.Y.Z` is the
+ci-workflows tag `.github/workflows/` currently pins); the failing
 `version` check names the exact version.
 
 **What `release.yml` does:** on every push to `main`, if the tag `v<package.json version>` does not exist, it builds the
 release notes from the PR titles merged since the previous tag, creates the tag and a GitHub Release, and otherwise
 exits. To replace the generated notes, add `.github/release-notes/v<version>.md` in the PR.
 
-## One-time setup (repository admin; none of this is done yet)
-1. Create the GitHub repository and push this branch.
+## One-time setup (repository admin)
+1. Create the GitHub repository and push this branch. (Done.)
 2. Create a GitHub App (Settings -> Developer settings -> GitHub Apps) with repository permissions Contents: read and
-   write, Pull requests: read and write, Workflows: read and write, Metadata: read. No webhook is needed. Install it on
+   write, Pull requests: read and write, Issues: read and write, Workflows: read and write, Metadata: read (the shared
+   version-bump `sync-prs` job requests `permission-issues: write`; without it that job fails with `The permissions
+   requested are not granted to this installation.`). No webhook is needed. Install it on
    this repository only. Add its App ID as the secret `RELEASE_APP_ID` and a generated private key as
-   `RELEASE_APP_PRIVATE_KEY`, in both Settings -> Secrets -> Actions and Settings -> Secrets -> Dependabot.
-3. In the `main` ruleset, require the `result` (CI), `pr-title` and `version` checks (confirm the exact names on a real PR)
-   and require branches to be up to date before merging.
-4. Connect the repository to Cloudflare Workers Builds for the Worker `portfolio` (production branch `main`, build command
+   `RELEASE_APP_PRIVATE_KEY`, in both Settings -> Secrets -> Actions and Settings -> Secrets -> Dependabot. (The App and secrets exist, since
+   `version-bump / bump-pr` passes; the Issues permission is the part to confirm.)
+3. In the `main` ruleset, require `ci / result`, `pr-checks / pr-title` and `pr-checks / version` (the observed names;
+   add the `security /` and `codeql /` checks if wanted) and require branches to be up to date before merging. Not
+   confirmed done.
+4. Connect the repository to Cloudflare Workers Builds for the Worker `portfolio` (not connected yet; production branch `main`, build command
    `npm run build`; the deploy and preview commands are Cloudflare's defaults, `wrangler deploy` and `wrangler preview`;
    confirm in the dashboard).
 5. After the first deploy, set the repository variable `PRODUCTION_URL` (Settings -> Secrets and variables -> Actions ->
@@ -195,14 +206,12 @@ only the Chromium projects (`chromium-*`) because the shared smoke workflow inst
 ## Known gaps (don't copy, don't build on)
 - **`npm install` on Windows can break the lockfile for Linux.** It drops the bundled
   `@tailwindcss/oxide-wasm32-wasi/node_modules/*` entries, so `npm ci` fails on Linux ("Missing: ... from lock file").
-  Run `npm run check:lockfile` after any install on Windows; every workflow runs the equivalent check before `npm ci`.
+  CI checks this automatically: the shared setup action runs the lockfile check before `npm ci` in every job. To check
+  locally after an install on Windows, run `npx --yes --package=github:tpetrus/ci-workflows#vX.Y.Z ci-tools check-lockfile`
+  (`vX.Y.Z` is the ci-workflows tag `.github/workflows/` currently pins; there is deliberately no npm script, so no ref
+  to bump by hand).
   To repair, take `main`'s copy (`git checkout origin/main -- package-lock.json`) and redo the install, or install on
-  Linux/WSL. **`npm run check:lockfile` itself currently fails on Node 24.13 on Windows** with
-  `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`, because `npx` installs the TypeScript CLI under `node_modules`, where
-  Node refuses to strip types. Until that is fixed in `tpetrus/ci-workflows`, run its script from a local checkout:
-  `node <path-to>/ci-workflows/scripts/check-lockfile.ts package-lock.json`.
-  The fix (tpetrus/ci-workflows PR #2, to be released as v0.1.3) ships the CLI as built JavaScript; once `v1`
-  points at that release, `npm run check:lockfile` works again and this workaround goes away.
+  Linux/WSL.
 - **The initial lockfile was repaired by hand.** The six entries Windows npm dropped were copied from the sibling
   AudioVisualizer-React lockfile (same `@tailwindcss/oxide` 4.3.3), because no `main` copy existed to restore from.
 - **No visual-regression spec yet** (see "CI and deploys").
