@@ -18,7 +18,6 @@ the projects collection, photo gallery and 3D hero do not. Pages are placeholder
 | End-to-end tests (Playwright, 3 projects; the build must exist, served via wrangler) | `npm run test:e2e` (first time: `npm run test:e2e:install`) |
 | Smoke tests (Chromium projects only) against `BASE_URL`, default the site URL in `src/config/site.ts` | `npm run test:smoke` |
 | Lighthouse budget on all three pages, mobile then desktop (reads the existing build) | `npm run lighthouse` |
-| Check the lockfile for entries Windows npm drops (see "Known gaps"); runs the published `ci-tools` CLI from `tpetrus/ci-workflows` | `npm run check:lockfile` |
 | Serve the build locally like production | `npm run preview` (builds, then `wrangler dev`) |
 
 Before finishing any change: `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm run test:coverage` and
@@ -105,9 +104,9 @@ thin callers that invoke its reusable workflows with this repo's inputs.
 **Pinning policy.** Callers reference `tpetrus/ci-workflows` by exact version tag (`@vX.Y.Z`), never `v1` and never a
 SHA; nobody moves tags, and releases are immutable from v0.1.4 on (v0.1.3 predates the setting). Third-party actions stay
 pinned by commit SHA. `.github/zizmor.yml` tells zizmor's `unpinned-uses` audit to expect exactly that (`tpetrus/*`
-ref-pinned, everything else hash-pinned). Dependabot's `github-actions` ecosystem bumps the exact-tag refs. The `npx`
-ref in the `check:lockfile` script (`package.json`) and in the `release write-version` command below is a script string,
-which Dependabot never updates: bump it by hand, in the same PR as each `uses:` bump.
+ref-pinned, everything else hash-pinned). Dependabot's `github-actions` ecosystem bumps the exact-tag refs, and its 7-day cooldown
+exempts `tpetrus/*` (our own releases) while keeping it for third-party actions. The `npx` ref in the
+`release write-version` command below is a doc string, not a pin: use the tag `.github/workflows/` currently pins.
 
 **Check names** below are the ones observed on a real PR (a called workflow's job shows as `<caller job> / <inner job>`),
 so they are what a branch ruleset should require. `ci / result` aggregates the other `ci /` jobs.
@@ -170,7 +169,8 @@ version from the base branch and the title and, if the head differs, commits `ch
 branch (editing only the version lines of `package.json` and `package-lock.json`). On every push to `main` it merges
 `main` into each open same-repo PR branch and re-derives the version. It never runs code from the PR branch (it runs
 with secrets under `pull_request_target`; the zizmor suppression in the workflow explains why that is safe). If the bot
-is down, run `npx --yes --package=github:tpetrus/ci-workflows#v0.1.3 ci-tools release write-version <version>` yourself; the failing
+is down, run `npx --yes --package=github:tpetrus/ci-workflows#vX.Y.Z ci-tools release write-version <version>` yourself (`vX.Y.Z` is the
+ci-workflows tag `.github/workflows/` currently pins); the failing
 `version` check names the exact version.
 
 **What `release.yml` does:** on every push to `main`, if the tag `v<package.json version>` does not exist, it builds the
@@ -205,7 +205,10 @@ only the Chromium projects (`chromium-*`) because the shared smoke workflow inst
 ## Known gaps (don't copy, don't build on)
 - **`npm install` on Windows can break the lockfile for Linux.** It drops the bundled
   `@tailwindcss/oxide-wasm32-wasi/node_modules/*` entries, so `npm ci` fails on Linux ("Missing: ... from lock file").
-  Run `npm run check:lockfile` after any install on Windows; every workflow runs the equivalent check before `npm ci`.
+  CI checks this automatically: the shared setup action runs the lockfile check before `npm ci` in every job. To check
+  locally after an install on Windows, run `npx --yes --package=github:tpetrus/ci-workflows#vX.Y.Z ci-tools check-lockfile`
+  (`vX.Y.Z` is the ci-workflows tag `.github/workflows/` currently pins; there is deliberately no npm script, so no ref
+  to bump by hand).
   To repair, take `main`'s copy (`git checkout origin/main -- package-lock.json`) and redo the install, or install on
   Linux/WSL.
 - **The initial lockfile was repaired by hand.** The six entries Windows npm dropped were copied from the sibling
