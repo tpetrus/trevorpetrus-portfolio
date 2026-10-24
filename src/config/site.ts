@@ -10,6 +10,11 @@ export const PROJECTS_DOMAIN = 'mypoke.workers.dev';
 const DNS_LABEL_PATTERN = '[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?';
 const DNS_LABEL = new RegExp(`^${DNS_LABEL_PATTERN}$`);
 
+/** True when `value` is a single valid DNS label (lowercase letters, digits and inner hyphens, 1-63 characters). */
+export function isDnsLabel(value: string): boolean {
+    return DNS_LABEL.test(value);
+}
+
 // A bare host: one or more dot-separated DNS labels. No protocol, path or port.
 const BARE_HOST = new RegExp(`^${DNS_LABEL_PATTERN}(?:\\.${DNS_LABEL_PATTERN})*$`);
 
@@ -21,7 +26,7 @@ const BARE_HOST = new RegExp(`^${DNS_LABEL_PATTERN}(?:\\.${DNS_LABEL_PATTERN})*$
  * @throws If `name` is not a valid lowercase DNS label, or `projectsDomain` is not a bare host.
  */
 export function projectUrl(name: string, projectsDomain: string = PROJECTS_DOMAIN): string {
-    if (!DNS_LABEL.test(name)) {
+    if (!isDnsLabel(name)) {
         throw new Error(`Invalid project subdomain "${name}": use lowercase letters, digits and inner hyphens only.`);
     }
     if (!BARE_HOST.test(projectsDomain)) {

@@ -1,0 +1,87 @@
+---
+import { Picture } from 'astro:assets';
+import type { CollectionEntry } from 'astro:content';
+
+import { formatDate, isoDate } from '../lib/date';
+import { projectHref, statusLabel } from '../lib/projects';
+import GitHubIcon from './GitHubIcon.astro';
+
+interface Props {
+    project: CollectionEntry<'projects'>['data'];
+    /** When the newest commit landed; the date line is omitted when the sync has not recorded one. */
+    updated?: Date | undefined;
+    /** The lead card: full width, image beside the text from `md:`. */
+    featured?: boolean;
+    /** Marks the image as the likely LCP element (eager, high fetch priority). Use it for the first card only. */
+    priority?: boolean;
+}
+
+const { project, updated, featured = false, priority = false } = Astro.props;
+const { title, description, tech, status, repo, thumbnail } = project;
+
+const STATUS_STYLES = {
+    live: 'border-emerald-700 bg-emerald-950 text-emerald-300',
+    'in-progress': 'border-amber-700 bg-amber-950 text-amber-300',
+    archived: 'border-slate-600 bg-slate-800 text-slate-300',
+} as const;
+
+// The featured image is about half of the 5xl content column from `md:`; the others sit in a 18rem-minimum grid.
+const sizes = featured
+    ? '(min-width: 1024px) 480px, (min-width: 768px) 50vw, calc(100vw - 3rem)'
+    : '(min-width: 1024px) 320px, (min-width: 640px) 45vw, calc(100vw - 3rem)';
+---
+
+<article
+    class:list={[
+        'relative w-full overflow-hidden rounded-xl border border-slate-800 bg-slate-900 transition-colors hover:border-slate-600',
+        featured ? 'md:grid md:grid-cols-2' : 'flex flex-col',
+    ]}
+>
+    {thumbnail && (
+        <Picture
+            src={thumbnail}
+            alt={`Screenshot of ${title}`}
+            formats={['avif']}
+            fallbackFormat="webp"
+            widths={[480, 640, 960, 1280]}
+            sizes={sizes}
+            priority={priority}
+            class:list={['h-auto w-full', featured && 'md:h-full md:object-cover']}
+        />
+    )}
+    <div class="flex flex-col gap-4 p-5">
+        <div class="flex items-start justify-between gap-3">
+            <h2 class="text-xl font-semibold tracking-tight">
+                <a
+                    href={projectHref(project)}
+                    class="after:absolute after:inset-0 after:rounded-[inherit] hover:underline focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-sky-400"
+                >
+                    {title}
+                </a>
+            </h2>
+            <a
+                href={repo}
+                aria-label={`${title} on GitHub`}
+                class="relative z-10 -m-1 inline-flex size-9 shrink-0 items-center justify-center rounded-full text-slate-300 hover:bg-slate-800 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+            >
+                <GitHubIcon class="size-5" />
+            </a>
+        </div>
+        <p class="text-slate-300">{description}</p>
+        <ul role="list" aria-label="Technologies" class="flex flex-wrap gap-2">
+            {tech.map((name) => (
+                <li class="rounded-full bg-slate-800 px-2.5 py-0.5 text-sm text-slate-200">{name}</li>
+            ))}
+        </ul>
+        <div class="mt-auto flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-300">
+            <span class:list={['rounded-full border px-2.5 py-0.5 font-medium', STATUS_STYLES[status]]}>
+                {statusLabel(status)}
+            </span>
+            {updated && (
+                <p>
+                    Updated <time datetime={isoDate(updated)}>{formatDate(updated)}</time>
+                </p>
+            )}
+        </div>
+    </div>
+</article>
