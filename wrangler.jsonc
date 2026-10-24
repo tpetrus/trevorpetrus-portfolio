@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "portfolio",
+  "name": "trevorpetrus-portfolio",
   "compatibility_date": "2026-10-08",
   // Static site: serve the Astro build in dist/. Unknown paths get the static 404 page if one exists (none yet), and
   // otherwise a plain 404.
