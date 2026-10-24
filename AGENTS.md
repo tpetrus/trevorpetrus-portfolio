@@ -43,7 +43,7 @@ Cloudflare Workers Builds (see "CI and deploys").
   "One-time setup"). GitHub Actions only checks; it never deploys.
 - **Tooling:** Node 24 (`.nvmrc`), Prettier (4-space code, 2-space JSON/YAML), ESLint 9, Vitest, Playwright (Chromium and
   WebKit), size-limit, Lighthouse CI. `.github/workflows/` holds thin caller workflows; the actual CI/CD logic lives in
-  [`tpetrus/ci-workflows`](https://github.com/tpetrus/ci-workflows) (pinned by commit SHA, tagged v0.1.2).
+  [`tpetrus/ci-workflows`](https://github.com/tpetrus/ci-workflows) (pinned by commit SHA, tagged v0.1.3).
 
 ## Where things live
 ```
