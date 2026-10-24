@@ -3,7 +3,7 @@
 // that project subdomains hang off. On workers.dev they differ, since every Worker is `<worker>.<account>.workers.dev`
 // and siblings share the account part. Switching to the custom domain means editing these two lines (both become the
 // bare domain, e.g. 'https://example.com' and 'example.com'), plus the PRODUCTION_URL repository variable.
-export const SITE_URL = 'https://portfolio.mypoke.workers.dev';
+export const SITE_URL = 'https://trevorpetrus-portfolio.mypoke.workers.dev';
 export const PROJECTS_DOMAIN = 'mypoke.workers.dev';
 
 // A single DNS label: lowercase letters, digits and inner hyphens, at most 63 characters.
