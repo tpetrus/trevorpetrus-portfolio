@@ -1,8 +1,9 @@
 # Trevor Petrus portfolio site
 
 A personal portfolio: an intro page (a 3D hero is planned), a photography gallery and a projects list. Static Astro site
-served from Cloudflare Workers static assets. This is Step 1 of a multi-step build: the skeleton, tooling and CI exist;
-the projects collection, photo gallery and 3D hero do not. Pages are placeholders, labeled as such on the page.
+served from Cloudflare Workers static assets. Step 1 (skeleton, tooling, CI) and Step 2 (the Projects page, built from a
+content collection) are done; the photo gallery and 3D hero are not. The home and photography pages are placeholders,
+labeled as such on the page.
 
 ## Commands
 | Task | Command |
@@ -18,6 +19,7 @@ the projects collection, photo gallery and 3D hero do not. Pages are placeholder
 | End-to-end tests (Playwright, 3 projects; the build must exist, served via wrangler) | `npm run test:e2e` (first time: `npm run test:e2e:install`) |
 | Smoke tests (Chromium projects only) against `BASE_URL`, default the site URL in `src/config/site.ts` | `npm run test:smoke` |
 | Lighthouse budget on all three pages, mobile then desktop (reads the existing build) | `npm run lighthouse` |
+| Refresh the generated project assets by hand (GitHub last-commit dates and live-site screenshots; see "Projects") | `npm run sync:projects` |
 | Serve the build locally like production | `npm run preview` (builds, then `wrangler dev`) |
 
 Before finishing any change: `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm run test:coverage` and
@@ -48,14 +50,20 @@ Cloudflare Workers Builds (see "CI and deploys").
 ```
 src/
   config/site.ts        THE site-config module: SITE_URL and PROJECTS_DOMAIN (the one place the domain is set), projectUrl()
-  lib/                  pure, unit-tested logic (nav.ts: nav items and the active-link helper)
+  lib/                  pure, unit-tested logic (nav.ts; projects.ts: the project schema and card helpers; projectMeta.ts,
+                        projectSource.ts: parsing for the sync script and the page; date.ts: UTC date formatting)
+  content.config.ts     the `projects` content collection (schema comes from lib/projects.ts)
+  content/projects/     one markdown file per project; the frontmatter is the data (the body is unused)
+  assets/projects/      generated screenshots (<slug>.avif), committed; rendered through astro:assets
+  data/project-meta.json  generated last-updated dates keyed by project slug, committed
   layouts/              BaseLayout.astro: head/meta, skip link, nav, View Transitions, footer
   pages/                index, photography, projects (default exports required by Astro)
   styles/global.css     Tailwind entry and theme
-  components/           shared Astro/React components (empty for now)
+  components/           ProjectCard.astro, GitHubIcon.astro
 public/                 static files served from / (favicon.svg)
 tests/e2e/              Playwright specs (smoke.spec.ts is tagged @smoke); its own tsconfig
 scripts/smoke.ts        runs the @smoke tests against BASE_URL (Chromium projects only)
+scripts/sync-projects.ts  manual: writes project-meta.json and the screenshots (I/O only; logic is in src/lib)
 .github/                thin caller workflows and Dependabot config
 ```
 
@@ -73,13 +81,37 @@ deliberately no environment-variable override: a second source of truth is what 
 Two things live outside the code and must be changed together with the domain: the repository variable `PRODUCTION_URL`
 (read by `smoke.yml`; it is set to the live URL above) and the custom domain/route on the Cloudflare Worker.
 
+## Projects
+The Projects page is built from the `projects` content collection (`src/content/projects/*.md`, schema in
+`src/lib/projects.ts`; a bad frontmatter file fails the build). The lowest `order` renders as a full-width featured card,
+the rest in a responsive grid. A card's main link is `projectUrl(subdomain)` when `subdomain` is set, otherwise the repo;
+every card also has a GitHub icon link. The status is `live`, `in-progress` or `archived`. Tech tags and the description
+are curated by hand in the frontmatter; the sync script never rewrites them.
+
+**Add a project:**
+1. Create `src/content/projects/<slug>.md` with `title`, `description` (1-2 sentences), `tech`, `status`, `repo`
+   (`https://github.com/<owner>/<repo>`), `order`, and `subdomain` if it has its own address (the DNS label only).
+2. Run `npm run sync:projects` (set `GITHUB_TOKEN` to avoid the unauthenticated GitHub rate limit). It records the newest
+   default-branch commit date in `src/data/project-meta.json`, and for live projects with a subdomain it screenshots the
+   site to `src/assets/projects/<slug>.avif` and prints a reminder to add
+   `thumbnail: ../../assets/projects/<slug>.avif` to the frontmatter. Add it, look at the screenshot, and commit all of it.
+3. `thumbnail` is optional (a card without one renders without an image); the date is omitted when the meta file has no
+   entry for the slug.
+
+**The sync is manual and its outputs are committed.** The build makes no network calls. Re-run the script when a project
+changes and commit the diff (the screenshot is written only if its bytes changed; it fails above 500 kB). The
+AudioVisualizer screenshot shows its mandatory "Audio source" dialog because the app cannot be shown without choosing an
+audio source. **Nothing checks external links**: CI's lychee runs `--offline` against `dist/`, so subdomain and github.com
+links are verified only by the smoke tests reading the `href`, never by following them.
+
 ## Rules that matter most
 1. **Named exports only.** Default exports are allowed only where a tool requires them: Astro pages, layouts and the Astro
    config, and the Vitest, Playwright and ESLint configs (lint enforces this).
 2. **Logic lives outside the template.** Pure logic goes in `src/lib/` (or the config module) with a spec next to it;
    `.astro` files and islands wire things together and render.
 3. **Accessibility is not optional.** Keep the landmarks, the skip link, one `<h1>` per page, a `<title>` and meta
-   description per page, and `aria-current="page"` on the active nav link. `tests/e2e/a11y.spec.ts` runs axe on every page.
+   description per page, and `aria-current="page"` on the active nav link. `tests/e2e/a11y.spec.ts` runs axe on every page. Lists carry an explicit `role="list"` because Tailwind's preflight removes
+   list markers and Safari then stops announcing them (ESLint is configured to allow it).
 4. **Keep budgets honest.** Change `.size-limit.json` or `lighthouserc.json` only for growth you intend, in the same PR,
    with the reason in the PR description.
 5. **Comments explain why**, in plain sentences, above the code they describe.

@@ -1,7 +1,8 @@
 # Trevor Petrus portfolio site
 
 Personal portfolio: an intro page, a photography gallery and a projects list. Built with Astro (static output),
-Tailwind CSS 4 and TypeScript, and served from Cloudflare Workers static assets. The pages are placeholders for now.
+Tailwind CSS 4 and TypeScript, and served from Cloudflare Workers static assets. The projects page is built from a content collection (see AGENTS.md for adding a project and the manual
+`npm run sync:projects`); the home and photography pages are placeholders for now.
 
 ## Develop
 
