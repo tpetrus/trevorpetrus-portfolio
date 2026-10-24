@@ -10,7 +10,7 @@
     "dev": "astro dev",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "lint": "eslint .",
+    "lint": "astro sync && eslint .",
     "typecheck": "astro check && tsc -p tests/e2e",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",

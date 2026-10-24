@@ -10,7 +10,7 @@ labeled as such on the page.
 |---|---|
 | Dev server (HMR) | `npm run dev` |
 | Format all files / check formatting (Prettier + `prettier-plugin-astro`) | `npm run format` / `npm run format:check` |
-| Lint (ESLint 9 flat config, type-aware, also lints `.astro`) | `npm run lint` |
+| Lint (`astro sync` first, so the generated content types exist on a clean checkout; then ESLint 9 flat config, type-aware, also lints `.astro`) | `npm run lint` |
 | Type-check the app (`astro check`) and `tests/e2e/` (`tsc -p tests/e2e`) | `npm run typecheck` |
 | Unit tests (vitest, node environment) | `npm run test` |
 | Unit tests with coverage (fails under 95%) | `npm run test:coverage` |
