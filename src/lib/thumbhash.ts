@@ -57,17 +57,20 @@ export function isThumbHash(base64: string): boolean {
     }
 }
 
+const PLACEHOLDER_WEBP_QUALITY = 40;
+
 /**
- * A `data:image/png;base64,...` URL of the hash's roughly 32 px preview, for an `<img>`/CSS background so the page
- * needs no client JavaScript. Decoded at build time. The preview is re-encoded with sharp at maximum PNG compression,
- * which is smaller than the uncompressed PNG that `thumbHashToDataURL` from the library produces.
+ * A `data:image/webp;base64,...` URL of the hash's roughly 32 px preview, for an `<img>`/CSS background so the page
+ * needs no client JavaScript. Decoded at build time. It is a lossy WebP because the preview is blurred to the browser
+ * anyway and every photo's URL sits in the HTML: a real-looking scene is a couple of hundred characters as WebP, against
+ * about 3 kB as a compressed PNG (and more as the library's uncompressed one).
  */
 export async function placeholderDataUrl(base64: string): Promise<string> {
     const { w, h, rgba } = thumbHashToRGBA(decodeThumbHash(base64));
     // Imported on demand so the schema (which only needs `isThumbHash`) never pulls the native module into a bundle.
     const { default: sharp } = await import('sharp');
-    const png = await sharp(rgba, { raw: { width: w, height: h, channels: 4 } })
-        .png({ compressionLevel: 9 })
+    const webp = await sharp(rgba, { raw: { width: w, height: h, channels: 4 } })
+        .webp({ quality: PLACEHOLDER_WEBP_QUALITY })
         .toBuffer();
-    return `data:image/png;base64,${png.toString('base64')}`;
+    return `data:image/webp;base64,${webp.toString('base64')}`;
 }

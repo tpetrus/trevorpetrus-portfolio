@@ -77,19 +77,19 @@ describe('isThumbHash', () => {
 describe('placeholderDataUrl', () => {
     const hash = encodeThumbHash(100, 60, gradient(100, 60));
 
-    it('is a PNG data URL of the decoded preview size', async () => {
+    it('is a WebP data URL of the decoded preview size', async () => {
         const url = await placeholderDataUrl(hash);
-        expect(url.startsWith('data:image/png;base64,')).toBe(true);
-        const png = Buffer.from(url.slice('data:image/png;base64,'.length), 'base64');
-        const { format, width, height } = await sharp(png).metadata();
-        expect(format).toBe('png');
+        expect(url.startsWith('data:image/webp;base64,')).toBe(true);
+        const webp = Buffer.from(url.slice('data:image/webp;base64,'.length), 'base64');
+        const { format, width, height } = await sharp(webp).metadata();
+        expect(format).toBe('webp');
         expect(Math.max(width, height)).toBe(32);
     });
 
-    it('is no larger than the library uncompressed data URL', async () => {
-        const compressed = await placeholderDataUrl(hash);
+    it('is far smaller than the library uncompressed PNG data URL', async () => {
+        const webp = await placeholderDataUrl(hash);
         const bytes = Uint8Array.from(atob(hash), (character) => character.charCodeAt(0));
-        expect(compressed.length).toBeLessThanOrEqual(thumbHashToDataURL(bytes).length);
+        expect(webp.length).toBeLessThan(thumbHashToDataURL(bytes).length / 4);
     });
 
     it('rejects an invalid hash', async () => {
