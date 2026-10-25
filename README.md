@@ -2,7 +2,8 @@
 
 Personal portfolio: an intro page, a photography gallery and a projects list. Built with Astro (static output),
 Tailwind CSS 4 and TypeScript, and served from Cloudflare Workers static assets. The projects page is built from a content collection (see AGENTS.md for adding a project and the manual
-`npm run sync:projects`); the home and photography pages are placeholders for now.
+`npm run sync:projects`); the photography page is a gallery that stays empty until photos are uploaded (see AGENTS.md,
+"Gallery"), and the home page is a placeholder for now.
 
 ## Develop
 

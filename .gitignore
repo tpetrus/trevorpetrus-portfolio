@@ -17,3 +17,7 @@ playwright/.cache/
 
 # Lighthouse CI reports
 /.lighthouseci/
+
+# Source photos for the gallery sync (`npm run sync:gallery`). Images never go in git: the processed copies live in the
+# R2 bucket, and CI's 2 MB max-file-size check is the backstop.
+/gallery-originals/

@@ -1,9 +1,10 @@
-import { defineConfig } from 'vitest/config';
+/// <reference types="vitest/config" />
+import { getViteConfig } from 'astro/config';
 
-export default defineConfig({
+export default getViteConfig({
     test: {
         environment: 'node',
-        include: ['src/**/*.test.ts'],
+        include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
         coverage: {
             provider: 'v8',
             // Listing the sources (not just the files tests import) makes untested files show up as 0%.

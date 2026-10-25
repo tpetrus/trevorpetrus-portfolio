@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   update-snapshots:
-    uses: tpetrus/ci-workflows/.github/workflows/update-snapshots.yml@v1
+    uses: tpetrus/ci-workflows/.github/workflows/update-snapshots.yml@v0.2.0
     with:
       build-dir: dist
       # This repo has no visual-regression spec yet, so point the snapshot workflow at the spec that will hold them
