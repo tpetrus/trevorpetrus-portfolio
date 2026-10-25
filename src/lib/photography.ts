@@ -75,10 +75,15 @@ function normalizeExposure(seconds: number | undefined): number | undefined {
     return Math.round(seconds * denominator) / denominator;
 }
 
-/** "Canon" + "Canon EOS R5" is "Canon EOS R5", not "Canon Canon EOS R5"; many bodies repeat the make in the model. */
+/**
+ * "Canon" + "Canon EOS R5" is "Canon EOS R5", not "Canon Canon EOS R5"; many bodies repeat the make in the model. The
+ * comparison uses only the make's first word, because makes often carry a legal suffix the model leaves out ("NIKON
+ * CORPORATION" + "NIKON D850" is "NIKON D850").
+ */
 function cameraName(make: string | undefined, model: string | undefined): string | undefined {
     if (make === undefined || model === undefined) return model ?? make;
-    return model.toLowerCase().startsWith(make.toLowerCase()) ? model : `${make} ${model}`;
+    const [makeFirstWord] = make.split(/\s+/);
+    return model.toLowerCase().startsWith(makeFirstWord.toLowerCase()) ? model : `${make} ${model}`;
 }
 
 /** `YYYY:MM:DD HH:MM:SS` to `YYYY-MM-DD`, or `undefined` for anything that is not a real calendar date ("0000:00:00"). */
@@ -138,16 +143,25 @@ function rational(value: number, denominator: number): string {
 /**
  * The only EXIF the processed JPEG keeps, as the blocks sharp's `withExif` takes (IFD0 is the main image directory,
  * IFD2 the Exif sub-directory, by libvips's naming). Everything else, GPS above all, is dropped because `withExif`
- * replaces the whole EXIF block. The camera goes in `Model` alone (the caption already holds make and model together),
- * and the capture time of day is not kept: `DateTimeOriginal` is written as the date at 00:00:00.
+ * replaces the whole EXIF block.
+ *
+ * Built from the raw exifr result (read with `reviveValues: false`), not from the display caption, so the file keeps
+ * what the camera wrote: `Make` and `Model` as the separate strings they were, and `DateTimeOriginal` with its time of
+ * day (the time is not sensitive, the location is). The numbers go through the caption's rounding so that they survive
+ * the write and a re-read unchanged, which is what the sync's round-trip check compares.
  */
-export function photographyExifBlocks(caption: PhotographyCaption): {
+export function photographyExifBlocks(raw: Readonly<Record<string, unknown>> | undefined): {
     IFD0?: Record<string, string>;
     IFD2?: Record<string, string>;
 } {
+    if (raw === undefined) return {};
+    const caption = photographyCaptionFromExif(raw);
     const ifd0: Record<string, string> = {};
     const ifd2: Record<string, string> = {};
-    if (caption.camera !== undefined) ifd0.Model = caption.camera;
+    const make = cleanString(raw.Make);
+    const model = cleanString(raw.Model);
+    if (make !== undefined) ifd0.Make = make;
+    if (model !== undefined) ifd0.Model = model;
     if (caption.lens !== undefined) ifd2.LensModel = caption.lens;
     if (caption.focalLength !== undefined) ifd2.FocalLength = rational(caption.focalLength, 10);
     if (caption.aperture !== undefined) ifd2.FNumber = rational(caption.aperture, 10);
@@ -155,7 +169,8 @@ export function photographyExifBlocks(caption: PhotographyCaption): {
         ifd2.ExposureTime = rational(caption.exposure, exposureDenominator(caption.exposure));
     }
     if (caption.iso !== undefined) ifd2.ISOSpeedRatings = String(caption.iso);
-    if (caption.taken !== undefined) ifd2.DateTimeOriginal = `${caption.taken.replaceAll('-', ':')} 00:00:00`;
+    // Only a date that parsed as a real one is written, so a camera's "0000:00:00 00:00:00" is not carried over.
+    if (caption.taken !== undefined) ifd2.DateTimeOriginal = cleanString(raw.DateTimeOriginal)!;
     return {
         ...(Object.keys(ifd0).length > 0 ? { IFD0: ifd0 } : {}),
         ...(Object.keys(ifd2).length > 0 ? { IFD2: ifd2 } : {}),

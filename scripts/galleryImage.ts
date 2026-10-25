@@ -7,6 +7,7 @@ import { isDeepStrictEqual } from 'node:util';
 import exifr from 'exifr';
 import sharp from 'sharp';
 
+import { locationKeys } from '../src/lib/exifLocation.ts';
 import {
     PHOTOGRAPHY_EXIF_TAGS,
     photographyCaptionFromExif,
@@ -18,7 +19,6 @@ import { encodeThumbHash } from '../src/lib/thumbhash.ts';
 const JPEG_QUALITY = 92;
 // ThumbHash encoding is slow past 100x100 and gains nothing from more pixels.
 const THUMBHASH_MAX_SIDE = 100;
-const GPS_KEY = /^GPS|^latitude$|^longitude$/i;
 
 export interface ProcessedImage {
     jpeg: Buffer;
@@ -29,23 +29,21 @@ export interface ProcessedImage {
     caption: PhotographyCaption | undefined;
 }
 
-async function readCaption(jpeg: Buffer): Promise<PhotographyCaption> {
+async function readCameraExif(jpeg: Buffer): Promise<Record<string, unknown> | undefined> {
     // reviveValues: false keeps DateTimeOriginal the string the camera wrote; revived, exifr builds a Date in the
     // machine's local time zone, which can move the day.
-    const raw = (await exifr.parse(jpeg, { pick: [...PHOTOGRAPHY_EXIF_TAGS], reviveValues: false })) as
+    return (await exifr.parse(jpeg, { pick: [...PHOTOGRAPHY_EXIF_TAGS], reviveValues: false })) as
         Record<string, unknown> | undefined;
-    return photographyCaptionFromExif(raw);
 }
 
 /** Hard failure unless the output carries no location and no metadata block that could hide one. */
-async function assertNoLocation(jpeg: Buffer, label: string): Promise<void> {
+export async function assertNoLocation(jpeg: Buffer, label: string): Promise<void> {
     const gps = (await exifr.gps(jpeg)) as { latitude?: number; longitude?: number } | undefined;
     if (gps?.latitude !== undefined || gps?.longitude !== undefined) {
         throw new Error(`${label}: the processed image still contains GPS coordinates.`);
     }
     // Every segment exifr can read (TIFF/EXIF/GPS, XMP, IPTC), looking for any GPS-looking key.
-    const everything = ((await exifr.parse(jpeg, true)) ?? {}) as Record<string, unknown>;
-    const gpsKeys = Object.keys(everything).filter((key) => GPS_KEY.test(key));
+    const gpsKeys = locationKeys((await exifr.parse(jpeg, true)) as Record<string, unknown> | undefined);
     if (gpsKeys.length > 0) {
         throw new Error(`${label}: the processed image still has GPS tags (${gpsKeys.join(', ')}).`);
     }
@@ -79,17 +77,19 @@ export async function processImage(
     original: Buffer,
     { keepCameraExif, label }: { keepCameraExif: boolean; label: string },
 ): Promise<ProcessedImage> {
-    const caption = keepCameraExif ? await readCaption(original) : undefined;
+    const rawExif = keepCameraExif ? await readCameraExif(original) : undefined;
+    const caption = keepCameraExif ? photographyCaptionFromExif(rawExif) : undefined;
 
     let pipeline = sharp(original).rotate().withIccProfile('srgb');
-    if (caption !== undefined && Object.keys(photographyExifBlocks(caption)).length > 0) {
-        pipeline = pipeline.withExif(photographyExifBlocks(caption));
+    const exifBlocks = photographyExifBlocks(rawExif);
+    if (Object.keys(exifBlocks).length > 0) {
+        pipeline = pipeline.withExif(exifBlocks);
     }
     const jpeg = await pipeline.jpeg({ quality: JPEG_QUALITY, chromaSubsampling: '4:4:4', mozjpeg: true }).toBuffer();
 
     await assertNoLocation(jpeg, label);
     if (caption !== undefined) {
-        const written = await readCaption(jpeg);
+        const written = photographyCaptionFromExif(await readCameraExif(jpeg));
         if (!isDeepStrictEqual(written, caption)) {
             throw new Error(
                 `${label}: the camera fields did not survive processing.\n` +

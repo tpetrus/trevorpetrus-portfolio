@@ -54,6 +54,21 @@ describe('photographyCaptionFromExif', () => {
         expect(photographyCaptionFromExif({ Make: 'NIKON', Model: 'Nikon Z 6' }).camera).toBe('Nikon Z 6');
     });
 
+    it('drops a make that carries a suffix the model leaves out', () => {
+        expect(photographyCaptionFromExif({ Make: 'NIKON CORPORATION', Model: 'NIKON D850' }).camera).toBe(
+            'NIKON D850',
+        );
+        expect(photographyCaptionFromExif({ Make: 'OLYMPUS CORPORATION', Model: 'Olympus E-M1' }).camera).toBe(
+            'Olympus E-M1',
+        );
+    });
+
+    it('keeps a make that only shares a later word with the model', () => {
+        expect(photographyCaptionFromExif({ Make: 'Hasselblad AB', Model: 'AB 500' }).camera).toBe(
+            'Hasselblad AB AB 500',
+        );
+    });
+
     it('uses the model alone or the make alone when only one exists', () => {
         expect(photographyCaptionFromExif({ Model: 'X100V' }).camera).toBe('X100V');
         expect(photographyCaptionFromExif({ Make: 'Leica' }).camera).toBe('Leica');
@@ -145,27 +160,46 @@ describe('exposure precision', () => {
 });
 
 describe('photographyExifBlocks', () => {
-    it('writes only the camera fields, as strings and rationals', () => {
-        expect(photographyExifBlocks(photographyCaptionFromExif(FULL_RAW))).toEqual({
-            IFD0: { Model: 'Canon EOS R5' },
+    it('writes the camera strings as the camera wrote them, with the time of day, and the numbers as rationals', () => {
+        expect(photographyExifBlocks(FULL_RAW)).toEqual({
+            IFD0: { Make: 'Canon', Model: 'Canon EOS R5' },
             IFD2: {
                 LensModel: 'RF 35mm F1.8',
                 FocalLength: '350/10',
                 FNumber: '18/10',
                 ExposureTime: '400000/100000000',
                 ISOSpeedRatings: '400',
-                DateTimeOriginal: '2026:10:01 00:00:00',
+                DateTimeOriginal: '2026:10:01 13:45:10',
             },
         });
     });
 
-    it('writes a long exposure over a denominator of 1000', () => {
-        expect(photographyExifBlocks({ exposure: 2.5 })).toEqual({ IFD2: { ExposureTime: '2500/1000' } });
+    it('keeps a make and model that the caption would merge', () => {
+        expect(photographyExifBlocks({ Make: 'NIKON CORPORATION', Model: 'NIKON D850' }).IFD0).toEqual({
+            Make: 'NIKON CORPORATION',
+            Model: 'NIKON D850',
+        });
     });
 
-    it('writes nothing for an empty caption, and omits an empty block', () => {
+    it('trims padding from the strings it writes', () => {
+        expect(photographyExifBlocks({ Make: 'Sony\u0000 ', DateTimeOriginal: '2026:10:01 13:45:10\u0000' })).toEqual({
+            IFD0: { Make: 'Sony' },
+            IFD2: { DateTimeOriginal: '2026:10:01 13:45:10' },
+        });
+    });
+
+    it('writes a long exposure over a denominator of 1000', () => {
+        expect(photographyExifBlocks({ ExposureTime: 2.5 })).toEqual({ IFD2: { ExposureTime: '2500/1000' } });
+    });
+
+    it('does not carry over a date that is not a real one', () => {
+        expect(photographyExifBlocks({ DateTimeOriginal: '0000:00:00 00:00:00' })).toEqual({});
+    });
+
+    it('writes nothing without EXIF, and omits an empty block', () => {
+        expect(photographyExifBlocks(undefined)).toEqual({});
         expect(photographyExifBlocks({})).toEqual({});
-        expect(photographyExifBlocks({ camera: 'X100V' })).toEqual({ IFD0: { Model: 'X100V' } });
-        expect(photographyExifBlocks({ iso: 100 })).toEqual({ IFD2: { ISOSpeedRatings: '100' } });
+        expect(photographyExifBlocks({ Model: 'X100V' })).toEqual({ IFD0: { Model: 'X100V' } });
+        expect(photographyExifBlocks({ ISO: 100 })).toEqual({ IFD2: { ISOSpeedRatings: '100' } });
     });
 });
