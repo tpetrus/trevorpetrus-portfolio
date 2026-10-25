@@ -12,8 +12,8 @@ function acCoefficientCount(nx: number, ny: number): number {
 }
 
 function expectedByteLength(hash: Uint8Array): number {
-    const header24 = hash[0]! | (hash[1]! << 8) | (hash[2]! << 16);
-    const header16 = hash[3]! | (hash[4]! << 8);
+    const header24 = hash[0] | (hash[1] << 8) | (hash[2] << 16);
+    const header16 = hash[3] | (hash[4] << 8);
     const hasAlpha = header24 >> 23 !== 0;
     const isLandscape = header16 >> 15 !== 0;
     const longSide = hasAlpha ? 5 : 7;

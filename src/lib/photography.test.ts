@@ -5,6 +5,7 @@ import {
     PHOTOGRAPHY_EXIF_TAGS,
     photographyCaptionFromExif,
     photographyCaptionSchema,
+    photographyExifBlocks,
 } from './photography';
 
 const FULL_RAW = {
@@ -129,5 +130,42 @@ describe('formatPhotographyCaption', () => {
         [0.004, '1/250 s'],
     ])('prints an exposure of %j seconds as %j', (exposure, expected) => {
         expect(formatPhotographyCaption({ exposure })).toBe(expected);
+    });
+});
+
+describe('exposure precision', () => {
+    it.each([
+        [1 / 3, 0.33333333],
+        [1 / 32000, 0.00003125],
+        [2.0004, 2],
+        [30, 30],
+    ])('stores an exposure of %j seconds as %j', (seconds, stored) => {
+        expect(photographyCaptionFromExif({ ExposureTime: seconds }).exposure).toBe(stored);
+    });
+});
+
+describe('photographyExifBlocks', () => {
+    it('writes only the camera fields, as strings and rationals', () => {
+        expect(photographyExifBlocks(photographyCaptionFromExif(FULL_RAW))).toEqual({
+            IFD0: { Model: 'Canon EOS R5' },
+            IFD2: {
+                LensModel: 'RF 35mm F1.8',
+                FocalLength: '350/10',
+                FNumber: '18/10',
+                ExposureTime: '400000/100000000',
+                ISOSpeedRatings: '400',
+                DateTimeOriginal: '2026:10:01 00:00:00',
+            },
+        });
+    });
+
+    it('writes a long exposure over a denominator of 1000', () => {
+        expect(photographyExifBlocks({ exposure: 2.5 })).toEqual({ IFD2: { ExposureTime: '2500/1000' } });
+    });
+
+    it('writes nothing for an empty caption, and omits an empty block', () => {
+        expect(photographyExifBlocks({})).toEqual({});
+        expect(photographyExifBlocks({ camera: 'X100V' })).toEqual({ IFD0: { Model: 'X100V' } });
+        expect(photographyExifBlocks({ iso: 100 })).toEqual({ IFD2: { ISOSpeedRatings: '100' } });
     });
 });

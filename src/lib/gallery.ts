@@ -49,7 +49,8 @@ interface GalleryCollection<Caption extends z.ZodType, Sidecar extends z.ZodType
     sidecarSchema: Sidecar;
     /** Whether the processed JPEG keeps the camera's EXIF (never GPS). Art has none worth keeping. */
     keepsCameraExif: boolean;
-    formatCaption: (caption: z.output<Caption>) => string;
+    // A method, not a property, so each collection can take its own caption type (parameters are checked bivariantly).
+    formatCaption(caption: z.output<Caption>): string;
 }
 
 /** Everything that differs between collections. `art` is added here, with its own caption and sidecar, later. */
@@ -70,13 +71,17 @@ export function isGalleryCollection(name: string): name is GalleryCollectionName
     return Object.hasOwn(GALLERY_COLLECTIONS, name);
 }
 
-/** Looks up a collection, throwing a message that lists the valid names when it is unknown. */
-export function galleryCollection(name: string): (typeof GALLERY_COLLECTIONS)[GalleryCollectionName] {
+/** Throws a message that lists the valid names when `name` is not a registered collection. */
+export function assertGalleryCollection(name: string): asserts name is GalleryCollectionName {
     if (!isGalleryCollection(name)) {
         throw new Error(
             `Unknown gallery collection "${name}". Known collections: ${Object.keys(GALLERY_COLLECTIONS).join(', ')}.`,
         );
     }
+}
+
+export function galleryCollection(name: string): (typeof GALLERY_COLLECTIONS)[GalleryCollectionName] {
+    assertGalleryCollection(name);
     return GALLERY_COLLECTIONS[name];
 }
 

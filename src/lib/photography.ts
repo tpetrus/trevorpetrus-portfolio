@@ -59,6 +59,22 @@ function round1(value: number | undefined): number | undefined {
     return value === undefined ? undefined : Math.round(value * 10) / 10;
 }
 
+// Exposures are stored at the precision the output file can hold them: whole milliseconds from one second up, and 1e-8 s
+// below it (a 1/32000 s shutter is 3.125e-5 s). photographyExifBlocks writes them as rationals over the same
+// denominators, so a value survives the write and a re-read unchanged.
+const LONG_EXPOSURE_DENOMINATOR = 1000;
+const SHORT_EXPOSURE_DENOMINATOR = 100_000_000;
+
+function exposureDenominator(seconds: number): number {
+    return seconds >= 1 ? LONG_EXPOSURE_DENOMINATOR : SHORT_EXPOSURE_DENOMINATOR;
+}
+
+function normalizeExposure(seconds: number | undefined): number | undefined {
+    if (seconds === undefined) return undefined;
+    const denominator = exposureDenominator(seconds);
+    return Math.round(seconds * denominator) / denominator;
+}
+
 /** "Canon" + "Canon EOS R5" is "Canon EOS R5", not "Canon Canon EOS R5"; many bodies repeat the make in the model. */
 function cameraName(make: string | undefined, model: string | undefined): string | undefined {
     if (make === undefined || model === undefined) return model ?? make;
@@ -87,7 +103,7 @@ export function photographyCaptionFromExif(raw: Readonly<Record<string, unknown>
         lens: cleanString(raw.LensModel),
         focalLength: round1(positiveNumber(raw.FocalLength)),
         aperture: round1(positiveNumber(raw.FNumber)),
-        exposure: positiveNumber(raw.ExposureTime),
+        exposure: normalizeExposure(positiveNumber(raw.ExposureTime)),
         iso: iso === undefined ? undefined : Math.round(iso),
         taken: takenDate(raw.DateTimeOriginal),
     };
@@ -112,4 +128,36 @@ export function formatPhotographyCaption(caption: PhotographyCaption): string {
         caption.taken,
     ];
     return parts.filter((part) => part !== undefined).join(' · ');
+}
+
+// EXIF rationals are written as "numerator/denominator" strings, which is what sharp's withExif accepts.
+function rational(value: number, denominator: number): string {
+    return `${Math.round(value * denominator)}/${denominator}`;
+}
+
+/**
+ * The only EXIF the processed JPEG keeps, as the blocks sharp's `withExif` takes (IFD0 is the main image directory,
+ * IFD2 the Exif sub-directory, by libvips's naming). Everything else, GPS above all, is dropped because `withExif`
+ * replaces the whole EXIF block. The camera goes in `Model` alone (the caption already holds make and model together),
+ * and the capture time of day is not kept: `DateTimeOriginal` is written as the date at 00:00:00.
+ */
+export function photographyExifBlocks(caption: PhotographyCaption): {
+    IFD0?: Record<string, string>;
+    IFD2?: Record<string, string>;
+} {
+    const ifd0: Record<string, string> = {};
+    const ifd2: Record<string, string> = {};
+    if (caption.camera !== undefined) ifd0.Model = caption.camera;
+    if (caption.lens !== undefined) ifd2.LensModel = caption.lens;
+    if (caption.focalLength !== undefined) ifd2.FocalLength = rational(caption.focalLength, 10);
+    if (caption.aperture !== undefined) ifd2.FNumber = rational(caption.aperture, 10);
+    if (caption.exposure !== undefined) {
+        ifd2.ExposureTime = rational(caption.exposure, exposureDenominator(caption.exposure));
+    }
+    if (caption.iso !== undefined) ifd2.ISOSpeedRatings = String(caption.iso);
+    if (caption.taken !== undefined) ifd2.DateTimeOriginal = `${caption.taken.replaceAll('-', ':')} 00:00:00`;
+    return {
+        ...(Object.keys(ifd0).length > 0 ? { IFD0: ifd0 } : {}),
+        ...(Object.keys(ifd2).length > 0 ? { IFD2: ifd2 } : {}),
+    };
 }
