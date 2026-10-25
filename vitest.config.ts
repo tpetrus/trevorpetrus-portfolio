@@ -3,7 +3,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
     test: {
         environment: 'node',
-        include: ['src/**/*.test.ts'],
+        include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
         coverage: {
             provider: 'v8',
             // Listing the sources (not just the files tests import) makes untested files show up as 0%.
