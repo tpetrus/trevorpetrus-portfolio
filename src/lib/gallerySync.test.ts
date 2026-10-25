@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { GalleryEntry } from './gallery';
 import {
     decideAction,
+    DEFAULT_BUCKET,
     defaultSourceDir,
     droppedNotices,
     galleryDataFile,
@@ -24,11 +25,19 @@ const ACCOUNT = '0123456789abcdef0123456789abcdef';
 const FULL_ENV = { R2_BUCKET: BUCKET, CLOUDFLARE_ACCOUNT_ID: ACCOUNT, [R2_TOKEN_ENV]: 'secret-token-value' };
 
 describe('parseSyncArgs', () => {
-    it('defaults to a dry run of the default source directory', () => {
+    it('defaults to a dry run of the default source directory and the default bucket', () => {
         expect(parseSyncArgs(['photography'], {})).toEqual({
             collection: 'photography',
             sourceDir: 'gallery-originals/photography',
             upload: false,
+            bucket: DEFAULT_BUCKET,
+        });
+        expect(DEFAULT_BUCKET).toBe('portfolio-photos');
+    });
+
+    it('uploads to the default bucket when neither a flag nor R2_BUCKET names one', () => {
+        expect(parseSyncArgs(['photography', '--upload'], { ...FULL_ENV, R2_BUCKET: undefined })).toMatchObject({
+            bucket: DEFAULT_BUCKET,
         });
     });
 
@@ -62,24 +71,24 @@ describe('parseSyncArgs', () => {
 
     it('treats empty environment variables as missing', () => {
         expect(() => parseSyncArgs(['photography', '--upload'], { R2_BUCKET: '', [R2_TOKEN_ENV]: '' })).toThrow(
-            /bucket.*account ID.*API token/,
+            /account ID.*API token/,
         );
+        expect(parseSyncArgs(['photography'], { R2_BUCKET: '' }).bucket).toBe(DEFAULT_BUCKET);
     });
 
     it('names everything --upload is missing, and never a value', () => {
         expect(() => parseSyncArgs(['photography', '--upload'], {})).toThrow(
-            `--upload needs the bucket (--bucket or R2_BUCKET), the account ID (--account or CLOUDFLARE_ACCOUNT_ID), ` +
+            `--upload needs the account ID (--account or CLOUDFLARE_ACCOUNT_ID), ` +
                 `the API token (environment variable ${R2_TOKEN_ENV}).`,
         );
         let message = '';
         try {
-            parseSyncArgs(['photography', '--upload'], { ...FULL_ENV, R2_BUCKET: undefined });
+            parseSyncArgs(['photography', '--upload'], { ...FULL_ENV, CLOUDFLARE_ACCOUNT_ID: undefined });
         } catch (error) {
             message = (error as Error).message;
         }
-        expect(message).toMatch(/the bucket/);
+        expect(message).toMatch(/the account ID/);
         expect(message).not.toContain('secret-token-value');
-        expect(message).not.toContain(ACCOUNT);
     });
 
     it('names a single missing token', () => {

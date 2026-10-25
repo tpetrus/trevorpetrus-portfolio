@@ -16,6 +16,9 @@ export const PROCESSING_VERSION = 1;
 /** The user-scope environment variable that holds the R2 API token. The sync reads it; nothing ever prints it. */
 export const R2_TOKEN_ENV = 'CLOUDFLARE_R2_BUCKET_READ_WRITE_API_KEY';
 
+/** The R2 bucket the photos live in. `--bucket` or `R2_BUCKET` override it. */
+export const DEFAULT_BUCKET = 'portfolio-photos';
+
 // R2 bucket names: 3-63 lowercase letters, digits and inner hyphens. Checked because the name is joined to the object
 // key with a slash on the wrangler command line.
 const BUCKET_NAME = /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/;
@@ -28,19 +31,20 @@ export interface SyncOptions {
     sourceDir: string;
     /** False (the default) is a dry run: nothing is uploaded and no file is written. */
     upload: boolean;
-    bucket?: string;
+    bucket: string;
     account?: string;
 }
 
 export const SYNC_USAGE =
-    'Usage: sync-gallery <collection> [--source <dir>] [--upload] [--bucket <name>] [--account <id>]';
+    `Usage: sync-gallery <collection> [--source <dir>] [--upload] [--bucket <name>] [--account <id>]
+` + `The bucket defaults to ${DEFAULT_BUCKET} (override with --bucket or R2_BUCKET).`;
 
 const VALUE_FLAGS = ['--source', '--bucket', '--account'];
 
 /**
  * Parses `sync-gallery <collection> [--source <dir>] [--upload] [--bucket <name>] [--account <id>]`. The bucket and
- * account fall back to `R2_BUCKET` and `CLOUDFLARE_ACCOUNT_ID`. Without `--upload` this is a dry run, and the bucket,
- * account and token are not needed. Errors name what is missing, never a secret's value.
+ * account fall back to `R2_BUCKET` (then `DEFAULT_BUCKET`) and `CLOUDFLARE_ACCOUNT_ID`. Without `--upload` this is a
+ * dry run, and the account and token are not needed. Errors name what is missing, never a secret's value.
  */
 export function parseSyncArgs(argv: readonly string[], env: Readonly<Record<string, string | undefined>>): SyncOptions {
     const positionals: string[] = [];
@@ -70,19 +74,18 @@ export function parseSyncArgs(argv: readonly string[], env: Readonly<Record<stri
     if (extra.length > 0) throw new Error(`Unexpected argument "${extra[0]}".\n${SYNC_USAGE}`);
     assertGalleryCollection(collection);
 
-    const bucket = values['--bucket'] ?? (env.R2_BUCKET || undefined);
+    const bucket = values['--bucket'] ?? (env.R2_BUCKET || DEFAULT_BUCKET);
     const account = values['--account'] ?? (env.CLOUDFLARE_ACCOUNT_ID || undefined);
     const options: SyncOptions = {
         collection,
         sourceDir: values['--source'] ?? defaultSourceDir(collection),
         upload,
-        ...(bucket === undefined ? {} : { bucket }),
+        bucket,
         ...(account === undefined ? {} : { account }),
     };
 
     if (upload) {
         const missing = [
-            bucket === undefined ? 'the bucket (--bucket or R2_BUCKET)' : undefined,
             account === undefined ? 'the account ID (--account or CLOUDFLARE_ACCOUNT_ID)' : undefined,
             env[R2_TOKEN_ENV] ? undefined : `the API token (environment variable ${R2_TOKEN_ENV})`,
         ].filter((name) => name !== undefined);

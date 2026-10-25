@@ -121,7 +121,7 @@ if (problems.length > 0) {
 const previous = parseGallery(collectionName, JSON.parse(readFileSync(dataFile, 'utf8')));
 const previousByKey = new Map(previous.map((entry) => [entry.key, entry]));
 const credentials = options.upload
-    ? { bucket: options.bucket!, account: options.account!, token: process.env[R2_TOKEN_ENV]! }
+    ? { bucket: options.bucket, account: options.account!, token: process.env[R2_TOKEN_ENV]! }
     : undefined;
 
 console.log(`${options.upload ? 'UPLOADING' : 'Dry run (nothing uploaded, nothing written)'}: ${collectionName}`);
