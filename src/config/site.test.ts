@@ -17,9 +17,8 @@ describe('SITE_URL', () => {
 });
 
 describe('PROJECTS_DOMAIN', () => {
-    it('is a bare host that the site itself lives under', () => {
+    it('is a bare host: no protocol, port or path', () => {
         expect(PROJECTS_DOMAIN).not.toMatch(/[:/]/);
-        expect(new URL(SITE_URL).host.endsWith(PROJECTS_DOMAIN)).toBe(true);
     });
 });
 
@@ -34,7 +33,7 @@ describe('isDnsLabel', () => {
 });
 
 describe('projectUrl', () => {
-    it('puts a workers.dev sibling next to the site, not under it', () => {
+    it('puts a workers.dev project under its own subdomain while projects are still on workers.dev', () => {
         expect(projectUrl('audio-visualizer')).toBe('https://audio-visualizer.mypoke.workers.dev');
     });
 

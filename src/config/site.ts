@@ -1,15 +1,15 @@
 // The ONE place the site's domain is configured. Two adjacent constants, because they are two different settings:
 // SITE_URL is where this site itself lives (astro.config.mjs `site`, canonical URLs), and PROJECTS_DOMAIN is the domain
-// that project subdomains hang off. On workers.dev they differ, since every Worker is `<worker>.<account>.workers.dev`
-// and siblings share the account part. Switching to the custom domain means editing these two lines (both become the
-// bare domain, e.g. 'https://example.com' and 'example.com'), plus the PRODUCTION_URL repository variable.
-export const SITE_URL = 'https://trevorpetrus-portfolio.mypoke.workers.dev';
+// that project subdomains hang off. They differ right now: the site is on its custom domain, but the projects are still
+// served from workers.dev (`<worker>.<account>.workers.dev`; `audio-visualizer.trevorpetr.us` does not resolve yet).
+// When a project gets its custom domain, switch PROJECTS_DOMAIN to 'trevorpetr.us' (a bare host, no protocol).
+export const SITE_URL = 'https://trevorpetr.us';
 export const PROJECTS_DOMAIN = 'mypoke.workers.dev';
 
 // The host that serves gallery images: originals from an R2 bucket and resized variants from Cloudflare Images
 // transformations (`/cdn-cgi/image/...`). It is configured here and nowhere else. Transformations only run on a
 // hostname in the Cloudflare zone, never on workers.dev, which is why this is not derived from SITE_URL.
-export const PHOTOS_ORIGIN = 'https://photos.trevorpetrus.com';
+export const PHOTOS_ORIGIN = 'https://photos.trevorpetr.us';
 
 // A single DNS label: lowercase letters, digits and inner hyphens, at most 63 characters.
 const DNS_LABEL_PATTERN = '[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?';
