@@ -107,6 +107,12 @@ export default defineConfig(
         rules: { 'no-restricted-syntax': 'off' },
     },
     {
+        // Tailwind's preflight removes list markers, and Safari/VoiceOver then stops announcing a `<ul>` as a list
+        // unless it carries an explicit role. The rule's default flags that role as redundant, so allow it.
+        files: ['**/*.astro'],
+        rules: { 'astro/jsx-a11y/no-redundant-roles': ['error', { ul: ['list'], ol: ['list'] }] },
+    },
+    {
         // Plain JS config files are not part of the TypeScript project, so type-aware rules cannot run on them.
         files: ['**/*.{js,mjs}'],
         extends: [tseslint.configs.disableTypeChecked],

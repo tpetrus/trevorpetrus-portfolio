@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { PROJECTS_DOMAIN, projectUrl, SITE_URL } from './site';
+import { isDnsLabel, PROJECTS_DOMAIN, projectUrl, SITE_URL } from './site';
 
 describe('SITE_URL', () => {
     it('is an absolute https URL', () => {
@@ -12,6 +12,16 @@ describe('PROJECTS_DOMAIN', () => {
     it('is a bare host that the site itself lives under', () => {
         expect(PROJECTS_DOMAIN).not.toMatch(/[:/]/);
         expect(new URL(SITE_URL).host.endsWith(PROJECTS_DOMAIN)).toBe(true);
+    });
+});
+
+describe('isDnsLabel', () => {
+    it.each(['a', 'audio-visualizer', 'a'.repeat(63)])('accepts %j', (value) => {
+        expect(isDnsLabel(value)).toBe(true);
+    });
+
+    it.each(['', 'Demo', 'a.b', '-a', 'a-', 'a'.repeat(64)])('rejects %j', (value) => {
+        expect(isDnsLabel(value)).toBe(false);
     });
 });
 

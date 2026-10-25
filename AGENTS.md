@@ -1,15 +1,16 @@
 # Trevor Petrus portfolio site
 
 A personal portfolio: an intro page (a 3D hero is planned), a photography gallery and a projects list. Static Astro site
-served from Cloudflare Workers static assets. This is Step 1 of a multi-step build: the skeleton, tooling and CI exist;
-the projects collection, photo gallery and 3D hero do not. Pages are placeholders, labeled as such on the page.
+served from Cloudflare Workers static assets. Step 1 (skeleton, tooling, CI) and Step 2 (the Projects page, built from a
+content collection) are done; the photo gallery and 3D hero are not. The home and photography pages are placeholders,
+labeled as such on the page.
 
 ## Commands
 | Task | Command |
 |---|---|
 | Dev server (HMR) | `npm run dev` |
 | Format all files / check formatting (Prettier + `prettier-plugin-astro`) | `npm run format` / `npm run format:check` |
-| Lint (ESLint 9 flat config, type-aware, also lints `.astro`) | `npm run lint` |
+| Lint (`astro sync` first, so the generated content types exist on a clean checkout; then ESLint 9 flat config, type-aware, also lints `.astro`) | `npm run lint` |
 | Type-check the app (`astro check`) and `tests/e2e/` (`tsc -p tests/e2e`) | `npm run typecheck` |
 | Unit tests (vitest, node environment) | `npm run test` |
 | Unit tests with coverage (fails under 95%) | `npm run test:coverage` |
@@ -18,6 +19,7 @@ the projects collection, photo gallery and 3D hero do not. Pages are placeholder
 | End-to-end tests (Playwright, 3 projects; the build must exist, served via wrangler) | `npm run test:e2e` (first time: `npm run test:e2e:install`) |
 | Smoke tests (Chromium projects only) against `BASE_URL`, default the site URL in `src/config/site.ts` | `npm run test:smoke` |
 | Lighthouse budget on all three pages, mobile then desktop (reads the existing build) | `npm run lighthouse` |
+| Refresh the generated project assets by hand (GitHub last-commit dates and live-site screenshots; see "Projects") | `npm run sync:projects` |
 | Serve the build locally like production | `npm run preview` (builds, then `wrangler dev`) |
 
 Before finishing any change: `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm run test:coverage` and
@@ -37,8 +39,8 @@ Cloudflare Workers Builds (see "CI and deploys").
   (`tests/e2e/tsconfig.json`).
 - **Font:** self-hosted Inter via `@fontsource-variable/inter`, imported in the base layout (trivial with Astro, no
   third-party request).
-- **Deploy:** Cloudflare Workers static assets: `wrangler.jsonc` (Worker name `portfolio`) serves `dist/`. Cloudflare
-  Workers Builds is expected to deploy `main` to production and PR branches to preview URLs once it is connected (see
+- **Deploy:** Cloudflare Workers static assets: `wrangler.jsonc` (Worker name `trevorpetrus-portfolio`) serves `dist/`. Cloudflare
+  Workers Builds is connected: it deploys `main` to production and PR branches to preview URLs (see
   "One-time setup"). GitHub Actions only checks; it never deploys.
 - **Tooling:** Node 24 (`.nvmrc`), Prettier (4-space code, 2-space JSON/YAML), ESLint 9, Vitest, Playwright (Chromium and
   WebKit), size-limit, Lighthouse CI. `.github/workflows/` holds thin caller workflows; the actual CI/CD logic lives in
@@ -48,29 +50,59 @@ Cloudflare Workers Builds (see "CI and deploys").
 ```
 src/
   config/site.ts        THE site-config module: SITE_URL and PROJECTS_DOMAIN (the one place the domain is set), projectUrl()
-  lib/                  pure, unit-tested logic (nav.ts: nav items and the active-link helper)
+  lib/                  pure, unit-tested logic (nav.ts; projects.ts: the project schema and card helpers; projectMeta.ts,
+                        projectSource.ts: parsing for the sync script and the page; date.ts: UTC date formatting)
+  content.config.ts     the `projects` content collection (schema comes from lib/projects.ts)
+  content/projects/     one markdown file per project; the frontmatter is the data (the body is unused)
+  assets/projects/      generated screenshots (<slug>.avif), committed; rendered through astro:assets
+  data/project-meta.json  generated last-updated dates keyed by project slug, committed
   layouts/              BaseLayout.astro: head/meta, skip link, nav, View Transitions, footer
   pages/                index, photography, projects (default exports required by Astro)
   styles/global.css     Tailwind entry and theme
-  components/           shared Astro/React components (empty for now)
+  components/           ProjectCard.astro, GitHubIcon.astro
 public/                 static files served from / (favicon.svg)
 tests/e2e/              Playwright specs (smoke.spec.ts is tagged @smoke); its own tsconfig
 scripts/smoke.ts        runs the @smoke tests against BASE_URL (Chromium projects only)
+scripts/sync-projects.ts  manual: writes project-meta.json and the screenshots (I/O only; logic is in src/lib)
 .github/                thin caller workflows and Dependabot config
 ```
 
 ## The domain: change it in one place
 `SITE_URL` and `PROJECTS_DOMAIN` in `src/config/site.ts` are the only places the domain is written. `astro.config.mjs`
 reads `SITE_URL` for Astro's `site` (canonical URLs), and `projectUrl(name)` derives `https://<name>.<PROJECTS_DOMAIN>`
-for project subdomain links. They are two separate settings: on workers.dev they differ (`SITE_URL` defaults to
-`https://portfolio.mypoke.workers.dev`, the Worker named `portfolio` under the account's workers.dev subdomain, while
+for project subdomain links. They are two separate settings: on workers.dev they differ (`SITE_URL` is
+`https://trevorpetrus-portfolio.mypoke.workers.dev`, the Worker named `trevorpetrus-portfolio` under the account's
+workers.dev subdomain, while
 `PROJECTS_DOMAIN` is `mypoke.workers.dev`, so a sibling is `https://audio-visualizer.mypoke.workers.dev`); on a custom
 domain both become that domain. Switching to a custom domain is an edit of the two adjacent constants in
-`src/config/site.ts`. The workers.dev URL is not confirmed live. There is
+`src/config/site.ts`. The workers.dev URL is live. There is
 deliberately no environment-variable override: a second source of truth is what this setup avoids.
 
 Two things live outside the code and must be changed together with the domain: the repository variable `PRODUCTION_URL`
-(read by `smoke.yml`) and the custom domain/route on the Cloudflare Worker.
+(read by `smoke.yml`; it is set to the live URL above) and the custom domain/route on the Cloudflare Worker.
+
+## Projects
+The Projects page is built from the `projects` content collection (`src/content/projects/*.md`, schema in
+`src/lib/projects.ts`; a bad frontmatter file fails the build). The lowest `order` renders as a full-width featured card,
+the rest in a responsive grid. A card's main link is `projectUrl(subdomain)` when `subdomain` is set, otherwise the repo;
+every card also has a GitHub icon link. The status is `live`, `in-progress` or `archived`. Tech tags and the description
+are curated by hand in the frontmatter; the sync script never rewrites them.
+
+**Add a project:**
+1. Create `src/content/projects/<slug>.md` with `title`, `description` (1-2 sentences), `tech`, `status`, `repo`
+   (`https://github.com/<owner>/<repo>`), `order`, and `subdomain` if it has its own address (the DNS label only).
+2. Run `npm run sync:projects` (set `GITHUB_TOKEN` to avoid the unauthenticated GitHub rate limit). It records the newest
+   default-branch commit date in `src/data/project-meta.json`, and for live projects with a subdomain it screenshots the
+   site to `src/assets/projects/<slug>.avif` and prints a reminder to add
+   `thumbnail: ../../assets/projects/<slug>.avif` to the frontmatter. Add it, look at the screenshot, and commit all of it.
+3. `thumbnail` is optional (a card without one renders without an image); the date is omitted when the meta file has no
+   entry for the slug.
+
+**The sync is manual and its outputs are committed.** The build makes no network calls. Re-run the script when a project
+changes and commit the diff (the screenshot is written only if its bytes changed; it fails above 500 kB). The
+AudioVisualizer screenshot shows its mandatory "Audio source" dialog because the app cannot be shown without choosing an
+audio source. **Nothing checks external links**: CI's lychee runs `--offline` against `dist/`, so subdomain and github.com
+links are verified only by the smoke tests reading the `href`, never by following them.
 
 ## Rules that matter most
 1. **Named exports only.** Default exports are allowed only where a tool requires them: Astro pages, layouts and the Astro
@@ -78,7 +110,8 @@ Two things live outside the code and must be changed together with the domain: t
 2. **Logic lives outside the template.** Pure logic goes in `src/lib/` (or the config module) with a spec next to it;
    `.astro` files and islands wire things together and render.
 3. **Accessibility is not optional.** Keep the landmarks, the skip link, one `<h1>` per page, a `<title>` and meta
-   description per page, and `aria-current="page"` on the active nav link. `tests/e2e/a11y.spec.ts` runs axe on every page.
+   description per page, and `aria-current="page"` on the active nav link. `tests/e2e/a11y.spec.ts` runs axe on every page. Lists carry an explicit `role="list"` because Tailwind's preflight removes
+   list markers and Safari then stops announcing them (ESLint is configured to allow it).
 4. **Keep budgets honest.** Change `.size-limit.json` or `lighthouserc.json` only for growth you intend, in the same PR,
    with the reason in the PR description.
 5. **Comments explain why**, in plain sentences, above the code they describe.
@@ -119,13 +152,13 @@ so they are what a branch ruleset should require. `ci / result` aggregates the o
 | `pr-checks / version` | `package.json` and `package-lock.json` carry the version the title calls for; docs/ci/test titles change nothing that ships |
 | `security / audit`, `security / dependency-review`, `security / zizmor` | known-vulnerable production dependencies, risky dependencies added by a PR, and a zizmor scan of the workflows |
 | `codeql / analyze (actions)`, `codeql / analyze (javascript-typescript)` | static security analysis of the TypeScript and the workflows |
-| Workers Builds (Cloudflare) | the PR builds and deploys to a preview URL (not connected yet: no check run has appeared) |
+| `Workers Builds: trevorpetrus-portfolio` (Cloudflare) | the PR builds and deploys to a preview URL |
 
 After a merge, Cloudflare is expected to deploy `main` to production, and "Smoke (production)" (`smoke.yml`) then runs the
 `@smoke` tests against the live site; it also runs daily. It reads the production URL from the repository variable
-`PRODUCTION_URL` and **is skipped while that variable is unset**. It waits for the check run named
-`Workers Builds: portfolio` (the Worker name in `wrangler.jsonc`); that name is unconfirmed until a real deploy reports
-it. If the smoke test fails, roll back from the Cloudflare dashboard (Workers -> portfolio -> Deployments) or with
+`PRODUCTION_URL` and is skipped if that variable is unset (it is set now). It waits for the check run named
+`Workers Builds: trevorpetrus-portfolio` (the Worker name in `wrangler.jsonc`, as observed). If the smoke test fails,
+roll back from the Cloudflare dashboard (Workers -> trevorpetrus-portfolio -> Deployments) or with
 `npx wrangler rollback`, then fix forward. Never deploy from CI.
 
 `update-snapshots.yml` regenerates visual baselines, but this repo has no visual spec yet; it points at
@@ -190,11 +223,11 @@ exits. To replace the generated notes, add `.github/release-notes/v<version>.md`
 3. In the `main` ruleset, require `ci / result`, `pr-checks / pr-title` and `pr-checks / version` (the observed names;
    add the `security /` and `codeql /` checks if wanted) and require branches to be up to date before merging. Not
    confirmed done.
-4. Connect the repository to Cloudflare Workers Builds for the Worker `portfolio` (not connected yet; production branch `main`, build command
-   `npm run build`; the deploy and preview commands are Cloudflare's defaults, `wrangler deploy` and `wrangler preview`;
-   confirm in the dashboard).
+4. Connect the repository to Cloudflare Workers Builds for the Worker `trevorpetrus-portfolio` (done; production branch
+   `main`, build command `npm run build`; the deploy and preview commands are Cloudflare's defaults, `wrangler deploy`
+   and `wrangler preview`).
 5. After the first deploy, set the repository variable `PRODUCTION_URL` (Settings -> Secrets and variables -> Actions ->
-   Variables) to the live URL so "Smoke (production)" starts running.
+   Variables) to the live URL so "Smoke (production)" runs. (Done: it is set to the live URL.)
 
 ## Testing
 Specs sit next to the file they test (`foo.ts` -> `foo.test.ts`). `npm run test:coverage` enforces 95% for lines,

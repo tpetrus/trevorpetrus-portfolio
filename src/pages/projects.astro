@@ -1,10 +1,36 @@
 ---
+import { getCollection } from 'astro:content';
+
+import ProjectCard from '../components/ProjectCard.astro';
+import projectMetaJson from '../data/project-meta.json';
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { lastUpdatedFor, parseProjectMeta } from '../lib/projectMeta';
+import { sortProjects } from '../lib/projects';
+
+const meta = parseProjectMeta(projectMetaJson);
+const projects = sortProjects((await getCollection('projects')).map(({ id, data }) => ({ id, ...data })));
+// The lowest `order` leads as a full-width card, so a lone project still looks intentional.
+const [featured, ...others] = projects;
 ---
 
 <BaseLayout title="Projects" description="Software projects by Trevor Petrus.">
     <h1 class="text-4xl font-bold tracking-tight">Projects</h1>
-    <p class="mt-8 max-w-prose rounded border border-dashed border-slate-600 p-4 text-slate-300">
-        Placeholder: the list of projects will live here in a later step.
-    </p>
+    {featured && (
+        <div class="mt-8 flex flex-col gap-6">
+            <ul role="list">
+                <li>
+                    <ProjectCard project={featured} updated={lastUpdatedFor(meta, featured.id)} featured priority />
+                </li>
+            </ul>
+            {others.length > 0 && (
+                <ul role="list" class="grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-6">
+                    {others.map((project) => (
+                        <li class="flex">
+                            <ProjectCard project={project} updated={lastUpdatedFor(meta, project.id)} />
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    )}
 </BaseLayout>
