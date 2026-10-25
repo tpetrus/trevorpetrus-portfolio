@@ -1,9 +1,10 @@
 # Trevor Petrus portfolio site
 
 A personal portfolio: an intro page (a 3D hero is planned), a photography gallery and a projects list. Static Astro site
-served from Cloudflare Workers static assets. Step 1 (skeleton, tooling, CI) and Step 2 (the Projects page, built from a
-content collection) are done; the photo gallery and 3D hero are not. The home and photography pages are placeholders,
-labeled as such on the page.
+served from Cloudflare Workers static assets. Step 1 (skeleton, tooling, CI), Step 2 (the Projects page, built from a
+content collection) and Step 3 (the photo gallery pipeline and the Photography page) are done; the 3D hero is not. The
+Photography page is real but empty ("Photos are on their way.") until photos are uploaded (see "Gallery"). The home page
+is a placeholder, labeled as such on the page.
 
 ## Commands
 | Task | Command |
@@ -20,6 +21,7 @@ labeled as such on the page.
 | Smoke tests (Chromium projects only) against `BASE_URL`, default the site URL in `src/config/site.ts` | `npm run test:smoke` |
 | Lighthouse budget on all three pages, mobile then desktop (reads the existing build) | `npm run lighthouse` |
 | Refresh the generated project assets by hand (GitHub last-commit dates and live-site screenshots; see "Projects") | `npm run sync:projects` |
+| Publish a gallery collection by hand: processes JPEGs from `gallery-originals/<collection>` and, with `--upload`, uploads them to R2 and rewrites `src/data/gallery/<collection>.json`; a dry run without `--upload` (see "Gallery") | `npm run sync:gallery -- <collection> [--source <dir>] [--upload] [--bucket <name>] [--account <id>]` |
 | Serve the build locally like production | `npm run preview` (builds, then `wrangler dev`) |
 
 Before finishing any change: `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm run test:coverage` and
@@ -32,6 +34,10 @@ Cloudflare Workers Builds (see "CI and deploys").
   Pages in `src/pages/`, the shared layout in `src/layouts/BaseLayout.astro`.
 - **View Transitions** via `<ClientRouter />` from `astro:transitions` in the base layout. Scripts that must run on every
   page (not only the first load) belong in an `astro:page-load` listener.
+- **PhotoSwipe 5** (`photoswipe`) is the gallery lightbox. Its glue is `src/scripts/galleryLightbox.ts`, imported by
+  `Gallery.astro`, so its JS and CSS load only on a page that renders a gallery (not on the Photography page while it is
+  empty). Astro runs a module script once, so the glue creates a lightbox on each `astro:page-load` that has `#gallery`
+  and destroys it on `astro:before-swap` (PhotoSwipe binds to the elements present at `init()`, and `destroy()` is final).
 - **React 19 via `@astrojs/react`**, only for future interactive islands (the 3D hero). No page uses it yet, so the
   island runtime (`dist/_astro/client.*.js`) is emitted but never loaded; the JS budget excludes it for that reason.
 - **Tailwind CSS 4** via `@tailwindcss/vite`, entry `src/styles/global.css`.
@@ -49,21 +55,39 @@ Cloudflare Workers Builds (see "CI and deploys").
 ## Where things live
 ```
 src/
-  config/site.ts        THE site-config module: SITE_URL and PROJECTS_DOMAIN (the one place the domain is set), projectUrl()
+  config/site.ts        THE site-config module: SITE_URL and PROJECTS_DOMAIN (the one place the domain is set), projectUrl(),
+                        and PHOTOS_ORIGIN (the one place the image host is set)
   lib/                  pure, unit-tested logic (nav.ts; projects.ts: the project schema and card helpers; projectMeta.ts,
-                        projectSource.ts: parsing for the sync script and the page; date.ts: UTC date formatting)
+                        projectSource.ts: parsing for the sync script and the page; date.ts: UTC date formatting;
+                        gallery.ts: the collection registry (GALLERY_COLLECTIONS) and the entry schema; photography.ts:
+                        the photography caption/sidecar schemas, EXIF mapping and caption formatting; gallerySync.ts:
+                        sync arguments, planning, merging and the wrangler arguments; galleryView.ts: the per-entry view
+                        model the Gallery renders; imageUrl.ts: original and resized-variant URLs and the fixed width
+                        sets; thumbhash.ts: ThumbHash validation and the WebP placeholder; exifLocation.ts: which
+                        metadata keys are a location)
   content.config.ts     the `projects` content collection (schema comes from lib/projects.ts)
   content/projects/     one markdown file per project; the frontmatter is the data (the body is unused)
   assets/projects/      generated screenshots (<slug>.avif), committed; rendered through astro:assets
   data/project-meta.json  generated last-updated dates keyed by project slug, committed
+  data/gallery/         <collection>.json, written by sync-gallery and committed: one entry per photo (key, size,
+                        ThumbHash, caption, alt); `[]` until photos are uploaded
+  content/<collection>/ one <image basename>.yml sidecar per photo with the `alt` text and an optional `order`
+                        (e.g. content/photography/); hand-written
   layouts/              BaseLayout.astro: head/meta, skip link, nav, View Transitions, footer
   pages/                index, photography, projects (default exports required by Astro)
   styles/global.css     Tailwind entry and theme
-  components/           ProjectCard.astro, GitHubIcon.astro
+  styles/lightbox.css   the lightbox caption styles
+  components/           ProjectCard.astro, GitHubIcon.astro, Gallery.astro (generic over the collection)
+  scripts/galleryLightbox.ts  (src/scripts/) browser glue for the PhotoSwipe lightbox (DOM only, outside unit-test coverage)
 public/                 static files served from / (favicon.svg)
-tests/e2e/              Playwright specs (smoke.spec.ts is tagged @smoke); its own tsconfig
+tests/e2e/              Playwright specs (smoke.spec.ts is tagged @smoke); its own tsconfig; lightbox.spec.ts skips while
+                        the photography data file is empty
+gallery-originals/      gitignored: the source JPEGs for sync-gallery (images never go in git)
 scripts/smoke.ts        runs the @smoke tests against BASE_URL (Chromium projects only)
 scripts/sync-projects.ts  manual: writes project-meta.json and the screenshots (I/O only; logic is in src/lib)
+scripts/sync-gallery.ts   manual: processes and uploads gallery images and writes src/data/gallery/<collection>.json
+scripts/galleryImage.ts   the image processing the sync uses (sharp and exifr), with the location guards; specs sit
+                          next to it (scripts/galleryImage.test.ts)
 .github/                thin caller workflows and Dependabot config
 ```
 
@@ -103,6 +127,52 @@ changes and commit the diff (the screenshot is written only if its bytes changed
 AudioVisualizer screenshot shows its mandatory "Audio source" dialog because the app cannot be shown without choosing an
 audio source. **Nothing checks external links**: CI's lychee runs `--offline` against `dist/`, so subdomain and github.com
 links are verified only by the smoke tests reading the `href`, never by following them.
+
+## Gallery
+The Photography page renders `src/data/gallery/photography.json` through `components/Gallery.astro`, which takes a
+`collection` name and the parsed entries, so a later `art` collection reuses it (each collection registers its caption
+schema, sidecar schema and caption formatter in `GALLERY_COLLECTIONS` in `src/lib/gallery.ts`; `art` is not built).
+Images are never in git: originals live in an R2 bucket served from `PHOTOS_ORIGIN` in `src/config/site.ts` (the one place
+the host is set; Cloudflare Images transformations only run on a hostname in the Cloudflare zone, never on workers.dev).
+The page uses resized variants from `<origin>/cdn-cgi/image/<options>/<key>` (helpers in `src/lib/imageUrl.ts`) and links
+"View original" to `<origin>/<key>`. The data file is committed and holds, per photo, the key, size, ThumbHash, caption
+and alt text; the build makes no network calls, and the ThumbHash becomes a small WebP placeholder at build time.
+With no entries the page shows "Photos are on their way." and references no PhotoSwipe JavaScript.
+
+**Add photos:**
+1. Put the JPEGs in `gallery-originals/photography/` (gitignored).
+2. For each one, create `src/content/photography/<basename>.yml` with `alt` (required: EXIF has no alt text) and an
+   optional integer `order` (lowest first, ahead of photos without one). The sync reports every missing sidecar, orphan
+   sidecar, non-JPEG and duplicate name in one run.
+3. Dry run: `npm run sync:gallery -- photography`. It processes in memory and prints what it would do; it touches neither
+   R2 nor the JSON. Check the sizes and captions.
+4. Upload: `npm run sync:gallery -- photography --upload` with `R2_BUCKET` (or `--bucket`), `CLOUDFLARE_ACCOUNT_ID` (or
+   `--account`) and the R2 API token in the user-scope environment variable `CLOUDFLARE_R2_BUCKET_READ_WRITE_API_KEY`.
+   The script hands the token to `wrangler r2 object put` through the child process's environment only and never prints
+   it. The JSON is rewritten only after every upload succeeded. Commit the JSON and the sidecars.
+
+**What the processing does** (`scripts/galleryImage.ts`, run on every changed original): auto-orients, converts to sRGB
+and tags the profile, strips GPS, XMP and IPTC (sharp cannot drop only the GPS tags, so the camera fields are read first
+and written into a fresh EXIF block), and re-encodes as a quality-92 4:4:4 JPEG. It keeps `Make`, `Model`, `LensModel`,
+`FocalLength`, `FNumber`, `ExposureTime`, `ISO` and `DateTimeOriginal` (with the time of day) exactly as the camera
+wrote them. The sync throws, before anything is uploaded, if the output still has any location data (`assertNoLocation`)
+or if the camera fields do not round-trip. A file whose bytes and `PROCESSING_VERSION` (in `src/lib/gallerySync.ts`;
+bump it when the processing changes) are unchanged is skipped.
+
+**R2 objects are never deleted by the script.** A photo whose source is gone is dropped from the JSON with a notice; remove
+its object by hand.
+
+**Transformation quota.** Cloudflare bills Images transformations per unique transformation (5,000 a month on the free
+plan), and every distinct width of every image counts (`format` and `quality` do not). So the page only uses the fixed
+width sets in `src/lib/imageUrl.ts` (`GRID_WIDTHS` 320/640/960 and `LIGHTBOX_WIDTHS` 1280/1920/2560, six per photo).
+Do not add widths casually. `format=auto` serves AVIF only up to 1,200 px.
+
+**Loading.** The first three tiles load eagerly and only the first has `fetchpriority="high"` (the likely LCP image); the
+rest are lazy. Tiles are cropped to 3:2 with `object-fit: cover`, and the lightbox shows the uncropped photo.
+
+**Unverified until the first real upload:** the upload path (wrangler's R2 `object put`, including a possible "Basin
+Catalog validation" prompt) and the lightbox against real photos. `tests/e2e/lightbox.spec.ts` skips while the data file
+is empty.
 
 ## Rules that matter most
 1. **Named exports only.** Default exports are allowed only where a tool requires them: Astro pages, layouts and the Astro
@@ -232,7 +302,10 @@ exits. To replace the generated notes, add `.github/release-notes/v<version>.md`
 ## Testing
 Specs sit next to the file they test (`foo.ts` -> `foo.test.ts`). `npm run test:coverage` enforces 95% for lines,
 statements, functions and branches over `src/lib/**` and `src/config/**` (`vitest.config.ts`); keep it green, and write
-specs rather than excluding files. Specs run in node. End-to-end specs live in `tests/e2e/`; tag tests that are safe to
+specs rather than excluding files. Specs run in node, through Astro's Vite config (`getViteConfig`), which is what lets
+`src/components/Gallery.test.ts` render a component with Astro's Container API; `scripts/**/*.test.ts` run too (they
+build tiny JPEGs in memory to prove the gallery's location guards fire) but only `src/lib` and `src/config` count toward
+coverage. DOM glue such as `src/scripts/galleryLightbox.ts` is covered by the end-to-end specs. End-to-end specs live in `tests/e2e/`; tag tests that are safe to
 run against production `@smoke`. App code must never import from `tests/` (lint enforces it). `npm run test:smoke` runs
 only the Chromium projects (`chromium-*`) because the shared smoke workflow installs Chromium alone.
 
