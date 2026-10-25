@@ -21,7 +21,7 @@ is a placeholder, labeled as such on the page.
 | Smoke tests (Chromium projects only) against `BASE_URL`, default the site URL in `src/config/site.ts` | `npm run test:smoke` |
 | Lighthouse budget on all three pages, mobile then desktop (reads the existing build) | `npm run lighthouse` |
 | Refresh the generated project assets by hand (GitHub last-commit dates and live-site screenshots; see "Projects") | `npm run sync:projects` |
-| Publish a gallery collection by hand: processes JPEGs from `gallery-originals/<collection>` and, with `--upload`, uploads them to R2 and rewrites `src/data/gallery/<collection>.json`; a dry run without `--upload` (see "Gallery") | `npm run sync:gallery -- <collection> [--source <dir>] [--upload] [--bucket <name>] [--account <id>]` |
+| Publish a gallery collection by hand: processes JPEGs from `gallery-originals/<collection>` and, with `--upload`, uploads them to R2 and rewrites `src/data/gallery/<collection>.json`; a dry run without `--upload` (see "Gallery") | `npm run sync:gallery -- <collection> [--source <dir>] [--upload] [--bucket <name>] [--account <id>]` (the bucket defaults to `portfolio-photos`) |
 | Serve the build locally like production | `npm run preview` (builds, then `wrangler dev`) |
 
 Before finishing any change: `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm run test:coverage` and
@@ -50,7 +50,7 @@ Cloudflare Workers Builds (see "CI and deploys").
   "One-time setup"). GitHub Actions only checks; it never deploys.
 - **Tooling:** Node 24 (`.nvmrc`), Prettier (4-space code, 2-space JSON/YAML), ESLint 9, Vitest, Playwright (Chromium and
   WebKit), size-limit, Lighthouse CI. `.github/workflows/` holds thin caller workflows; the actual CI/CD logic lives in
-  [`tpetrus/ci-workflows`](https://github.com/tpetrus/ci-workflows) (referenced by exact release tag, currently `@v0.1.4`).
+  [`tpetrus/ci-workflows`](https://github.com/tpetrus/ci-workflows) (referenced by exact release tag, currently `@v0.2.0`).
 
 ## Where things live
 ```
@@ -92,18 +92,20 @@ scripts/galleryImage.ts   the image processing the sync uses (sharp and exifr), 
 ```
 
 ## The domain: change it in one place
-`SITE_URL` and `PROJECTS_DOMAIN` in `src/config/site.ts` are the only places the domain is written. `astro.config.mjs`
-reads `SITE_URL` for Astro's `site` (canonical URLs), and `projectUrl(name)` derives `https://<name>.<PROJECTS_DOMAIN>`
-for project subdomain links. They are two separate settings: on workers.dev they differ (`SITE_URL` is
-`https://trevorpetrus-portfolio.mypoke.workers.dev`, the Worker named `trevorpetrus-portfolio` under the account's
-workers.dev subdomain, while
-`PROJECTS_DOMAIN` is `mypoke.workers.dev`, so a sibling is `https://audio-visualizer.mypoke.workers.dev`); on a custom
-domain both become that domain. Switching to a custom domain is an edit of the two adjacent constants in
-`src/config/site.ts`. The workers.dev URL is live. There is
+`SITE_URL`, `PROJECTS_DOMAIN` and `PHOTOS_ORIGIN` in `src/config/site.ts` are the only places a domain is written.
+`astro.config.mjs` reads `SITE_URL` for Astro's `site` (canonical URLs), and `projectUrl(name)` derives
+`https://<name>.<PROJECTS_DOMAIN>` for project subdomain links. They are separate settings, and today they differ: the
+site is on its custom domain (`SITE_URL` is `https://trevorpetr.us`, the Worker `trevorpetrus-portfolio` still being its
+origin), but the projects are still served from workers.dev, so `PROJECTS_DOMAIN` stays `mypoke.workers.dev` and a project
+link is `https://audio-visualizer.mypoke.workers.dev` (`audio-visualizer.trevorpetr.us` does not resolve yet). When a
+project gets its custom domain, `PROJECTS_DOMAIN` becomes `trevorpetr.us`, which is an edit of that one constant.
+`PHOTOS_ORIGIN` is `https://photos.trevorpetr.us`, the custom domain of the R2 bucket `portfolio-photos`. There is
 deliberately no environment-variable override: a second source of truth is what this setup avoids.
 
 Two things live outside the code and must be changed together with the domain: the repository variable `PRODUCTION_URL`
-(read by `smoke.yml`; it is set to the live URL above) and the custom domain/route on the Cloudflare Worker.
+(read by `smoke.yml`) and the custom domain/route on the Cloudflare Worker. `PRODUCTION_URL` is still the old workers.dev
+URL: it must be changed to `https://trevorpetr.us` when the PR that moves the domain merges (a manual step in the
+repository settings).
 
 ## Projects
 The Projects page is built from the `projects` content collection (`src/content/projects/*.md`, schema in
@@ -140,16 +142,18 @@ and alt text; the build makes no network calls, and the ThumbHash becomes a smal
 With no entries the page shows "Photos are on their way." and references no PhotoSwipe JavaScript.
 
 **Add photos:**
-1. Put the JPEGs in `gallery-originals/photography/` (gitignored).
-2. For each one, create `src/content/photography/<basename>.yml` with `alt` (required: EXIF has no alt text) and an
-   optional integer `order` (lowest first, ahead of photos without one). The sync reports every missing sidecar, orphan
-   sidecar, non-JPEG and duplicate name in one run.
+1. Put the JPEGs in `gallery-originals/photography/` (gitignored; create the folder if it does not exist).
+2. For each one, create `src/content/photography/<basename>.yml` (create the folder the first time) with `alt` (required:
+   EXIF has no alt text) and an optional integer `order` (lowest first, ahead of photos without one). The sync reports
+   every missing sidecar, orphan sidecar, non-JPEG and duplicate name in one run.
 3. Dry run: `npm run sync:gallery -- photography`. It processes in memory and prints what it would do; it touches neither
    R2 nor the JSON. Check the sizes and captions.
-4. Upload: `npm run sync:gallery -- photography --upload` with `R2_BUCKET` (or `--bucket`), `CLOUDFLARE_ACCOUNT_ID` (or
-   `--account`) and the R2 API token in the user-scope environment variable `CLOUDFLARE_R2_BUCKET_READ_WRITE_API_KEY`.
-   The script hands the token to `wrangler r2 object put` through the child process's environment only and never prints
-   it. The JSON is rewritten only after every upload succeeded. Commit the JSON and the sidecars.
+4. Upload: `npm run sync:gallery -- photography --upload --account <account id>`. The bucket defaults to `portfolio-photos`
+   (override with `--bucket` or `R2_BUCKET`). The account ID is deliberately not in the repo: pass `--account` or set
+   `CLOUDFLARE_ACCOUNT_ID` (the 32-character number in any Cloudflare dashboard URL, `dash.cloudflare.com/<id>/...`). The R2 API token is the user-scope environment variable `CLOUDFLARE_R2_BUCKET_READ_WRITE_API_KEY`. The script
+   hands the token to `wrangler r2 object put` through the child process's environment only and never prints it. The JSON
+   is rewritten only after every upload succeeded.
+5. Commit `src/data/gallery/photography.json` and the sidecars (`src/content/photography/*.yml`), never the JPEGs.
 
 **What the processing does** (`scripts/galleryImage.ts`, run on every changed original): auto-orients, converts to sRGB
 and tags the profile, strips GPS, XMP and IPTC (sharp cannot drop only the GPS tags, so the camera fields are read first
@@ -170,8 +174,11 @@ Do not add widths casually. `format=auto` serves AVIF only up to 1,200 px.
 **Loading.** The first three tiles load eagerly and only the first has `fetchpriority="high"` (the likely LCP image); the
 rest are lazy. Tiles are cropped to 3:2 with `object-fit: cover`, and the lightbox shows the uncropped photo.
 
-**Unverified until the first real upload:** the upload path (wrangler's R2 `object put`, including a possible "Basin
-Catalog validation" prompt) and the lightbox against real photos. `tests/e2e/lightbox.spec.ts` skips while the data file
+**Unverified until the first real upload:** the upload path (wrangler's R2 `object put` against the real bucket), whether
+Cloudflare Images transformations are enabled on the `trevorpetr.us` zone (a probe of `/cdn-cgi/image/...` could not tell),
+and the lightbox against real photos. Wrangler's "Basin Catalog validation" prompt only appears when the API answers error
+10081, which happens only for a bucket with R2 Data Catalog enabled; the sync does not pass `--force`, and in a
+non-interactive child wrangler would answer the prompt itself ("yes"). `tests/e2e/lightbox.spec.ts` skips while the data file
 is empty.
 
 ## Rules that matter most
@@ -205,7 +212,9 @@ Every pull request runs these checks. All of the actual CI/CD logic runs in the 
 thin callers that invoke its reusable workflows with this repo's inputs.
 
 **Pinning policy.** Callers reference `tpetrus/ci-workflows` by exact version tag (`@vX.Y.Z`), never `v1` and never a
-SHA; nobody moves tags, and releases are immutable from v0.1.4 on (v0.1.3 predates the setting). Third-party actions stay
+SHA; nobody moves tags, and releases are immutable from v0.1.4 on (v0.1.3 predates the setting). Since v0.2.0 this is
+enforced, not just documented: `security / pins` fails any `tpetrus/ci-workflows` ref that is not an exact `vX.Y.Z` (a line
+carrying `# zizmor: ignore[unpinned-uses]` is skipped). Third-party actions stay
 pinned by commit SHA. `.github/zizmor.yml` tells zizmor's `unpinned-uses` audit to expect exactly that (`tpetrus/*`
 ref-pinned, everything else hash-pinned). Dependabot's `github-actions` ecosystem bumps the exact-tag refs, and its 7-day cooldown
 exempts `tpetrus/ci-workflows*` (our own releases, which also get their own PR group) while keeping it for every other
@@ -221,12 +230,13 @@ so they are what a branch ruleset should require. `ci / result` aggregates the o
 | `pr-checks / pr-title` | the PR title is a Conventional Commit (see "Versioning and releases") |
 | `pr-checks / version` | `package.json` and `package-lock.json` carry the version the title calls for; docs/ci/test titles change nothing that ships |
 | `security / audit`, `security / dependency-review`, `security / zizmor` | known-vulnerable production dependencies, risky dependencies added by a PR, and a zizmor scan of the workflows |
+| `security / pins` | every `tpetrus/ci-workflows` reference is an exact `vX.Y.Z` release tag (the pinning policy, enforced since v0.2.0) |
 | `codeql / analyze (actions)`, `codeql / analyze (javascript-typescript)` | static security analysis of the TypeScript and the workflows |
 | `Workers Builds: trevorpetrus-portfolio` (Cloudflare) | the PR builds and deploys to a preview URL |
 
 After a merge, Cloudflare is expected to deploy `main` to production, and "Smoke (production)" (`smoke.yml`) then runs the
 `@smoke` tests against the live site; it also runs daily. It reads the production URL from the repository variable
-`PRODUCTION_URL` and is skipped if that variable is unset (it is set now). It waits for the check run named
+`PRODUCTION_URL` and is skipped if that variable is unset (it must read `https://trevorpetr.us` once the domain PR merges; see "The domain"). It waits for the check run named
 `Workers Builds: trevorpetrus-portfolio` (the Worker name in `wrangler.jsonc`, as observed). If the smoke test fails,
 roll back from the Cloudflare dashboard (Workers -> trevorpetrus-portfolio -> Deployments) or with
 `npx wrangler rollback`, then fix forward. Never deploy from CI.
@@ -297,7 +307,8 @@ exits. To replace the generated notes, add `.github/release-notes/v<version>.md`
    `main`, build command `npm run build`; the deploy and preview commands are Cloudflare's defaults, `wrangler deploy`
    and `wrangler preview`).
 5. After the first deploy, set the repository variable `PRODUCTION_URL` (Settings -> Secrets and variables -> Actions ->
-   Variables) to the live URL so "Smoke (production)" runs. (Done: it is set to the live URL.)
+   Variables) to the live URL so "Smoke (production)" runs. (Done, but it still holds the old workers.dev URL: change it to
+   `https://trevorpetr.us` when the domain PR merges.)
 
 ## Testing
 Specs sit next to the file they test (`foo.ts` -> `foo.test.ts`). `npm run test:coverage` enforces 95% for lines,
@@ -316,8 +327,11 @@ only the Chromium projects (`chromium-*`) because the shared smoke workflow inst
   locally after an install on Windows, run `npx --yes --package=github:tpetrus/ci-workflows#vX.Y.Z ci-tools check-lockfile`
   (`vX.Y.Z` is the ci-workflows tag `.github/workflows/` currently pins; there is deliberately no npm script, so no ref
   to bump by hand).
-  To repair, take `main`'s copy (`git checkout origin/main -- package-lock.json`) and redo the install, or install on
-  Linux/WSL.
+  To repair, run `npx --yes --package=github:tpetrus/ci-workflows#vX.Y.Z ci-tools repair-lockfile` (since v0.2.0; it
+  downloads the affected packages' tarballs, checks their integrity hashes, adds back the missing entries and never changes
+  existing ones; exit 1 means it could not repair). The version bot runs the same repair on same-repo PRs and commits
+  `chore: repair package-lock.json for Linux`, so a Windows install usually fixes itself on the PR. Taking `main`'s copy
+  (`git checkout origin/main -- package-lock.json`) and redoing the install, or installing on Linux/WSL, also works.
 - **The initial lockfile was repaired by hand.** The six entries Windows npm dropped were copied from the sibling
   AudioVisualizer-React lockfile (same `@tailwindcss/oxide` 4.3.3), because no `main` copy existed to restore from.
 - **No visual-regression spec yet** (see "CI and deploys").
