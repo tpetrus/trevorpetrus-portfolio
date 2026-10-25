@@ -6,6 +6,11 @@
 export const SITE_URL = 'https://trevorpetrus-portfolio.mypoke.workers.dev';
 export const PROJECTS_DOMAIN = 'mypoke.workers.dev';
 
+// The host that serves gallery images: originals from an R2 bucket and resized variants from Cloudflare Images
+// transformations (`/cdn-cgi/image/...`). It is configured here and nowhere else. Transformations only run on a
+// hostname in the Cloudflare zone, never on workers.dev, which is why this is not derived from SITE_URL.
+export const PHOTOS_ORIGIN = 'https://photos.trevorpetrus.com';
+
 // A single DNS label: lowercase letters, digits and inner hyphens, at most 63 characters.
 const DNS_LABEL_PATTERN = '[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?';
 const DNS_LABEL = new RegExp(`^${DNS_LABEL_PATTERN}$`);

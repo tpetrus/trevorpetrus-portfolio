@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { isDnsLabel, PROJECTS_DOMAIN, projectUrl, SITE_URL } from './site';
+import { isDnsLabel, PHOTOS_ORIGIN, PROJECTS_DOMAIN, projectUrl, SITE_URL } from './site';
+
+describe('PHOTOS_ORIGIN', () => {
+    it('is a bare https origin: no path and no trailing slash, so URLs can be appended to it', () => {
+        const url = new URL(PHOTOS_ORIGIN);
+        expect(url.protocol).toBe('https:');
+        expect(PHOTOS_ORIGIN).toBe(url.origin);
+    });
+});
 
 describe('SITE_URL', () => {
     it('is an absolute https URL', () => {
