@@ -1,0 +1,44 @@
+---
+import type { CollectionCaption, GalleryCollectionName, GalleryEntry } from '../lib/gallery';
+import { galleryTiles } from '../lib/galleryView';
+
+interface Props {
+    /** Which collection the entries belong to; it decides how their captions read. */
+    collection: GalleryCollectionName;
+    entries: GalleryEntry<CollectionCaption>[];
+}
+
+const { collection, entries } = Astro.props;
+const tiles = await galleryTiles(collection, entries);
+---
+
+<ul role="list" id="gallery" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    {tiles.map((tile) => (
+        <li>
+            <a
+                href={tile.href}
+                data-pswp-width={tile.width}
+                data-pswp-height={tile.height}
+                data-pswp-srcset={tile.lightboxSrcset}
+                data-original={tile.original}
+                data-caption={tile.caption}
+                data-cropped="true"
+                class="block overflow-hidden rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+            >
+                <img
+                    src={tile.src}
+                    srcset={tile.srcset}
+                    sizes={tile.sizes}
+                    width={tile.width}
+                    height={tile.height}
+                    alt={tile.alt}
+                    loading={tile.loading}
+                    fetchpriority={tile.fetchpriority}
+                    decoding="async"
+                    style={{ backgroundImage: `url(${tile.placeholder})` }}
+                    class="aspect-[3/2] w-full bg-cover object-cover transition-opacity hover:opacity-90"
+                />
+            </a>
+        </li>
+    ))}
+</ul>
