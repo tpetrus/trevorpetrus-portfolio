@@ -3,6 +3,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 
 import type { CollectionCaption, GalleryEntry } from '../lib/gallery';
 import { tileSizes } from '../lib/galleryLayout';
+import { TILE_QUALITY } from '../lib/galleryView';
 import { GRID_WIDTHS, LIGHTBOX_WIDTHS, imageSrcset, originalImageUrl, transformedImageUrl } from '../lib/imageUrl';
 import { encodeThumbHash } from '../lib/thumbhash';
 import Gallery from './Gallery.astro';
@@ -104,8 +105,10 @@ describe('Gallery', () => {
     it('gives each image a 640 px src, the grid srcset, sizes, its real dimensions and its alt text', () => {
         const [harbor] = images;
 
-        expect(harbor.src).toBe(transformedImageUrl('photography/harbor.jpg', { width: 640 }));
-        expect(harbor.srcset).toBe(imageSrcset('photography/harbor.jpg', [...GRID_WIDTHS, ...LIGHTBOX_WIDTHS]));
+        expect(harbor.src).toBe(transformedImageUrl('photography/harbor.jpg', { width: 640, quality: TILE_QUALITY }));
+        expect(harbor.srcset).toBe(
+            imageSrcset('photography/harbor.jpg', [...GRID_WIDTHS, ...LIGHTBOX_WIDTHS], { quality: TILE_QUALITY }),
+        );
         expect(harbor.sizes).toBe(tileSizes(8));
         expect(harbor.width).toBe('4000');
         expect(harbor.height).toBe('3000');

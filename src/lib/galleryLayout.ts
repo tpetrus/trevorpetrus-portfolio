@@ -88,7 +88,9 @@ const MAX_GUTTER_PX = 20;
 // How wide a tile of this span is drawn, for the browser's choice among the srcset candidates. It is an upper bound:
 // above the widest layout, a fixed width; between the breakpoint and that, the span's share of the viewport minus the
 // 4 vw page edge on each side (the gutters are ignored, which only ever rounds the width up); below the breakpoint
-// every tile is the full column.
+// every tile is the full column. That column is 92 vw, but the phone value is 88 vw on purpose: a 412 px phone at the
+// 1.75x of Lighthouse's mobile profile needs 663 px, which would take the 960 px variant (about twice the bytes of the
+// 640 px one) for a difference of 3.5 percent. The first screen's images are the LCP, so the bytes matter more.
 export function tileSizes(span: number): string {
     const columnPx = (MAX_CONTENT_PX - (GRID_COLUMNS - 1) * MAX_GUTTER_PX) / GRID_COLUMNS;
     const widestPx = Math.ceil(columnPx * span + (span - 1) * MAX_GUTTER_PX);
@@ -96,6 +98,6 @@ export function tileSizes(span: number): string {
     return [
         `(min-width: 1280px) ${widestPx}px`,
         `(min-width: ${GRID_BREAKPOINT_PX}px) calc(92vw * ${Number(share.toFixed(4))})`,
-        '92vw',
+        '88vw',
     ].join(', ');
 }

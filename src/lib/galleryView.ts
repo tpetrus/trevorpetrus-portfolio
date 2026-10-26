@@ -8,6 +8,10 @@ import { placeholderDataUrl } from './thumbhash';
 // per photo that the lightbox already requests, so the monthly quota is unchanged.
 const TILE_WIDTHS: readonly number[] = [...GRID_WIDTHS, ...LIGHTBOX_WIDTHS];
 
+// Tiles are shown small beside their neighbors, and a page holds dozens, so they are encoded a little lighter than
+// Cloudflare's default (85). The quality does not count toward the transformation quota; the lightbox keeps the default.
+export const TILE_QUALITY = 75;
+
 /** The width of the variant in the `src` attribute, the fallback for a browser that ignores `srcset`. */
 export const GRID_SRC_WIDTH = 640;
 
@@ -56,8 +60,8 @@ export async function galleryTiles(
             original: originalImageUrl(key),
             href: transformedImageUrl(key, { width: largestLightboxWidth }),
             lightboxSrcset: imageSrcset(key, LIGHTBOX_WIDTHS),
-            src: transformedImageUrl(key, { width: GRID_SRC_WIDTH }),
-            srcset: imageSrcset(key, TILE_WIDTHS),
+            src: transformedImageUrl(key, { width: GRID_SRC_WIDTH, quality: TILE_QUALITY }),
+            srcset: imageSrcset(key, TILE_WIDTHS, { quality: TILE_QUALITY }),
             sizes: tileSizes(placements[index].span),
             placement: placements[index],
             loading: index < EAGER_TILE_COUNT ? ('eager' as const) : ('lazy' as const),

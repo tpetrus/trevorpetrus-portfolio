@@ -91,7 +91,7 @@ describe('placeTiles', () => {
 describe('tileSizes', () => {
     it('is a fixed width at the widest layout, the span share of the viewport below it and the column below the breakpoint', () => {
         expect(tileSizes(6)).toBe(
-            `(min-width: 1280px) 579px, (min-width: ${GRID_BREAKPOINT_PX}px) calc(92vw * 0.5), 92vw`,
+            `(min-width: 1280px) 579px, (min-width: ${GRID_BREAKPOINT_PX}px) calc(92vw * 0.5), 88vw`,
         );
         expect(tileSizes(4)).toContain('calc(92vw * 0.3333)');
         expect(tileSizes(12)).toMatch(/^\(min-width: 1280px\) 1178px,/);
