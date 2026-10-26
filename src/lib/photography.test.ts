@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { parse } from 'yaml';
 
 import {
     formatPhotographyCaption,
@@ -6,6 +7,7 @@ import {
     photographyCaptionFromExif,
     photographyCaptionSchema,
     photographyExifBlocks,
+    photographySidecarSchema,
     photographySidecarTemplate,
 } from './photography';
 import { ALT_PLACEHOLDER_MARKER } from './sidecarPlaceholder';
@@ -137,6 +139,14 @@ describe('formatPhotographyCaption', () => {
         expect(formatPhotographyCaption({})).toBe('');
     });
 
+    it('puts the place first', () => {
+        const location = { city: 'Lisbon', country: 'Portugal', source: 'geonames' } as const;
+        expect(formatPhotographyCaption({ ...photographyCaptionFromExif(FULL_RAW), location })).toBe(
+            'Lisbon, Portugal · Canon EOS R5 · RF 35mm F1.8 · 35 mm · f/1.8 · 1/250 s · ISO 400 · 2026-10-01',
+        );
+        expect(formatPhotographyCaption({ location })).toBe('Lisbon, Portugal');
+    });
+
     it.each([
         [2, '2 s'],
         [1, '1 s'],
@@ -213,5 +223,19 @@ describe('photographySidecarTemplate', () => {
         expect(template).toContain(`\nalt: "${ALT_PLACEHOLDER_MARKER}: describe this photo"\n`);
         expect(template).toContain('\n# order: 1\n');
         expect(template.endsWith('\n')).toBe(true);
+    });
+
+    it('mentions the optional location override in comments only, and it works when uncommented', () => {
+        const template = photographySidecarTemplate('DSC_0001');
+        expect(template).toContain('\n# location (optional)');
+        expect(template).toContain('location: false');
+        expect(template).toContain('\n# location:\n#   city: Lisbon\n#   country: Portugal\n');
+        const uncommented = template
+            .replace(/^# (location:| {2}city:| {2}country:)/gm, '$1')
+            .replace(/^alt: .*$/m, 'alt: A harbor');
+        expect(photographySidecarSchema.parse(parse(uncommented))).toEqual({
+            alt: 'A harbor',
+            location: { city: 'Lisbon', country: 'Portugal' },
+        });
     });
 });
