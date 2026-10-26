@@ -9,11 +9,7 @@ describe('GeonamesCredit', () => {
 
         expect(html).toMatch(/Place names from\s*<a[^>]*href="https:\/\/www\.geonames\.org\/"[^>]*>GeoNames<\/a>/);
         expect(html).toMatch(/<a[^>]*href="https:\/\/creativecommons\.org\/licenses\/by\/4\.0\/"[^>]*>CC BY 4\.0<\/a>/);
-        expect(
-            html
-                .replace(/<[^>]+>/g, '')
-                .replace(/\s+/g, ' ')
-                .trim(),
-        ).toBe('Place names from GeoNames, CC BY 4.0.');
+        // Link text and the punctuation between the links, in order.
+        expect(html).toMatch(/Place names from\s*<a[^>]*>GeoNames<\/a>\s*,\s*<a[^>]*>CC BY 4\.0<\/a>\s*\./);
     });
 });

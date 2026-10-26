@@ -13,7 +13,7 @@ const ENTRY_NAME = 'cities1000.txt';
 const CACHE_DIR = join('node_modules', '.cache', 'geonames');
 const CACHE_FILE = join(CACHE_DIR, ENTRY_NAME);
 
-async function download(): Promise<string> {
+async function download(): Promise<{ text: string; zipBytes: number }> {
     console.log(`Downloading ${GEONAMES_URL} (once; cached in ${CACHE_DIR})`);
     const response = await fetch(GEONAMES_URL);
     if (!response.ok) {
@@ -23,23 +23,33 @@ async function download(): Promise<string> {
         );
     }
     const zip = Buffer.from(await response.arrayBuffer());
-    const data = readZipEntry(zip, ENTRY_NAME);
-    const text = data.toString('utf8');
-    // Written to a temporary name first, so an interrupted run never leaves a truncated cache behind.
+    return { text: readZipEntry(zip, ENTRY_NAME).toString('utf8'), zipBytes: zip.length };
+}
+
+// Written to a temporary name first, so an interrupted run never leaves a truncated cache behind.
+function writeCache(text: string): void {
     mkdirSync(CACHE_DIR, { recursive: true });
     const temporary = `${CACHE_FILE}.download`;
     writeFileSync(temporary, text);
     renameSync(temporary, CACHE_FILE);
-    console.log(
-        `Cached ${(zip.length / 1024 / 1024).toFixed(1)} MB zip as ${(data.length / 1024 / 1024).toFixed(1)} MB text.`,
-    );
-    return text;
+}
+
+function parseNonEmpty(text: string, source: string): Place[] {
+    const places = parseGeonamesCities(text);
+    if (places.length === 0) throw new Error(`${source} holds no places.`);
+    return places;
 }
 
 /** The places that can name a photo, from the cache or, on the first use, from the download. Delete the cache to refresh. */
 export async function loadGeonamesPlaces(): Promise<Place[]> {
-    const text = existsSync(CACHE_FILE) ? readFileSync(CACHE_FILE, 'utf8') : await download();
-    const places = parseGeonamesCities(text);
-    if (places.length === 0) throw new Error(`${CACHE_FILE} holds no places; delete it to download again.`);
+    if (existsSync(CACHE_FILE))
+        return parseNonEmpty(readFileSync(CACHE_FILE, 'utf8'), `${CACHE_FILE} (delete it to download again)`);
+    const { text, zipBytes } = await download();
+    // Only a download that parses is cached, so a bad one is never reused.
+    const places = parseNonEmpty(text, 'The GeoNames download');
+    writeCache(text);
+    console.log(
+        `Cached ${(zipBytes / 1024 / 1024).toFixed(1)} MB zip as ${(Buffer.byteLength(text) / 1024 / 1024).toFixed(1)} MB text.`,
+    );
     return places;
 }
