@@ -1,0 +1,138 @@
+---
+import type { CollectionCaption, GalleryEntry } from '../lib/gallery';
+import { clusterFigures } from '../lib/homeCluster';
+
+interface Props {
+    /** The photography entries, in the gallery's order; the cluster shows the first three. */
+    entries: GalleryEntry<CollectionCaption>[];
+}
+
+const figures = await clusterFigures(Astro.props.entries);
+---
+
+{/* Renders nothing without photos, so the page needs no empty state. The captions sit in their own grid row below the
+    images (a subgrid per figure), so they share one baseline however tall each photo is, and they stay off the
+    images, where their contrast would depend on the photo. */}
+{figures.length > 0 && (
+    <div class="cluster" data-home-cluster>
+        {figures.map((figure) => (
+            <figure>
+                <img
+                    src={figure.src}
+                    srcset={figure.srcset}
+                    sizes={figure.sizes}
+                    width={figure.width}
+                    height={figure.height}
+                    alt={figure.alt}
+                    loading="lazy"
+                    decoding="async"
+                    style={{
+                        aspectRatio: `${figure.width} / ${figure.height}`,
+                        backgroundImage: `url(${figure.placeholder})`,
+                    }}
+                />
+                {figure.caption && <figcaption>{figure.caption}</figcaption>}
+            </figure>
+        ))}
+    </div>
+)}
+
+<style>
+    /*
+     * Below 48rem the figures stack, each offset to one side. From 48rem they share one row of twelve columns and
+     * overlap by a column: the first spans 1-5, the second 5-9, the third 9-12. A figure is a subgrid of two rows,
+     * image over caption, so every caption lands in the same row. The images are bottom-aligned, and the second and
+     * third are raised by a margin, which gives the offset. The captions skip the shared columns, so none overlap.
+     */
+    .cluster {
+        display: grid;
+        grid-template-columns: repeat(12, minmax(0, 1fr));
+        column-gap: var(--spacing-gutter);
+        row-gap: 0.5rem;
+        margin-block-start: 3rem;
+    }
+
+    figure {
+        display: grid;
+        grid-column: var(--columns);
+        grid-row: span 2;
+        grid-template-columns: subgrid;
+        grid-template-rows: subgrid;
+        margin: 0;
+    }
+
+    figure:nth-child(1) {
+        --columns: 1 / 10;
+    }
+
+    figure:nth-child(2) {
+        --columns: 4 / 13;
+        margin-top: 1.5rem;
+    }
+
+    figure:nth-child(3) {
+        --columns: 1 / 9;
+        margin-top: 1.5rem;
+    }
+
+    img {
+        grid-column: 1 / -1;
+        align-self: end;
+        inline-size: 100%;
+        block-size: auto;
+        background-size: cover;
+        object-fit: cover;
+        /* A paper-colored edge where an image overlaps another, so the two stay distinct. */
+        outline: 0.25rem solid var(--color-paper);
+    }
+
+    figcaption {
+        grid-column: 1 / -1;
+        padding-block-start: 0.5rem;
+        font-family: var(--font-mono);
+        font-size: var(--text-step-n1);
+        line-height: 1.4;
+        color: var(--color-ink-muted);
+    }
+
+    @media (min-width: 48rem) {
+        figure {
+            grid-row: 1 / span 2;
+        }
+
+        figure:nth-child(1) {
+            --columns: 1 / 6;
+            margin-top: 0;
+        }
+
+        figure:nth-child(2) {
+            --columns: 5 / 10;
+            margin-top: 0;
+        }
+
+        figure:nth-child(3) {
+            --columns: 9 / 13;
+            margin-top: 0;
+        }
+
+        figure:nth-child(2) img {
+            margin-block-end: 3rem;
+        }
+
+        figure:nth-child(3) img {
+            margin-block-end: 1.5rem;
+        }
+
+        figure:nth-child(1) figcaption {
+            grid-column: 1 / -2;
+        }
+
+        figure:nth-child(2) figcaption {
+            grid-column: 2 / -2;
+        }
+
+        figure:nth-child(3) figcaption {
+            grid-column: 2 / -1;
+        }
+    }
+</style>

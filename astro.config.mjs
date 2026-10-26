@@ -17,8 +17,9 @@ export default defineConfig({
     integrations: [react()],
     vite: { plugins: [tailwindcss()] },
     // Latin only, `font-display: swap` (Astro's default) and Astro's generated metric-matched fallbacks. Archivo is the
-    // weight-axis file (about 35 kB), not the width+weight file (about 90 kB): the `wdth` axis is only needed by the
-    // giant home-page name, so the home page adds a `stretch` variant when that name arrives.
+    // width+weight file (90,104 bytes; the weight-only file is 34,928): the giant home-page name sets `wdth` low on
+    // narrow screens so it fills the width without shrinking. The `stretch` range declares the axis (62 to 125) to the
+    // browser.
     fonts: [
         {
             name: 'Archivo Variable',
@@ -27,8 +28,9 @@ export default defineConfig({
             options: {
                 variants: [
                     {
-                        src: [fontFile('@fontsource-variable/archivo/files/archivo-latin-wght-normal.woff2')],
+                        src: [fontFile('@fontsource-variable/archivo/files/archivo-latin-wdth-normal.woff2')],
                         weight: '100 900',
+                        stretch: '62% 125%',
                         style: 'normal',
                     },
                 ],

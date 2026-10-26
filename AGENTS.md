@@ -4,7 +4,7 @@ A personal portfolio: an intro page (a 3D hero is planned), a photography galler
 served from Cloudflare Workers static assets. Step 1 (skeleton, tooling, CI), Step 2 (the Projects page, built from a
 content collection) and Step 3 (the photo gallery pipeline and the Photography page) are done; the 3D hero is not. The
 Photography page is real but empty ("Photos are on their way.") until photos are uploaded (see "Gallery"). The home page
-is a placeholder, labeled as such on the page.
+is real but pre-hero: the giant name, a short statement and, once photos exist, a three-photo cluster (see "Home").
 
 ## Commands
 | Task | Command |
@@ -52,7 +52,9 @@ Cloudflare Workers Builds (see "CI and deploys").
   with `CannotFetchFontFile` in Astro 7.4.2 and ignores `subsets`. `<Font>` in `BaseLayout.astro` emits the `@font-face`
   rules (`font-display: swap`, metric-matched fallbacks) and preloads only Archivo, the face of the h1. The woff2 files
   land in `dist/_astro/fonts/` and have their own `.size-limit.json` entry. `global.css` maps them to Tailwind's
-  `font-display`, `font-sans` and `font-mono`.
+  `font-display`, `font-sans` and `font-mono`. Archivo is the width+weight file (`archivo-latin-wdth-normal.woff2`, 90,104
+  bytes, `stretch: '62% 125%'`), not the weight-only one (34,928 bytes): the home page's giant name sets the `wdth` axis
+  (62 narrow, 80, 100 wide) so it fills its container without shrinking, and the bigger file is preloaded on every page.
 - **Shell:** `.surface-ink` (in `global.css`) is the reusable ink surface: ink background, paper text, `.link` in paper and the
   `:focus-visible` ring in `accent`; the footer is its first user and the D4 photography section reuses it. On paper,
   `.link` is `accent-deep` plus an underline. No JavaScript is involved in the focus or selection styles.
@@ -99,7 +101,9 @@ src/
   styles/lightbox.css   the lightbox caption styles
   components/           ProjectCard.astro, GitHubIcon.astro, Gallery.astro (generic over the collection),
                         GeonamesCredit.astro (the CC BY 4.0 credit line),
-                        RunningHead.astro (the decorative vertical site/page name, `aria-hidden`, shown from `xl` up)
+                        RunningHead.astro (the decorative vertical site/page name, `aria-hidden`, shown from `xl` up),
+                        Wordmark.astro (the giant home `h1`), HomeCluster.astro (the home photo cluster; which photos
+                        and their image attributes come from lib/homeCluster.ts)
   scripts/galleryLightbox.ts  (src/scripts/) browser glue for the PhotoSwipe lightbox (DOM only, outside unit-test coverage)
 public/                 static files served from / (favicon.svg)
 tests/e2e/              Playwright specs (smoke.spec.ts is tagged @smoke); its own tsconfig; lightbox.spec.ts skips while
@@ -130,6 +134,21 @@ Two things live outside the code and must be changed together with the domain: t
 (read by `smoke.yml`) and the custom domain/route on the Cloudflare Worker. `PRODUCTION_URL` is still the old workers.dev
 URL: it must be changed to `https://trevorpetr.us` when the PR that moves the domain merges (a manual step in the
 repository settings).
+
+## Home
+`Wordmark.astro` is the page's one `h1`: real text ("Trevor" and "Petrus" as two block lines, capitals by CSS), in an
+`inline-size` query container and sized in `cqi`, so it fills the content column at every width with no JavaScript. A
+size is only right for one `wdth` (a wider setting makes one em of "TREVOR" wider), so there are three container-query
+steps, each a measured `cqi` and `wdth` pair for Archivo at weight 800 with -0.04em tracking: 37cqi at `wdth` 62 below
+30rem, 29.4cqi at 80 from 30rem and 23.9cqi at 100 from 46rem. The height is reserved from the same number (two lines
+at line-height 0.85), so the font swap shifts nothing. Change the face, weight or tracking and the pairs must be measured
+again (`tests/e2e/home.spec.ts` checks each line fills 90% to 101% of the box).
+
+`HomeCluster.astro` shows the first three photography entries in the gallery's order, through `imageUrl.ts` and
+`GRID_WIDTHS` only (the cluster adds no new transformations), and renders nothing while the data file is empty. From
+48rem the figures overlap by a column on a 12-column grid and their captions share one row (a subgrid per figure);
+below it they stack, offset. Captions sit below the images, never over them. The images are lazy and carry an explicit
+`aspect-ratio`, so the cluster never shifts the page.
 
 ## Projects
 The Projects page is built from the `projects` content collection (`src/content/projects/*.md`, schema in
