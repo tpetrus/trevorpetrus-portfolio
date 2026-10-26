@@ -12,6 +12,14 @@ import type { PlaceNames } from './location';
  */
 export const MAX_PLACE_DISTANCE_KM = 25;
 
+/**
+ * Within this distance of a photo, the most populous place names it rather than the nearest one. The nearest place is
+ * often a suburb or a district in another city (Times Square is closer to Weehawken, New Jersey, than to a place called
+ * New York City; the Eiffel Tower is closer to the "Paris 16 Passy" district than to Paris), and a visitor reads that
+ * caption as wrong. Ten kilometers is the reach of a city's core; farther out, only the nearest place is trustworthy.
+ */
+export const PREFERRED_RADIUS_KM = 10;
+
 const EARTH_RADIUS_KM = 6371;
 // GeoNames feature code for a "section of populated place": a neighborhood or district. Skipped, or a photo in the
 // middle of Lisbon would be captioned with one of its districts instead of "Lisbon".
@@ -23,6 +31,12 @@ export interface Place {
     longitude: number;
     /** ISO 3166-1 alpha-2, e.g. `PT`. */
     countryCode: string;
+    population: number;
+}
+
+export interface PlaceMatch {
+    place: Place;
+    distanceKm: number;
 }
 
 export interface Point {
@@ -31,8 +45,8 @@ export interface Point {
 }
 
 // Column positions in the GeoNames `geoname` table (tab-separated).
-const COLUMN = { name: 1, latitude: 4, longitude: 5, featureCode: 7, countryCode: 8 } as const;
-const MIN_COLUMNS = COLUMN.countryCode + 1;
+const COLUMN = { name: 1, latitude: 4, longitude: 5, featureCode: 7, countryCode: 8, population: 14 } as const;
+const MIN_COLUMNS = COLUMN.population + 1;
 
 /** Parses `cities1000.txt` into the places that can name a photo. Throws on a line that is not a `geoname` row. */
 export function parseGeonamesCities(text: string): Place[] {
@@ -43,6 +57,7 @@ export function parseGeonamesCities(text: string): Place[] {
         const latitude = Number(columns[COLUMN.latitude]);
         const longitude = Number(columns[COLUMN.longitude]);
         const countryCode = columns[COLUMN.countryCode];
+        const population = Number(columns[COLUMN.population]);
         if (
             columns.length < MIN_COLUMNS ||
             columns[COLUMN.name] === '' ||
@@ -50,12 +65,15 @@ export function parseGeonamesCities(text: string): Place[] {
             columns[COLUMN.longitude] === '' ||
             !Number.isFinite(latitude) ||
             !Number.isFinite(longitude) ||
+            columns[COLUMN.population] === '' ||
+            !Number.isInteger(population) ||
+            population < 0 ||
             !/^[A-Z]{2}$/.test(countryCode)
         ) {
             throw new Error(`GeoNames line ${index + 1} is not a city row.`);
         }
         if (columns[COLUMN.featureCode] !== SECTION_OF_PLACE) {
-            places.push({ name: columns[COLUMN.name], latitude, longitude, countryCode });
+            places.push({ name: columns[COLUMN.name], latitude, longitude, countryCode, population });
         }
     }
     return places;
@@ -74,16 +92,27 @@ export function haversineKm(a: Point, b: Point): number {
 }
 
 /**
- * The closest place to `point`, or `undefined` for an empty list. A linear scan: the manual sync runs it once per
- * photo over about 170,000 rows, which takes milliseconds, so an index would only add code.
+ * The place that should name `point`: the most populous one within `PREFERRED_RADIUS_KM` (the nearer on equal
+ * population), else the nearest one at any distance, else `undefined` for an empty list. A linear scan: the manual sync
+ * runs it once per photo over about 160,000 rows, which takes milliseconds, so an index would only add code.
  */
-export function nearestPlace(places: readonly Place[], point: Point): { place: Place; distanceKm: number } | undefined {
-    let best: { place: Place; distanceKm: number } | undefined;
+export function choosePlace(places: readonly Place[], point: Point): PlaceMatch | undefined {
+    let nearest: PlaceMatch | undefined;
+    let preferred: PlaceMatch | undefined;
     for (const place of places) {
-        const distanceKm = haversineKm(point, place);
-        if (best === undefined || distanceKm < best.distanceKm) best = { place, distanceKm };
+        const candidate = { place, distanceKm: haversineKm(point, place) };
+        if (nearest === undefined || candidate.distanceKm < nearest.distanceKm) nearest = candidate;
+        if (candidate.distanceKm <= PREFERRED_RADIUS_KM && isMoreFitting(candidate, preferred)) preferred = candidate;
     }
-    return best;
+    return preferred ?? nearest;
+}
+
+function isMoreFitting(candidate: PlaceMatch, current: PlaceMatch | undefined): boolean {
+    if (current === undefined) return true;
+    if (candidate.place.population !== current.place.population) {
+        return candidate.place.population > current.place.population;
+    }
+    return candidate.distanceKm < current.distanceKm;
 }
 
 /**
@@ -120,9 +149,9 @@ export interface DerivedPlace {
     warning: string | undefined;
 }
 
-/** Names the nearest place to `point`, or says why it cannot (too far from any place, or a country ICU lacks). */
+/** Names the place `choosePlace` picks for `point`, or says why it cannot (too far from any place, or a country ICU lacks). */
 export function derivePlace(point: Point, places: readonly Place[]): DerivedPlace {
-    const nearest = nearestPlace(places, point);
+    const nearest = choosePlace(places, point);
     if (nearest === undefined || nearest.distanceKm > MAX_PLACE_DISTANCE_KM) {
         const distance =
             nearest === undefined ? '' : `; the nearest known place is ${Math.round(nearest.distanceKm)} km away`;

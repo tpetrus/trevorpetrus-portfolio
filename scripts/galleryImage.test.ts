@@ -188,8 +188,8 @@ const LISBON_GPS = {
     GPSLongitude: '9/1 8/1 2148/100',
 };
 const PLACES: Place[] = [
-    { name: 'Porto', latitude: 41.14961, longitude: -8.61099, countryCode: 'PT' },
-    { name: 'Lisbon', latitude: 38.71667, longitude: -9.13333, countryCode: 'PT' },
+    { name: 'Porto', latitude: 41.14961, longitude: -8.61099, countryCode: 'PT', population: 237000 },
+    { name: 'Lisbon', latitude: 38.71667, longitude: -9.13333, countryCode: 'PT', population: 517802 },
 ];
 
 describe('deriveSourceLocation', () => {
@@ -230,7 +230,9 @@ describe('deriveSourceLocation', () => {
 
     it('warns instead of naming a place that is too far away', async () => {
         const original = await tinyJpeg({ IFD3: LISBON_GPS });
-        const farAway: Place[] = [{ name: 'Madrid', latitude: 40.4168, longitude: -3.7038, countryCode: 'ES' }];
+        const farAway: Place[] = [
+            { name: 'Madrid', latitude: 40.4168, longitude: -3.7038, countryCode: 'ES', population: 3255944 },
+        ];
 
         const result = await deriveSourceLocation(original, () => Promise.resolve(farAway));
 
