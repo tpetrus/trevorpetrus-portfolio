@@ -20,9 +20,9 @@ const { project, updated, featured = false, priority = false } = Astro.props;
 const { title, description, tech, status, repo, thumbnail } = project;
 
 const STATUS_STYLES = {
-    live: 'border-emerald-700 bg-emerald-950 text-emerald-300',
-    'in-progress': 'border-amber-700 bg-amber-950 text-amber-300',
-    archived: 'border-slate-600 bg-slate-800 text-slate-300',
+    live: 'border-ink bg-paper text-ink',
+    'in-progress': 'border-ink bg-paper-2 text-ink',
+    archived: 'border-ink-muted bg-paper text-ink-muted',
 } as const;
 
 // The featured image is about half of the 5xl content column from `md:`; the others sit in a 18rem-minimum grid.
@@ -33,7 +33,7 @@ const sizes = featured
 
 <article
     class:list={[
-        'relative w-full overflow-hidden rounded-xl border border-slate-800 bg-slate-900 transition-colors hover:border-slate-600',
+        'relative w-full overflow-hidden border border-ink bg-paper-2 transition-colors hover:border-accent-deep',
         featured ? 'md:grid md:grid-cols-2' : 'flex flex-col',
     ]}
 >
@@ -51,10 +51,10 @@ const sizes = featured
     )}
     <div class="flex flex-col gap-4 p-5">
         <div class="flex items-start justify-between gap-3">
-            <h2 class="text-xl font-semibold tracking-tight">
+            <h2 class="text-step-1 font-bold">
                 <a
                     href={projectHref(project)}
-                    class="after:absolute after:inset-0 after:rounded-[inherit] hover:underline focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-sky-400"
+                    class="after:absolute after:inset-0 hover:underline focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-accent-deep"
                 >
                     {title}
                 </a>
@@ -62,21 +62,19 @@ const sizes = featured
             <a
                 href={repo}
                 aria-label={`${title} on GitHub`}
-                class="relative z-10 -m-1 inline-flex size-9 shrink-0 items-center justify-center rounded-full text-slate-300 hover:bg-slate-800 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+                class="relative z-10 -m-1 inline-flex size-9 shrink-0 items-center justify-center text-ink-muted hover:bg-paper hover:text-ink"
             >
                 <GitHubIcon class="size-5" />
             </a>
         </div>
-        <p class="text-slate-300">{description}</p>
+        <p class="text-ink-muted">{description}</p>
         <ul role="list" aria-label="Technologies" class="flex flex-wrap gap-2">
             {tech.map((name) => (
-                <li class="rounded-full bg-slate-800 px-2.5 py-0.5 text-sm text-slate-200">{name}</li>
+                <li class="bg-paper px-2.5 py-0.5 font-mono text-step-n1 text-ink">{name}</li>
             ))}
         </ul>
-        <div class="mt-auto flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-300">
-            <span class:list={['rounded-full border px-2.5 py-0.5 font-medium', STATUS_STYLES[status]]}>
-                {statusLabel(status)}
-            </span>
+        <div class="mt-auto flex flex-wrap items-center gap-x-4 gap-y-2 text-step-n1 text-ink-muted">
+            <span class:list={['border px-2.5 py-0.5 font-medium', STATUS_STYLES[status]]}>{statusLabel(status)}</span>
             {updated && (
                 <p>
                     Updated <time datetime={isoDate(updated)}>{formatDate(updated)}</time>

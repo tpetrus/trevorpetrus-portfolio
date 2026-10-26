@@ -12,7 +12,7 @@ const { collection, entries } = Astro.props;
 const tiles = await galleryTiles(collection, entries);
 ---
 
-<ul role="list" id="gallery" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+<ul role="list" id="gallery" class="grid grid-cols-1 gap-gutter sm:grid-cols-2 lg:grid-cols-3">
     {tiles.map((tile) => (
         <li>
             <a
@@ -23,7 +23,7 @@ const tiles = await galleryTiles(collection, entries);
                 data-original={tile.original}
                 data-caption={tile.caption}
                 data-cropped="true"
-                class="block overflow-hidden rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+                class="block overflow-hidden"
             >
                 <img
                     src={tile.src}

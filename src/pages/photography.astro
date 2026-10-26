@@ -10,13 +10,13 @@ const entries = parseGallery('photography', photographyJson);
 ---
 
 <BaseLayout title="Photography" description="Photography by Trevor Petrus.">
-    <h1 class="text-4xl font-bold tracking-tight">Photography</h1>
+    <h1 class="text-step-3 font-bold">Photography</h1>
     {entries.length > 0 ? (
         <div class="mt-8">
             <Gallery collection="photography" entries={entries} />
             {showsGeonamesPlace(entries) && <GeonamesCredit />}
         </div>
     ) : (
-        <p class="mt-8 max-w-prose text-slate-300">Photos are on their way.</p>
+        <p class="mt-8 max-w-measure text-ink-muted">Photos are on their way.</p>
     )}
 </BaseLayout>

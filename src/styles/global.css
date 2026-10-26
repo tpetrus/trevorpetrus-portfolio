@@ -1,5 +1,86 @@
 @import 'tailwindcss';
 
+/*
+ * Design tokens (light "paper" theme only; there is deliberately no dark scheme).
+ *
+ * Contrast rules, enforced by src/lib/designTokens.test.ts:
+ * - Ink text on paper and paper-2; ink-muted for secondary text on either.
+ * - The accent (vermilion) is only ever a fill behind ink text, or text on ink. It scores 2.94:1 on paper, so never use
+ *   it as text, a border or a focus ring on paper.
+ * - Links, UI borders and the focus ring on paper use accent-deep.
+ * Add any new pair to the spec in the same change that introduces it.
+ */
 @theme {
-    --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+    --color-paper: #f4f1ea;
+    --color-paper-2: #e9e5db;
+    --color-ink: #0e0e0c;
+    --color-ink-muted: #55524b;
+    --color-ink-muted-on-ink: #a8a49a;
+    --color-accent: #ff4d1f;
+    --color-accent-deep: #b82e00;
+
+    /* The Fonts API (astro.config.mjs) defines --font-archivo, --font-inter and --font-plex-mono with their fallbacks. */
+    --font-display: var(--font-archivo);
+    --font-sans: var(--font-inter);
+    --font-mono: var(--font-plex-mono);
+
+    /*
+     * Fluid type scale: rem plus vw, so browser zoom still scales the text (WCAG 1.4.4). "n1" is step -1. Class names
+     * are text-step-n1, text-step-0 ... text-step-6; each step carries its line height and tracking.
+     */
+    --text-step-n1: clamp(0.8rem, 0.77rem + 0.15vw, 0.875rem);
+    --text-step-n1--line-height: 1.4;
+    --text-step-0: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+    --text-step-0--line-height: 1.5;
+    --text-step-0--letter-spacing: -0.005em;
+    --text-step-1: clamp(1.25rem, 1.1rem + 0.7vw, 1.6rem);
+    --text-step-1--line-height: 1.25;
+    --text-step-1--letter-spacing: -0.01em;
+    --text-step-2: clamp(1.563rem, 1.25rem + 1.5vw, 2.25rem);
+    --text-step-2--line-height: 1.1;
+    --text-step-2--letter-spacing: -0.02em;
+    --text-step-3: clamp(1.95rem, 1.4rem + 2.6vw, 3.2rem);
+    --text-step-3--line-height: 1.1;
+    --text-step-3--letter-spacing: -0.02em;
+    --text-step-4: clamp(2.44rem, 1.5rem + 4.4vw, 4.5rem);
+    --text-step-4--line-height: 0.95;
+    --text-step-4--letter-spacing: -0.03em;
+    --text-step-5: clamp(3.05rem, 1.4rem + 7.6vw, 6.5rem);
+    --text-step-5--line-height: 0.95;
+    --text-step-5--letter-spacing: -0.03em;
+    --text-step-6: clamp(3.8rem, 1rem + 13vw, 10rem);
+    --text-step-6--line-height: 0.95;
+    --text-step-6--letter-spacing: -0.03em;
+
+    /* Page margin, column gap and running-text width (utilities: px-edge, gap-gutter, max-w-measure). */
+    --spacing-edge: clamp(1rem, 4vw, 3.75rem);
+    --spacing-gutter: clamp(0.75rem, 2vw, 1.25rem);
+    --container-measure: 38rem;
+}
+
+@layer base {
+    /* On html as well as body, so a View Transitions swap never flashes another color behind the page. */
+    html {
+        background-color: var(--color-paper);
+        color: var(--color-ink);
+        color-scheme: light;
+    }
+
+    h1,
+    h2,
+    h3 {
+        font-family: var(--font-display);
+    }
+
+    /* Accent fill with ink text (5.83:1). */
+    ::selection {
+        background-color: var(--color-accent);
+        color: var(--color-ink);
+    }
+
+    /* Accent-deep on paper is 5.43:1, above the 3:1 non-text bar. Never depends on JavaScript. */
+    :focus-visible {
+        outline: 2px solid var(--color-accent-deep);
+        outline-offset: 2px;
+    }
 }

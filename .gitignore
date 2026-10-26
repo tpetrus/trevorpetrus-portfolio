@@ -21,3 +21,7 @@ playwright/.cache/
 # Source photos for the gallery sync (`npm run sync:gallery`). Images never go in git: the processed copies live in the
 # R2 bucket, and CI's 2 MB max-file-size check is the backstop.
 /gallery-originals/
+
+# Visual baselines are Linux-only (made by the update-snapshots workflow); a local run on another OS writes these.
+tests/e2e/*-snapshots/*-win32.png
+tests/e2e/*-snapshots/*-darwin.png

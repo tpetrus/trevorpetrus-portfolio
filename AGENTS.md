@@ -44,8 +44,20 @@ Cloudflare Workers Builds (see "CI and deploys").
 - **Tailwind CSS 4** via `@tailwindcss/vite`, entry `src/styles/global.css`.
 - **TypeScript strict** (`astro/tsconfigs/strict`). `tests/e2e/` is its own TypeScript program
   (`tests/e2e/tsconfig.json`).
-- **Font:** self-hosted Inter via `@fontsource-variable/inter`, imported in the base layout (trivial with Astro, no
-  third-party request).
+- **Fonts:** Archivo variable (display, headings), Inter variable (text) and IBM Plex Mono Regular 400 (captions, tags,
+  footer), all latin only, SIL OFL 1.1, self-hosted. They use Astro's Fonts API (`fonts` in `astro.config.mjs`) with the
+  `local` provider pointing at the woff2 files inside the installed `@fontsource-variable/archivo`,
+  `@fontsource-variable/inter` and `@fontsource/ibm-plex-mono` packages, so the build stays offline. Do not switch to
+  `fontProviders.fontsource()`, `google()` or the `npm` provider: the first two download at build time, and `npm` fails
+  with `CannotFetchFontFile` in Astro 7.4.2 and ignores `subsets`. `<Font>` in `BaseLayout.astro` emits the `@font-face`
+  rules (`font-display: swap`, metric-matched fallbacks) and preloads only Archivo, the face of the h1. The woff2 files
+  land in `dist/_astro/fonts/` and have their own `.size-limit.json` entry. `global.css` maps them to Tailwind's
+  `font-display`, `font-sans` and `font-mono`.
+- **Design tokens:** `@theme` in `src/styles/global.css` holds the palette (light "paper" theme only), the fluid type
+  scale (`text-step-n1` to `text-step-6`) and `px-edge`, `gap-gutter`, `max-w-measure`. `src/lib/designTokens.test.ts`
+  reads the CSS and asserts the WCAG contrast of every pair in use; a new color pair goes into that spec in the same
+  change. The accent `#ff4d1f` is only a fill behind ink text or text on ink, never text, a border or a focus ring on
+  paper (2.94:1): use `accent-deep` there.
 - **Deploy:** Cloudflare Workers static assets: `wrangler.jsonc` (Worker name `trevorpetrus-portfolio`) serves `dist/`. Cloudflare
   Workers Builds is connected: it deploys `main` to production and PR branches to preview URLs (see
   "One-time setup"). GitHub Actions only checks; it never deploys.
@@ -247,6 +259,15 @@ is empty.
   mobile Safari (iPhone 15, WebKit), checks the h1, title, no console or page errors, that nav links navigate without a
   full page load (View Transitions), the skip link, and axe. WebKit must be installed locally
   (`npm run test:e2e:install`); CI's e2e job runs in the Playwright container image, which has every browser.
+- `tests/e2e/visual.spec.ts` compares a full-page screenshot of every page in each Playwright project with a committed
+  baseline in `tests/e2e/visual.spec.ts-snapshots/` (reduced motion, fonts awaited, remote gallery photos stubbed with a
+  fixed image, the footer and `<time>` elements masked because they change with the date). Baselines are Linux-only: the
+  snapshot names carry the platform, so Windows or macOS runs skip the spec unless `VISUAL_LOCAL=1`, and their
+  `*-win32.png` and `*-darwin.png` files are git-ignored. A deliberate visual change fails this spec until you
+  regenerate the baselines: run the "Update visual snapshots" workflow on the branch (Actions tab, or
+  `gh workflow run update-snapshots.yml --ref <branch>`), which builds and runs the spec with `--update-snapshots` in the
+  Playwright container image and commits the images to the branch. Review them in the PR diff. Adding photos to
+  `src/data/gallery/photography.json` also changes the Photography baseline.
 - `npm run size` and `npm run lighthouse` pass after a build (Lighthouse needs Chrome; Playwright's Chromium works).
 - Deploy-affecting changes: `npm run preview`, then load each page by URL; the PR's Cloudflare preview URL is the same
   check against the real host.
@@ -286,8 +307,8 @@ After a merge, Cloudflare is expected to deploy `main` to production, and "Smoke
 roll back from the Cloudflare dashboard (Workers -> trevorpetrus-portfolio -> Deployments) or with
 `npx wrangler rollback`, then fix forward. Never deploy from CI.
 
-`update-snapshots.yml` regenerates visual baselines, but this repo has no visual spec yet; it points at
-`tests/e2e/visual.spec.ts`, which does not exist, so the workflow would find no tests until that spec is added.
+`update-snapshots.yml` (run by hand from the Actions tab on a branch) regenerates the Linux baselines for
+`tests/e2e/visual.spec.ts` in the Playwright container image and commits them to that branch; see "Verifying changes".
 
 When a gate fails:
 - **Budgets** (`.size-limit.json`, `lighthouserc.json`): if the growth or score drop is intended, change the limit in the
@@ -379,6 +400,5 @@ only the Chromium projects (`chromium-*`) because the shared smoke workflow inst
   (`git checkout origin/main -- package-lock.json`) and redoing the install, or installing on Linux/WSL, also works.
 - **The initial lockfile was repaired by hand.** The six entries Windows npm dropped were copied from the sibling
   AudioVisualizer-React lockfile (same `@tailwindcss/oxide` 4.3.3), because no `main` copy existed to restore from.
-- **No visual-regression spec yet** (see "CI and deploys").
 - **Dependency audit:** `npm install` reports vulnerabilities in dev tooling (not in production dependencies:
   `npm audit --omit=dev` reports none); CI's security workflow is the gate.
