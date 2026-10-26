@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import {
     commitsApiUrl,
+    createdFor,
+    createdFromRepo,
     lastUpdatedFor,
     mergeProjectMeta,
-    metaFromCommits,
     parseProjectMeta,
+    repoApiUrl,
     serializeProjectMeta,
+    updatedFromCommits,
 } from './projectMeta';
 
 const commit = (date: string) => ({ sha: 'abc', commit: { committer: { name: 'x', date } } });
@@ -15,6 +18,18 @@ describe('parseProjectMeta', () => {
     it('accepts a map of slugs to ISO timestamps', () => {
         const meta = { demo: { updated: '2026-10-05T12:00:00Z' } };
         expect(parseProjectMeta(meta)).toEqual(meta);
+    });
+
+    it('accepts an entry with a creation date and one without', () => {
+        const meta = {
+            old: { updated: '2026-10-05T12:00:00Z' },
+            current: { updated: '2026-10-05T12:00:00Z', created: '2025-01-02T03:04:05Z' },
+        };
+        expect(parseProjectMeta(meta)).toEqual(meta);
+    });
+
+    it('rejects a bad creation date', () => {
+        expect(() => parseProjectMeta({ demo: { updated: '2026-10-05T12:00:00Z', created: 'long ago' } })).toThrow();
     });
 
     it('rejects a bad timestamp', () => {
@@ -34,6 +49,38 @@ describe('lastUpdatedFor', () => {
     });
 });
 
+describe('createdFor', () => {
+    const meta = {
+        dated: { updated: '2026-10-05T12:00:00Z', created: '2025-01-02T03:04:05Z' },
+        undated: { updated: '2026-10-05T12:00:00Z' },
+    };
+
+    it('returns the recorded creation date', () => {
+        expect(createdFor(meta, 'dated')?.toISOString()).toBe('2025-01-02T03:04:05.000Z');
+    });
+
+    it('returns undefined for an entry without one and for an unknown slug', () => {
+        expect(createdFor(meta, 'undated')).toBeUndefined();
+        expect(createdFor(meta, 'other')).toBeUndefined();
+    });
+});
+
+describe('repoApiUrl and createdFromRepo', () => {
+    it('builds the repo endpoint', () => {
+        expect(repoApiUrl('https://github.com/tpetrus/AudioVisualizer')).toBe(
+            'https://api.github.com/repos/tpetrus/AudioVisualizer',
+        );
+    });
+
+    it('takes created_at from the response', () => {
+        expect(createdFromRepo({ id: 1, created_at: '2025-01-02T03:04:05Z' })).toBe('2025-01-02T03:04:05Z');
+    });
+
+    it('rejects a response without created_at', () => {
+        expect(() => createdFromRepo({ message: 'Not Found' })).toThrow();
+    });
+});
+
 describe('commitsApiUrl', () => {
     it('asks for the single newest commit', () => {
         expect(commitsApiUrl('https://github.com/tpetrus/AudioVisualizer')).toBe(
@@ -42,17 +89,17 @@ describe('commitsApiUrl', () => {
     });
 });
 
-describe('metaFromCommits', () => {
+describe('updatedFromCommits', () => {
     it('takes the committer date of the first commit', () => {
-        expect(metaFromCommits([commit('2026-10-05T12:00:00Z')])).toEqual({ updated: '2026-10-05T12:00:00Z' });
+        expect(updatedFromCommits([commit('2026-10-05T12:00:00Z')])).toBe('2026-10-05T12:00:00Z');
     });
 
     it('rejects an empty response', () => {
-        expect(() => metaFromCommits([])).toThrow(/no commits/);
+        expect(() => updatedFromCommits([])).toThrow(/no commits/);
     });
 
     it('rejects an unexpected shape', () => {
-        expect(() => metaFromCommits({ message: 'Not Found' })).toThrow();
+        expect(() => updatedFromCommits({ message: 'Not Found' })).toThrow();
     });
 });
 
@@ -61,10 +108,10 @@ describe('mergeProjectMeta', () => {
         const merged = mergeProjectMeta(
             { b: { updated: '2026-01-01T00:00:00Z' }, a: { updated: '2026-01-01T00:00:00Z' } },
             'b',
-            { updated: '2026-02-02T00:00:00Z' },
+            { updated: '2026-02-02T00:00:00Z', created: '2025-01-01T00:00:00Z' },
         );
         expect(Object.keys(merged)).toEqual(['a', 'b']);
-        expect(merged.b?.updated).toBe('2026-02-02T00:00:00Z');
+        expect(merged.b).toEqual({ updated: '2026-02-02T00:00:00Z', created: '2025-01-01T00:00:00Z' });
     });
 });
 
