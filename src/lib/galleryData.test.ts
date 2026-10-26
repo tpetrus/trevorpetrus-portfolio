@@ -32,6 +32,35 @@ describe('committed gallery data', () => {
     });
 });
 
+// Privacy: the committed data holds a city and a country per photo, never where on the map it was. The schema rejects
+// extra fields (location.test.ts); this reads the raw file, so a coordinate cannot hide under any key or as text.
+const COORDINATE_KEY = /^(lat|lon|lng|latitude|longitude|coords?|coordinates?|gps\w*|position|geo\w*)$/i;
+const COORDINATE_PAIR = /-?\d{1,3}\.\d{3,}\s*[,;/ ]\s*-?\d{1,3}\.\d{3,}/;
+
+function coordinateKeysIn(value: unknown): string[] {
+    if (Array.isArray(value)) return value.flatMap(coordinateKeysIn);
+    if (typeof value !== 'object' || value === null) return [];
+    return Object.entries(value).flatMap(([key, child]) => [
+        ...(COORDINATE_KEY.test(key) ? [key] : []),
+        ...coordinateKeysIn(child),
+    ]);
+}
+
+describe('no coordinates in the committed data', () => {
+    it.each(Object.entries(files))('%s has no coordinate-like key and no number pair', (_path, data) => {
+        expect(coordinateKeysIn(data)).toEqual([]);
+        expect(JSON.stringify(data)).not.toMatch(COORDINATE_PAIR);
+    });
+
+    it('the check itself catches a coordinate however it is spelled', () => {
+        expect(coordinateKeysIn([{ caption: { location: { latitude: 1, lon: 2 } } }])).toEqual(['latitude', 'lon']);
+        expect(coordinateKeysIn([{ caption: { gps: [1, 2] } }])).toEqual(['gps']);
+        expect(coordinateKeysIn([{ caption: { location: { city: 'Lisbon', country: 'Portugal' } } }])).toEqual([]);
+        expect(JSON.stringify({ at: '38.7223, -9.1393' })).toMatch(COORDINATE_PAIR);
+        expect(JSON.stringify({ at: [38.7223, -9.1393] })).toMatch(COORDINATE_PAIR);
+    });
+});
+
 describe('checkGalleryFile', () => {
     const entry = {
         key: 'photography/a.jpg',

@@ -1,8 +1,10 @@
 ---
 import Gallery from '../components/Gallery.astro';
+import GeonamesCredit from '../components/GeonamesCredit.astro';
 import photographyJson from '../data/gallery/photography.json';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { parseGallery } from '../lib/gallery';
+import { showsGeonamesPlace } from '../lib/location';
 
 const entries = parseGallery('photography', photographyJson);
 ---
@@ -12,6 +14,7 @@ const entries = parseGallery('photography', photographyJson);
     {entries.length > 0 ? (
         <div class="mt-8">
             <Gallery collection="photography" entries={entries} />
+            {showsGeonamesPlace(entries) && <GeonamesCredit />}
         </div>
     ) : (
         <p class="mt-8 max-w-prose text-slate-300">Photos are on their way.</p>

@@ -8,6 +8,7 @@ import exifr from 'exifr';
 import sharp from 'sharp';
 
 import { locationKeys } from '../src/lib/exifLocation.ts';
+import { derivePlace, gpsPoint, type DerivedPlace, type Place } from '../src/lib/geonames.ts';
 import {
     PHOTOGRAPHY_EXIF_TAGS,
     photographyCaptionFromExif,
@@ -51,6 +52,22 @@ export async function assertNoLocation(jpeg: Buffer, label: string): Promise<voi
     if (xmp !== undefined || iptc !== undefined) {
         throw new Error(`${label}: the processed image still carries an XMP or IPTC block.`);
     }
+}
+
+/**
+ * Names the place a source photo was taken, from the GPS in its EXIF: the city and country of the nearest GeoNames
+ * place, or none (with a warning when that deserves attention). The coordinates stay inside this function: nothing
+ * returned or thrown carries them, and the processed upload never has them (`assertNoLocation`).
+ *
+ * `loadPlaces` is called only for a photo that has a usable GPS fix, so a run without any never needs the dataset.
+ */
+export async function deriveSourceLocation(
+    original: Buffer,
+    loadPlaces: () => Promise<readonly Place[]>,
+): Promise<DerivedPlace> {
+    const point = gpsPoint(await exifr.gps(original));
+    if (point === undefined) return { place: undefined, warning: undefined };
+    return derivePlace(point, await loadPlaces());
 }
 
 async function thumbhashOf(jpeg: Buffer): Promise<string> {

@@ -6,7 +6,9 @@
 //   2. uploads it to the R2 bucket as <collection>/<name>.jpg, and
 //   3. records its size, ThumbHash and caption, with the alt text from src/content/<collection>/<name>.yml, in
 //      src/data/gallery/<collection>.json, which is committed.
-// A file whose bytes and processing version are unchanged is neither processed nor uploaded again.
+// A file whose bytes and processing version are unchanged is neither processed nor uploaded again. Its place name is
+// still worked out again every run (from the source's GPS, offline, or from the sidecar), because the place is not in
+// the uploaded bytes: only the city and country are stored, never the coordinates.
 //
 // THE DEFAULT IS A DRY RUN: it processes in memory and prints what it would do, and touches neither R2 nor the JSON.
 // Only --upload does. The R2 API token is read from the environment variable named in R2_TOKEN_ENV and handed to
@@ -19,6 +21,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
 import { galleryCollection, parseGallery, type CollectionCaption, type GalleryEntry } from '../src/lib/gallery.ts';
+import type { Place } from '../src/lib/geonames.ts';
+import { captionWithLocation, formatLocation, resolveLocation, type SidecarLocation } from '../src/lib/location.ts';
 import {
     decideAction,
     droppedNotices,
@@ -37,7 +41,8 @@ import {
     type CuratedEntry,
     type SyncAction,
 } from '../src/lib/gallerySync.ts';
-import { processImage } from './galleryImage.ts';
+import { deriveSourceLocation, processImage } from './galleryImage.ts';
+import { loadGeonamesPlaces } from './geonames.ts';
 
 const WRANGLER = join('node_modules', 'wrangler', 'bin', 'wrangler.js');
 
@@ -104,6 +109,18 @@ function upload(
     }
 }
 
+// The GeoNames dataset is loaded (and downloaded the first time) only when a photo without a sidecar override has GPS.
+let places: Promise<Place[]> | undefined;
+const loadPlaces = () => (places ??= loadGeonamesPlaces());
+
+// The place for one photo: the sidecar decides when it says anything, otherwise it is derived from the source's GPS.
+async function locationOf(original: Buffer, file: string, override: SidecarLocation | undefined) {
+    if (override !== undefined) return resolveLocation(undefined, override);
+    const { place, warning } = await deriveSourceLocation(original, loadPlaces);
+    if (warning !== undefined) console.warn(`warning: ${file}: ${warning}`);
+    return resolveLocation(place, undefined);
+}
+
 const options = parseSyncArgs(process.argv.slice(2), process.env);
 const { collection: collectionName, sourceDir } = options;
 const collection = galleryCollection(collectionName);
@@ -151,16 +168,22 @@ for (const { file, basename } of images) {
     const action = decideAction(existing, sourceSha256);
     counts[action]++;
 
+    const location = await locationOf(original, file, sidecar.location);
+    const place = location === undefined ? 'no place' : `${formatLocation(location)} (${location.source})`;
+
     if (existing !== undefined && action === 'unchanged') {
-        // Only the sidecar can differ, and the alt text is not part of the uploaded file.
-        current.push({ entry: { ...existing, alt: sidecar.alt }, order: sidecar.order });
-        console.log(`unchanged  ${key}  ${existing.width}x${existing.height}`);
+        // The alt text and the place are not part of the uploaded file, so a change to either needs no re-upload.
+        current.push({
+            entry: { ...existing, alt: sidecar.alt, caption: captionWithLocation(existing.caption, location) },
+            order: sidecar.order,
+        });
+        console.log(`unchanged  ${key}  ${existing.width}x${existing.height}  ${place}`);
         continue;
     }
 
     const processed = await processImage(original, { keepCameraExif: collection.keepsCameraExif, label: file });
     console.log(
-        `${action.padEnd(9)}  ${key}  ${processed.width}x${processed.height}  ${kilobytes(processed.jpeg.length)}`,
+        `${action.padEnd(9)}  ${key}  ${processed.width}x${processed.height}  ${kilobytes(processed.jpeg.length)}  ${place}`,
     );
     if (credentials) upload(credentials, key, processed.jpeg);
     const entry: GalleryEntry<CollectionCaption> = {
@@ -171,7 +194,7 @@ for (const { file, basename } of images) {
         sourceSha256,
         processingVersion: PROCESSING_VERSION,
         alt: sidecar.alt,
-        caption: processed.caption ?? {},
+        caption: captionWithLocation(processed.caption ?? {}, location),
     };
     current.push({ entry, order: sidecar.order });
 }
