@@ -1,0 +1,69 @@
+---
+interface Props {
+    /** The first line of the name. */
+    first: string;
+    /** The second line of the name. */
+    second: string;
+}
+
+const { first, second } = Astro.props;
+---
+
+{/* The page's h1, as real text so it stays in the accessibility tree. The case is the reader's ("Trevor Petrus"); the
+    capitals are CSS. The two lines are blocks, with a space between them in the source so the accessible name reads
+    "Trevor Petrus". */}
+<div class="wordmark">
+    <h1 class="name">
+        {first} <span>{second}</span>
+    </h1>
+</div>
+
+<style>
+    /*
+     * The name fills the width of its container in every layout, with no JavaScript: the container is an inline-size
+     * query container, so `cqi` is 1% of its width, and the font-size is a number of cqi. That number depends on the
+     * font's width axis (`wdth`), because one em of "TREVOR" is wider at a high `wdth`: a narrow container gets a low
+     * `wdth`, so the letters stay tall instead of shrinking. Each pair below was measured with Archivo Variable at
+     * weight 800 and the -0.04em tracking, so that one line is as wide as the container.
+     *
+     * The height is reserved from the same number (two lines at the line height), not taken from the glyphs, so
+     * swapping the fallback face for Archivo moves nothing. Until Archivo arrives the fallback is a little wider than
+     * the container; `overflow-x: clip` keeps that from scrolling the page and `nowrap` keeps the lines from wrapping.
+     */
+    .wordmark {
+        container-type: inline-size;
+    }
+
+    .name {
+        --size: 37cqi;
+        --line-height: 0.85;
+        font-family: var(--font-display);
+        font-size: var(--size);
+        font-variation-settings: 'wdth' 62;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        line-height: var(--line-height);
+        block-size: calc(var(--size) * var(--line-height) * 2);
+        overflow-x: clip;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .name span {
+        display: block;
+    }
+
+    @container (min-width: 30rem) {
+        .name {
+            --size: 29.4cqi;
+            font-variation-settings: 'wdth' 80;
+        }
+    }
+
+    @container (min-width: 46rem) {
+        .name {
+            --size: 23.9cqi;
+            font-variation-settings: 'wdth' 100;
+        }
+    }
+</style>

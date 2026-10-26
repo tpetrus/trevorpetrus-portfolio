@@ -16,6 +16,6 @@
     "path": "dist/_astro/fonts/*.woff2",
     "gzip": false,
     "brotli": false,
-    "limit": "105 kB"
+    "limit": "160 kB"
   }
 ]
