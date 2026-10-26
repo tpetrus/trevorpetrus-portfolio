@@ -10,8 +10,13 @@
 // still worked out again every run (from the source's GPS, offline, or from the sidecar), because the place is not in
 // the uploaded bytes: only the city and country are stored, never the coordinates.
 //
+// Two passes: first every photo is read, hashed and located (a sidecar override, or its GPS looked up in GeoNames,
+// which may download the dataset), then each is processed and uploaded. A lookup failure, such as a download timeout,
+// therefore aborts before anything is uploaded. Pass two reads each changed file again rather than keeping every
+// original in memory (they run to about 21 MB each).
+//
 // THE DEFAULT IS A DRY RUN: it processes in memory and prints what it would do, and touches neither R2 nor the JSON.
-// Only --upload does. The R2 API token is read from the environment variable named in R2_TOKEN_ENV and handed to
+// Only --upload does, and the last line of a dry run says so. The R2 API token is read from the environment variable named in R2_TOKEN_ENV and handed to
 // wrangler through the child process's environment only; it is never printed. Parsing, matching and ordering live in
 // src/lib, so this file only does I/O.
 import { spawnSync } from 'node:child_process';
@@ -25,6 +30,7 @@ import type { Place } from '../src/lib/geonames.ts';
 import { captionWithLocation, formatLocation, resolveLocation, type SidecarLocation } from '../src/lib/location.ts';
 import {
     decideAction,
+    inTwoPasses,
     droppedNotices,
     galleryDataFile,
     galleryKey,
@@ -38,6 +44,7 @@ import {
     serializeGallery,
     sidecarDirectory,
     sidecarFileName,
+    syncSummary,
     type CuratedEntry,
     type SyncAction,
 } from '../src/lib/gallerySync.ts';
@@ -159,7 +166,8 @@ console.log(`${options.upload ? 'UPLOADING' : 'Dry run (nothing uploaded, nothin
 const current: CuratedEntry<CollectionCaption>[] = [];
 const counts: Record<SyncAction, number> = { new: 0, changed: 0, unchanged: 0 };
 
-for (const { file, basename } of images) {
+// Pass one: everything that can fail without side effects. A plan holds no image bytes.
+async function planPhoto({ file, basename }: (typeof images)[number]) {
     const key = galleryKey(collectionName, basename);
     const sidecar = sidecarResult.sidecars.get(basename)!;
     const original = readFileSync(join(sourceDir, file));
@@ -167,8 +175,20 @@ for (const { file, basename } of images) {
     const existing = previousByKey.get(key);
     const action = decideAction(existing, sourceSha256);
     counts[action]++;
-
     const location = await locationOf(original, file, sidecar.location);
+    return { file, key, sidecar, sourceSha256, existing, action, location };
+}
+
+// Pass two: process and upload (or, in a dry run, only process).
+async function syncPhoto({
+    file,
+    key,
+    sidecar,
+    sourceSha256,
+    existing,
+    action,
+    location,
+}: Awaited<ReturnType<typeof planPhoto>>): Promise<void> {
     const place = location === undefined ? 'no place' : `${formatLocation(location)} (${location.source})`;
 
     if (existing !== undefined && action === 'unchanged') {
@@ -178,9 +198,10 @@ for (const { file, basename } of images) {
             order: sidecar.order,
         });
         console.log(`unchanged  ${key}  ${existing.width}x${existing.height}  ${place}`);
-        continue;
+        return;
     }
 
+    const original = readFileSync(join(sourceDir, file));
     const processed = await processImage(original, { keepCameraExif: collection.keepsCameraExif, label: file });
     console.log(
         `${action.padEnd(9)}  ${key}  ${processed.width}x${processed.height}  ${kilobytes(processed.jpeg.length)}  ${place}`,
@@ -199,12 +220,11 @@ for (const { file, basename } of images) {
     current.push({ entry, order: sidecar.order });
 }
 
+await inTwoPasses(images, planPhoto, syncPhoto);
+
 const { entries, dropped } = mergeGallery(current, previous);
 for (const notice of droppedNotices(dropped)) console.log(notice);
-console.log(
-    `${counts.new} new, ${counts.changed} changed, ${counts.unchanged} unchanged, ${dropped.length} dropped; ` +
-        `${entries.length} entries in ${dataFile}`,
-);
+console.log(syncSummary(counts, dropped.length, entries.length, dataFile, options.upload));
 
 if (credentials) {
     // Only after every upload succeeded, so the committed data never lists an object that is not in the bucket.

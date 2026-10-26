@@ -1,9 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { GalleryEntry } from './gallery';
 import {
     acceptImages,
     decideAction,
+    inTwoPasses,
+    syncSummary,
     DEFAULT_BUCKET,
     defaultSourceDir,
     droppedNotices,
@@ -396,5 +398,52 @@ describe('r2UploadArgs', () => {
             'public, max-age=86400',
             '--remote',
         ]);
+    });
+});
+
+describe('inTwoPasses', () => {
+    it('plans every image before it executes any, then executes in order', async () => {
+        const calls: string[] = [];
+        const results = await inTwoPasses(
+            ['a', 'b'],
+            (image) => {
+                calls.push(`plan ${image}`);
+                return Promise.resolve(image.toUpperCase());
+            },
+            (planned) => {
+                calls.push(`execute ${planned}`);
+                return Promise.resolve(planned.toLowerCase());
+            },
+        );
+        expect(calls).toEqual(['plan a', 'plan b', 'execute A', 'execute B']);
+        expect(results).toEqual(['a', 'b']);
+    });
+
+    it('never executes when a later plan fails', async () => {
+        const execute = vi.fn((planned: string) => Promise.resolve(planned));
+        await expect(
+            inTwoPasses(
+                ['a', 'b'],
+                (image) => (image === 'b' ? Promise.reject(new Error('lookup failed')) : Promise.resolve(image)),
+                execute,
+            ),
+        ).rejects.toThrow('lookup failed');
+        expect(execute).not.toHaveBeenCalled();
+    });
+});
+
+describe('syncSummary', () => {
+    const file = 'src/data/gallery/photography.json';
+
+    it('says a dry run wrote nothing and how to publish', () => {
+        expect(syncSummary({ new: 49, changed: 0, unchanged: 0 }, 0, 49, file, false)).toBe(
+            `49 new, 0 changed, 0 unchanged, 0 dropped; 49 entries (dry run: ${file} not written; re-run with --upload to publish)`,
+        );
+    });
+
+    it('names the data file after an upload run', () => {
+        expect(syncSummary({ new: 1, changed: 2, unchanged: 3 }, 4, 6, file, true)).toBe(
+            `1 new, 2 changed, 3 unchanged, 4 dropped; 6 entries in ${file}`,
+        );
     });
 });
