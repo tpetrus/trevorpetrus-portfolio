@@ -153,6 +153,8 @@ again (`tests/e2e/home.spec.ts` checks each line fills 90% to 101% of the box).
 below it they stack, offset. Captions sit below the images, never over them. The images are lazy and carry an explicit
 `aspect-ratio`, so the cluster never shifts the page.
 
+On phones each cluster image is half the width of its figure (the `max-width: 47.99rem` rule in `HomeCluster.astro`; `CLUSTER_SIZES` in `src/lib/homeCluster.ts` gives the browser the matching `40vw` hint), so the wordmark `h1`, not a photo, is the largest element and the LCP. That is why every cluster image can stay lazy with no `fetchpriority="high"`. PR #16 measured mobile LCP at about 2.0 s with the wordmark as LCP against about 2.4 s when a cluster photo was. If the first three photos change (for example a wide landscape moves first), re-check the LCP element with `npm run lighthouse` before merging.
+
 ## Projects
 The Projects page is built from the `projects` content collection (`src/content/projects/*.md`, schema in
 `src/lib/projects.ts`; a bad frontmatter file fails the build). The lowest `order` renders as the cover (large image,
