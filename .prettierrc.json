@@ -11,6 +11,10 @@
       "options": { "tabWidth": 2 }
     },
     {
+      "files": "src/content/**/*.yml",
+      "options": { "singleQuote": false }
+    },
+    {
       "files": "*.astro",
       "options": { "parser": "astro" }
     }
