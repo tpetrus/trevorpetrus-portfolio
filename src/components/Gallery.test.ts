@@ -2,7 +2,8 @@ import { experimental_AstroContainer as AstroContainer } from 'astro/container';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import type { CollectionCaption, GalleryEntry } from '../lib/gallery';
-import { GRID_QUALITY, GRID_SIZES } from '../lib/galleryView';
+import { tileSizes } from '../lib/galleryLayout';
+import { GRID_QUALITY } from '../lib/galleryView';
 import { GRID_WIDTHS, LIGHTBOX_WIDTHS, imageSrcset, originalImageUrl, transformedImageUrl } from '../lib/imageUrl';
 import { encodeThumbHash } from '../lib/thumbhash';
 import Gallery from './Gallery.astro';
@@ -26,11 +27,12 @@ function entry(
     };
 }
 
+// Landscape, portrait, square and a very wide panorama, then a pair that follows it.
 const ENTRIES = [
     entry('harbor', { width: 4000, height: 3000, caption: { camera: 'Canon EOS R5', iso: 400, taken: '2026-10-01' } }),
     entry('dunes', { width: 2000, height: 3000 }),
-    entry('pier'),
-    entry('fog'),
+    entry('ridge-Pano', { width: 9000, height: 2000 }),
+    entry('tile', { width: 2400, height: 2400 }),
     entry('cliff'),
 ];
 
@@ -65,12 +67,16 @@ describe('Gallery', () => {
         expect(images).toHaveLength(ENTRIES.length);
     });
 
-    it('lays the tiles out in one, two and three columns', () => {
-        const classes = attributesOf(tagsOf(html, 'ul')[0]).class;
+    it('places each tile in the 12-column grid and hands it its dimensions for its off-screen stand-in height', () => {
+        const styles = tagsOf(html, 'li').map((tag) => attributesOf(tag).style);
 
-        expect(classes).toContain('grid-cols-1');
-        expect(classes).toContain('sm:grid-cols-2');
-        expect(classes).toContain('lg:grid-cols-3');
+        expect(styles).toEqual([
+            '--row: 0; --column: 1; --span: 8; --w: 4000; --h: 3000',
+            '--row: 0; --column: 9; --span: 4; --w: 2000; --h: 3000',
+            '--row: 1; --column: 1; --span: 12; --w: 9000; --h: 2000',
+            '--row: 2; --column: 1; --span: 4; --w: 2400; --h: 2400',
+            '--row: 2; --column: 5; --span: 8; --w: 3000; --h: 2000',
+        ]);
     });
 
     it('links each tile to the largest lightbox variant and carries what the lightbox reads', () => {
@@ -84,7 +90,6 @@ describe('Gallery', () => {
         expect(harbor['data-pswp-srcset']).toBe(imageSrcset('photography/harbor.jpg', LIGHTBOX_WIDTHS));
         expect(harbor['data-original']).toBe(originalImageUrl('photography/harbor.jpg'));
         expect(harbor['data-caption']).toBe('Canon EOS R5 · ISO 400 · 2026-10-01');
-        expect(harbor['data-cropped']).toBe('true');
     });
 
     it("uses each entry's own dimensions and an empty caption when there is none", () => {
@@ -101,29 +106,36 @@ describe('Gallery', () => {
         const [harbor] = images;
 
         expect(harbor.src).toBe(transformedImageUrl('photography/harbor.jpg', { width: 640, quality: GRID_QUALITY }));
-        expect(harbor.srcset).toBe(imageSrcset('photography/harbor.jpg', GRID_WIDTHS, { quality: GRID_QUALITY }));
-        expect(harbor.sizes).toBe(GRID_SIZES);
+        expect(harbor.srcset).toBe(
+            imageSrcset('photography/harbor.jpg', [...GRID_WIDTHS, ...LIGHTBOX_WIDTHS], { quality: GRID_QUALITY }),
+        );
+        expect(harbor.sizes).toBe(tileSizes(8));
         expect(harbor.width).toBe('4000');
         expect(harbor.height).toBe('3000');
         expect(harbor.alt).toBe('Alt text of harbor');
         expect(harbor.decoding).toBe('async');
     });
 
-    it('skips rendering tiles far from the viewport, so their images are not all requested up front', () => {
-        const items = tagsOf(html, 'li').map(attributesOf);
-
-        expect(items).toHaveLength(ENTRIES.length);
-        for (const item of items) {
-            expect(item.class).toContain('[content-visibility:auto]');
-            expect(item.class).toContain('[contain-intrinsic-size:auto_16rem]');
+    it('never crops a tile or marks it cropped: the image keeps its own ratio and the space is reserved by width and height', () => {
+        expect(html).not.toContain('cropped');
+        for (const image of images) {
+            expect(image.class).not.toContain('object-cover');
+            expect(image.class).not.toContain('aspect-');
         }
+        expect(images.map((image) => `${image.width}x${image.height}`)).toEqual([
+            '4000x3000',
+            '2000x3000',
+            '9000x2000',
+            '2400x2400',
+            '3000x2000',
+        ]);
     });
 
-    it('crops every tile to 3:2 whatever the photo, so the grid stays even', () => {
-        for (const image of images) {
-            expect(image.class).toContain('aspect-[3/2]');
-            expect(image.class).toContain('object-cover');
-        }
+    it('shows the caption under the photo only for a tile that has one', () => {
+        const captions = html.match(/<p class="[^"]*font-mono[^"]*"[^>]*>([^<]*)<\/p>/g) ?? [];
+
+        expect(captions).toHaveLength(1);
+        expect(captions[0]).toContain('Canon EOS R5 · ISO 400 · 2026-10-01');
     });
 
     it('paints the ThumbHash preview behind each image', () => {

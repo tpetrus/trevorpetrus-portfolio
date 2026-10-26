@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import { originalImageUrl } from '../../src/lib/imageUrl';
 import { readGalleryEntries } from './galleryData';
+import { stubRemotePhotos } from './stubPhotos';
 
 const entries = readGalleryEntries('photography');
 
@@ -51,6 +52,29 @@ test.describe('photography lightbox', () => {
         await page.goto('/photography/');
 
         await openAndCloseFirstPhoto(page, entries[0], browserName);
+    });
+
+    test('opens from every tile with its own original-image link, and no tile is marked cropped', async ({ page }) => {
+        // One open and close per photo: the real gallery has dozens, and WebKit is the slowest at it.
+        test.setTimeout(300_000);
+        await stubRemotePhotos(page);
+        await page.goto('/photography/');
+        await expect(page.locator('#gallery [data-cropped]')).toHaveCount(0);
+
+        for (const [index, { key }] of entries.entries()) {
+            await page.locator('#gallery a').nth(index).scrollIntoViewIfNeeded();
+            await page.locator('#gallery a').nth(index).click();
+            const dialog = page.getByRole('dialog');
+            await expect(dialog).toBeVisible();
+            await expect(dialog.getByRole('link', { name: 'View original' })).toHaveAttribute(
+                'href',
+                originalImageUrl(key),
+            );
+            await expect(async () => {
+                await page.keyboard.press('Escape');
+                await expect(dialog).toBeHidden({ timeout: 1000 });
+            }).toPass();
+        }
     });
 
     test('still works after navigating away and back with View Transitions', async ({ page, browserName }) => {
