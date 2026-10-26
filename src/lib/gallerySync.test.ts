@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { GalleryEntry } from './gallery';
 import {
+    acceptImages,
     decideAction,
     DEFAULT_BUCKET,
     defaultSourceDir,
@@ -10,6 +11,7 @@ import {
     galleryKey,
     mergeGallery,
     parseSidecar,
+    parseSidecars,
     parseSyncArgs,
     planInputs,
     PROCESSING_VERSION,
@@ -17,6 +19,7 @@ import {
     R2_TOKEN_ENV,
     serializeGallery,
     sidecarDirectory,
+    sidecarFileName,
     type CuratedEntry,
 } from './gallerySync';
 
@@ -202,6 +205,53 @@ describe('parseSidecar', () => {
             /src\/content\/photography\/a\.yml: invalid sidecar/,
         );
         expect(() => parseSidecar('photography', '', 'a.yml')).toThrow(/a\.yml: invalid sidecar/);
+    });
+
+    it('rejects the scaffold placeholder, in any case, naming the file', () => {
+        for (const alt of ['"TODO: describe this photo"', '"  todo"', 'Todo later']) {
+            expect(() => parseSidecar('photography', `alt: ${alt}\n`, 'src/content/photography/a.yml')).toThrow(
+                /src\/content\/photography\/a\.yml: invalid sidecar[\s\S]*real alt text/,
+            );
+        }
+    });
+});
+
+describe('parseSidecars', () => {
+    it('collects every invalid sidecar in one pass and keeps the valid ones', () => {
+        const result = parseSidecars('photography', [
+            { basename: 'a', source: 'dir/a.yml', text: 'alt: "TODO: describe this photo"\n' },
+            { basename: 'b', source: 'dir/b.yml', text: 'alt: A harbor\norder: 3\n' },
+            { basename: 'c', source: 'dir/c.yml', text: 'order: 1\n' },
+            { basename: 'd', source: 'dir/d.yml', text: 'alt: "TODO"\n' },
+        ]);
+        expect(result.problems).toHaveLength(3);
+        expect(result.problems[0]).toMatch(/dir\/a\.yml: invalid sidecar/);
+        expect(result.problems[1]).toMatch(/dir\/c\.yml: invalid sidecar/);
+        expect(result.problems[2]).toMatch(/dir\/d\.yml: invalid sidecar/);
+        expect([...result.sidecars.keys()]).toEqual(['b']);
+        expect(result.sidecars.get('b')).toEqual({ alt: 'A harbor', order: 3 });
+    });
+});
+
+describe('acceptImages', () => {
+    it('splits accepted images from rejected files, sorted', () => {
+        expect(acceptImages(['b.jpg', 'a.JPEG', 'c.png', '.d.jpg', 'a.jpg'])).toEqual({
+            images: [
+                { file: 'a.JPEG', basename: 'a' },
+                { file: 'b.jpg', basename: 'b' },
+            ],
+            problems: [
+                '".d.jpg" is a hidden file: rename it.',
+                '"a.jpg" has the same name as another image once the extension is removed.',
+                '"c.png" is not accepted: only .jpg and .jpeg files are.',
+            ],
+        });
+    });
+});
+
+describe('sidecarFileName', () => {
+    it('adds .yml to the image basename', () => {
+        expect(sidecarFileName('IMG_0001')).toBe('IMG_0001.yml');
     });
 });
 

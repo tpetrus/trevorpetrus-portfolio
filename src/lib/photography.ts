@@ -1,5 +1,7 @@
 import { z } from 'astro/zod';
 
+import { ALT_PLACEHOLDER_MARKER, isPlaceholderAlt, PLACEHOLDER_ALT_MESSAGE } from './sidecarPlaceholder';
+
 // Every field is optional: a file may carry no EXIF at all, and cameras leave out whatever they cannot measure
 // (a manual lens reports no aperture).
 export const photographyCaptionSchema = z.object({
@@ -19,11 +21,26 @@ export type PhotographyCaption = z.output<typeof photographyCaptionSchema>;
 
 // The hand-written `src/content/photography/<image basename>.yml`: EXIF has no alt text, so every photo needs one.
 export const photographySidecarSchema = z.object({
-    alt: z.string().min(1),
+    // The scaffold's placeholder is rejected so that a photo without real alt text cannot be synced.
+    alt: z
+        .string()
+        .min(1)
+        .refine((alt) => !isPlaceholderAlt(alt), PLACEHOLDER_ALT_MESSAGE),
     /** Pins the photo's position: lowest first, ahead of every photo without an order. */
     order: z.int().optional(),
 });
 export type PhotographySidecar = z.output<typeof photographySidecarSchema>;
+
+/** The file `scaffold-gallery` writes for a photo that has no sidecar yet. Its `alt` is rejected until it is replaced. */
+export function photographySidecarTemplate(basename: string): string {
+    return `# Sidecar for ${basename}.jpg: the text the site cannot read from the photo.
+# alt (required): one plain sentence saying what is in the photo, for people who cannot see it.
+#   Replace the whole line below. The sync refuses any alt that starts with ${ALT_PLACEHOLDER_MARKER}.
+# order (optional): a whole number that pins this photo's position, lowest first, ahead of photos without one.
+alt: "${ALT_PLACEHOLDER_MARKER}: describe this photo"
+# order: 1
+`;
+}
 
 /**
  * The EXIF tags the sync script asks exifr for. It must call exifr with `reviveValues: false`: with it on, exifr turns

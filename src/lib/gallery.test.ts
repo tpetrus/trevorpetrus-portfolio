@@ -84,6 +84,7 @@ describe('GALLERY_COLLECTIONS', () => {
         expect(sidecarSchema.parse({ alt: 'A harbor', order: 2 })).toEqual({ alt: 'A harbor', order: 2 });
         expect(sidecarSchema.parse({ alt: 'A harbor' })).toEqual({ alt: 'A harbor' });
         expect(() => sidecarSchema.parse({ alt: '' })).toThrow();
+        expect(() => sidecarSchema.parse({ alt: 'TODO: describe this photo' })).toThrow(/real alt text/);
         expect(() => sidecarSchema.parse({ order: 1 })).toThrow();
         expect(() => sidecarSchema.parse({ alt: 'x', order: 1.5 })).toThrow();
     });
