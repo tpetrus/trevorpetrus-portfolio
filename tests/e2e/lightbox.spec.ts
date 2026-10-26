@@ -55,7 +55,8 @@ test.describe('photography lightbox', () => {
     });
 
     test('opens from every tile with its own original-image link, and no tile is marked cropped', async ({ page }) => {
-        test.slow();
+        // One open and close per photo: the real gallery has dozens, and WebKit is the slowest at it.
+        test.setTimeout(300_000);
         await stubRemotePhotos(page);
         await page.goto('/photography/');
         await expect(page.locator('#gallery [data-cropped]')).toHaveCount(0);
