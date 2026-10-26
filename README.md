@@ -33,8 +33,8 @@ every `npm ci`. To check or repair after an install on Windows (the tag below is
 today; use whatever tag they pin when you read this):
 
 ```sh
-npx --yes --package=github:tpetrus/ci-workflows#v0.2.0 ci-tools check-lockfile
-npx --yes --package=github:tpetrus/ci-workflows#v0.2.0 ci-tools repair-lockfile
+npx --yes --package=github:tpetrus/ci-workflows#vX.Y.Z ci-tools check-lockfile
+npx --yes --package=github:tpetrus/ci-workflows#vX.Y.Z ci-tools repair-lockfile
 ```
 
 `repair-lockfile` adds back the missing entries after checking their integrity hashes and never changes existing ones.
@@ -315,7 +315,7 @@ If the bot is down, the failing `version` check names the exact version; write i
 `.github/workflows/` pins today):
 
 ```sh
-npx --yes --package=github:tpetrus/ci-workflows#v0.2.0 ci-tools release write-version <version>
+npx --yes --package=github:tpetrus/ci-workflows#vX.Y.Z ci-tools release write-version <version>
 ```
 
 To replace the generated release notes, add `.github/release-notes/v<version>.md` in the PR.
