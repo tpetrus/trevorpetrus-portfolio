@@ -1,6 +1,7 @@
 ---
 import type { CollectionCaption, GalleryCollectionName, GalleryEntry } from '../lib/gallery';
 import { galleryTiles } from '../lib/galleryView';
+import PhotoCaption from './PhotoCaption.astro';
 
 interface Props {
     /** Which collection the entries belong to; it decides how their captions read. */
@@ -9,15 +10,15 @@ interface Props {
 }
 
 const { collection, entries } = Astro.props;
-// content-visibility keeps tiles far from the viewport unrendered, so their images are not all requested up front.
-// contain-intrinsic-size is a stand-in height (one 3:2 tile on a phone); the browser remembers the real one after the
-// first render.
 const tiles = await galleryTiles(collection, entries);
 ---
 
-<ul role="list" id="gallery" class="grid grid-cols-1 gap-gutter sm:grid-cols-2 lg:grid-cols-3">
+<ul role="list" id="gallery" class="gallery">
     {tiles.map((tile) => (
-        <li class="[contain-intrinsic-size:auto_16rem] [content-visibility:auto]">
+        <li
+            class="tile"
+            style={`--row: ${tile.placement.row}; --column: ${tile.placement.column}; --span: ${tile.placement.span}; --w: ${tile.width}; --h: ${tile.height}`}
+        >
             <a
                 href={tile.href}
                 data-pswp-width={tile.width}
@@ -25,8 +26,7 @@ const tiles = await galleryTiles(collection, entries);
                 data-pswp-srcset={tile.lightboxSrcset}
                 data-original={tile.original}
                 data-caption={tile.caption}
-                data-cropped="true"
-                class="block overflow-hidden"
+                class="photo"
             >
                 <img
                     src={tile.src}
@@ -39,12 +39,85 @@ const tiles = await galleryTiles(collection, entries);
                     fetchpriority={tile.fetchpriority}
                     decoding="async"
                     style={{ backgroundImage: `url(${tile.placeholder})` }}
-                    class="aspect-[3/2] w-full bg-cover object-cover transition-opacity hover:opacity-90"
+                    class="block h-auto w-full bg-cover transition-opacity hover:opacity-90"
                 />
             </a>
+            {tile.caption !== '' && <PhotoCaption text={tile.caption} />}
         </li>
     ))}
 </ul>
+
+<style>
+    /* One column below 48rem (the breakpoint in src/lib/galleryLayout.ts), twelve above. */
+    .gallery {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        /* Lets a tile size its stand-in height from the grid's width (cqi) before it is rendered. */
+        container-type: inline-size;
+    }
+
+    .tile {
+        --tile-width: 100cqi;
+        display: flex;
+        flex-direction: column;
+        padding-bottom: calc(var(--spacing-gutter) * 3);
+    }
+
+    /*
+     * The photo keeps its own height: a row's tiles differ in height, and stretching one would distort it. The explicit
+     * width matters: without it, align-self makes the link shrink to its content, and an image that has not loaded yet
+     * (every lazy one) would collapse to nothing instead of holding the space its width and height attributes reserve.
+     */
+    .photo {
+        display: block;
+        width: 100%;
+        align-self: start;
+        /*
+         * content-visibility keeps photos far from the viewport unrendered, so their images are not all requested up
+         * front. It goes on the photo and not on the tile: containment on the tile, a subgrid, stops it sharing its rows
+         * with the other tiles, and the captions of a row no longer line up (measured in Chromium and WebKit). An
+         * unrendered photo has no height of its own, so contain-intrinsic-block-size stands in for it: exactly the image
+         * at its own ratio across the tile's width. "auto" makes the browser remember the real height once rendered.
+         */
+        content-visibility: auto;
+        contain-intrinsic-block-size: auto calc(var(--tile-width) * var(--h) / var(--w));
+    }
+
+    @media (min-width: 48rem) {
+        .gallery {
+            grid-template-columns: repeat(12, minmax(0, 1fr));
+            column-gap: var(--spacing-gutter);
+        }
+
+        .tile {
+            /* The width of `span` of the twelve columns, with the eleven gaps taken out of the grid's width first. */
+            --tile-width: calc(
+                (100cqi - var(--spacing-gutter) * 11) * var(--span) / 12 + var(--spacing-gutter) * (var(--span) - 1)
+            );
+        }
+
+        /* Two grid rows per tile: the photo, then its caption. */
+        .tile {
+            grid-column: var(--column) / span var(--span);
+            grid-row: calc(var(--row) * 2 + 1) / span 2;
+            align-self: start;
+        }
+    }
+
+    /*
+     * With subgrid, the tiles of a row share both rows, so the captions line up under the tallest photo. Without it the
+     * tile stays a flex column and each caption sits right under its own photo.
+     */
+    @supports (grid-template-rows: subgrid) {
+        @media (min-width: 48rem) {
+            .tile {
+                display: grid;
+                grid-template-rows: subgrid;
+                align-self: stretch;
+            }
+        }
+    }
+</style>
 
 <script>
     import '../scripts/galleryLightbox';
