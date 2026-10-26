@@ -69,6 +69,33 @@ describe('parseSyncArgs', () => {
         });
     });
 
+    describe('the account ID', () => {
+        const OTHER_ACCOUNT = 'fedcba9876543210fedcba9876543210';
+
+        it('comes from CLOUDFLARE_ACCOUNT_ID when --account is not given', () => {
+            expect(parseSyncArgs(['photography', '--upload'], FULL_ENV).account).toBe(ACCOUNT);
+        });
+
+        it('is overridden by --account when given', () => {
+            expect(parseSyncArgs(['photography', '--upload', '--account', OTHER_ACCOUNT], FULL_ENV).account).toBe(
+                OTHER_ACCOUNT,
+            );
+        });
+
+        it('fails naming both options when neither is set, without printing a value', () => {
+            const env = { ...FULL_ENV, CLOUDFLARE_ACCOUNT_ID: undefined };
+            expect(() => parseSyncArgs(['photography', '--upload'], env)).toThrow(
+                '--upload needs the account ID (--account or CLOUDFLARE_ACCOUNT_ID).',
+            );
+        });
+
+        it('is not required for a dry run', () => {
+            expect(
+                parseSyncArgs(['photography'], { ...FULL_ENV, CLOUDFLARE_ACCOUNT_ID: undefined }),
+            ).not.toHaveProperty('account');
+        });
+    });
+
     it('treats empty environment variables as missing', () => {
         expect(() => parseSyncArgs(['photography', '--upload'], { R2_BUCKET: '', [R2_TOKEN_ENV]: '' })).toThrow(
             /account ID.*API token/,

@@ -148,11 +148,15 @@ With no entries the page shows "Photos are on their way." and references no Phot
    every missing sidecar, orphan sidecar, non-JPEG and duplicate name in one run.
 3. Dry run: `npm run sync:gallery -- photography`. It processes in memory and prints what it would do; it touches neither
    R2 nor the JSON. Check the sizes and captions.
-4. Upload: `npm run sync:gallery -- photography --upload --account <account id>`. The bucket defaults to `portfolio-photos`
-   (override with `--bucket` or `R2_BUCKET`). The account ID is deliberately not in the repo: pass `--account` or set
-   `CLOUDFLARE_ACCOUNT_ID` (the 32-character number in any Cloudflare dashboard URL, `dash.cloudflare.com/<id>/...`). The R2 API token is the user-scope environment variable `CLOUDFLARE_R2_BUCKET_READ_WRITE_API_KEY`. The script
-   hands the token to `wrangler r2 object put` through the child process's environment only and never prints it. The JSON
-   is rewritten only after every upload succeeded.
+4. Upload: `npm run sync:gallery -- photography --upload`. The bucket defaults to `portfolio-photos` (override with
+   `--bucket` or `R2_BUCKET`). The account ID is deliberately not in the repo: the script reads the user-scope environment
+   variable `CLOUDFLARE_ACCOUNT_ID` (the 32-character number in any Cloudflare dashboard URL,
+   `dash.cloudflare.com/<id>/...`), and `--account <id>` overrides it when given. Set it once in PowerShell, then open a
+   new terminal (a running one does not see it):
+   `[Environment]::SetEnvironmentVariable('CLOUDFLARE_ACCOUNT_ID', '<account id>', 'User')`. The R2 API token is the
+   user-scope environment variable `CLOUDFLARE_R2_BUCKET_READ_WRITE_API_KEY`. The script hands the token to
+   `wrangler r2 object put` through the child process's environment only and never prints it. The JSON is rewritten only
+   after every upload succeeded.
 5. Commit `src/data/gallery/photography.json` and the sidecars (`src/content/photography/*.yml`), never the JPEGs.
 
 **What the processing does** (`scripts/galleryImage.ts`, run on every changed original): auto-orients, converts to sRGB

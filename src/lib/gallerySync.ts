@@ -37,13 +37,17 @@ export interface SyncOptions {
 
 export const SYNC_USAGE =
     `Usage: sync-gallery <collection> [--source <dir>] [--upload] [--bucket <name>] [--account <id>]
-` + `The bucket defaults to ${DEFAULT_BUCKET} (override with --bucket or R2_BUCKET).`;
+` +
+    `The bucket defaults to ${DEFAULT_BUCKET} (override with --bucket or R2_BUCKET).
+` +
+    `The account ID defaults to the CLOUDFLARE_ACCOUNT_ID environment variable (override with --account).`;
 
 const VALUE_FLAGS = ['--source', '--bucket', '--account'];
 
 /**
  * Parses `sync-gallery <collection> [--source <dir>] [--upload] [--bucket <name>] [--account <id>]`. The bucket and
- * account fall back to `R2_BUCKET` (then `DEFAULT_BUCKET`) and `CLOUDFLARE_ACCOUNT_ID`. Without `--upload` this is a
+ * account fall back to `R2_BUCKET` (then `DEFAULT_BUCKET`) and `CLOUDFLARE_ACCOUNT_ID`; a flag, when given, wins over
+ * the environment. Without `--upload` this is a
  * dry run, and the account and token are not needed. Errors name what is missing, never a secret's value.
  */
 export function parseSyncArgs(argv: readonly string[], env: Readonly<Record<string, string | undefined>>): SyncOptions {
