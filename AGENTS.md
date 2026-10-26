@@ -187,7 +187,8 @@ With no entries the page shows "Photos are on their way." and references no Phot
    and lists every such sidecar. It also reports every missing sidecar, orphan sidecar, non-JPEG and duplicate name in one
    run.
 4. Dry run: `npm run sync:gallery -- photography`. It processes in memory and prints what it would do; it touches neither
-   R2 nor the JSON. Check the sizes and captions.
+   R2 nor the JSON. Check the sizes and captions. Its last line says so: `49 new, ... entries (dry run: src/data/gallery/photography.json
+   not written; re-run with --upload to publish)`, so the count of entries is not mistaken for a write.
 5. Upload: `npm run sync:gallery -- photography --upload`. The bucket defaults to `portfolio-photos` (override with
    `--bucket` or `R2_BUCKET`). The account ID is deliberately not in the repo: the script reads the user-scope environment
    variable `CLOUDFLARE_ACCOUNT_ID` (the 32-character number in any Cloudflare dashboard URL,
@@ -216,7 +217,10 @@ keys and number pairs.
   SOURCE file and returns only the nearest place's city and country; the coordinates do not leave that function. The lookup is
   offline: the first use downloads GeoNames `cities1000` (about 11 MB zipped, every place over 1,000 people; CC BY 4.0,
   https://download.geonames.org/export/dump/) and caches the unzipped text in `node_modules/.cache/geonames/cities1000.txt`;
-  delete that file to refresh. No coordinate is ever sent anywhere, and the build never needs the dataset or the network.
+  delete that file to refresh. The download times out after 120 s (`DOWNLOAD_TIMEOUT_MS` in `scripts/geonames.ts`) with an error
+  that names the URL; nothing is cached on failure, and a response announcing more than 64 MB is refused. The sync locates
+  every photo before it uploads any, so a failed lookup aborts the run with nothing uploaded. No coordinate is ever sent
+  anywhere, and the build never needs the dataset or the network.
   The zip is read by `src/lib/zip.ts` (Node's `zlib` plus a small central-directory reader, CRC-checked), so there is no zip
   dependency. The place is chosen from the haversine
   distance and the population column: the most populous place within `PREFERRED_RADIUS_KM` (10 km; the nearer on a tie)

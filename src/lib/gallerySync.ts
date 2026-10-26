@@ -239,6 +239,40 @@ export function decideAction(
         : 'changed';
 }
 
+/**
+ * Runs a sync in two passes: `plan` for every image first, then `execute` for each plan, in order. Anything that can
+ * fail without side effects (reading, hashing, looking up the place) belongs in `plan`, so a failure there aborts
+ * before the first upload. The plans stay small on purpose: the caller keeps no image bytes in them.
+ */
+export async function inTwoPasses<Image, Plan, Result>(
+    images: readonly Image[],
+    plan: (image: Image) => Promise<Plan>,
+    execute: (plan: Plan) => Promise<Result>,
+): Promise<Result[]> {
+    const plans: Plan[] = [];
+    for (const image of images) plans.push(await plan(image));
+    const results: Result[] = [];
+    for (const planned of plans) results.push(await execute(planned));
+    return results;
+}
+
+/**
+ * The one-line summary the sync ends with. A dry run says outright that the data file was not written, because the
+ * counts alone read as if it had been.
+ */
+export function syncSummary(
+    counts: Record<SyncAction, number>,
+    droppedCount: number,
+    entryCount: number,
+    dataFile: string,
+    uploaded: boolean,
+): string {
+    const tally = `${counts.new} new, ${counts.changed} changed, ${counts.unchanged} unchanged, ${droppedCount} dropped`;
+    return uploaded
+        ? `${tally}; ${entryCount} entries in ${dataFile}`
+        : `${tally}; ${entryCount} entries (dry run: ${dataFile} not written; re-run with --upload to publish)`;
+}
+
 /** An entry plus the sidecar's `order`, which decides its position but is not stored in the data file. */
 export interface CuratedEntry<Caption> {
     entry: GalleryEntry<Caption>;
