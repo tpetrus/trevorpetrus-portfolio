@@ -95,6 +95,21 @@ const figures = await clusterFigures(Astro.props.entries);
         color: var(--color-ink-muted);
     }
 
+    /*
+     * On a phone the images are half the width of their figure, so each is smaller than the wordmark's text block and the
+     * name, not a photo, is the largest contentful paint. That keeps every image lazy: Lighthouse flags a lazy LCP image,
+     * and an eager one measured slower. The second image sits on the opposite side for the offset.
+     */
+    @media (max-width: 47.99rem) {
+        img {
+            inline-size: 50%;
+            justify-self: start;
+        }
+        figure:nth-child(2) img {
+            justify-self: end;
+        }
+    }
+
     @media (min-width: 48rem) {
         figure {
             grid-row: 1 / span 2;

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { GalleryEntry } from './gallery';
 import { CLUSTER_SIZE, CLUSTER_SIZES, CLUSTER_SRC_WIDTH, clusterEntries, clusterFigures } from './homeCluster';
+import { GRID_QUALITY } from './galleryView';
 import { GRID_WIDTHS, imageSrcset, transformedImageUrl } from './imageUrl';
 import type { PhotographyCaption } from './photography';
 import { encodeThumbHash } from './thumbhash';
@@ -50,8 +51,8 @@ describe('clusterFigures', () => {
             width: 3000,
             height: 2000,
             caption: 'Canon EOS R5 · ISO 400',
-            src: transformedImageUrl('photography/harbor.jpg', { width: CLUSTER_SRC_WIDTH }),
-            srcset: imageSrcset('photography/harbor.jpg', GRID_WIDTHS),
+            src: transformedImageUrl('photography/harbor.jpg', { width: CLUSTER_SRC_WIDTH, quality: GRID_QUALITY }),
+            srcset: imageSrcset('photography/harbor.jpg', GRID_WIDTHS, { quality: GRID_QUALITY }),
             sizes: CLUSTER_SIZES,
         });
         expect(GRID_WIDTHS).toContain(CLUSTER_SRC_WIDTH);

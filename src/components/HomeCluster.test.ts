@@ -2,6 +2,7 @@ import { experimental_AstroContainer as AstroContainer } from 'astro/container';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import type { CollectionCaption, GalleryEntry } from '../lib/gallery';
+import { GRID_QUALITY } from '../lib/galleryView';
 import { CLUSTER_SIZES } from '../lib/homeCluster';
 import { GRID_WIDTHS, imageSrcset, transformedImageUrl } from '../lib/imageUrl';
 import { encodeThumbHash } from '../lib/thumbhash';
@@ -75,8 +76,8 @@ describe('HomeCluster', () => {
     it('uses only the fixed grid widths and sizes each image from its own dimensions', () => {
         const [harbor, dunes] = images;
 
-        expect(harbor.src).toBe(transformedImageUrl('photography/harbor.jpg', { width: 640 }));
-        expect(harbor.srcset).toBe(imageSrcset('photography/harbor.jpg', GRID_WIDTHS));
+        expect(harbor.src).toBe(transformedImageUrl('photography/harbor.jpg', { width: 640, quality: GRID_QUALITY }));
+        expect(harbor.srcset).toBe(imageSrcset('photography/harbor.jpg', GRID_WIDTHS, { quality: GRID_QUALITY }));
         expect(harbor.sizes).toBe(CLUSTER_SIZES);
         expect([harbor.width, harbor.height]).toEqual(['4000', '3000']);
         expect([dunes.width, dunes.height]).toEqual(['2000', '3000']);

@@ -1,4 +1,5 @@
 import { GALLERY_COLLECTIONS, type CollectionCaption, type GalleryEntry } from './gallery';
+import { GRID_QUALITY } from './galleryView';
 import { GRID_WIDTHS, imageSrcset, transformedImageUrl } from './imageUrl';
 import { placeholderDataUrl } from './thumbhash';
 
@@ -7,9 +8,10 @@ export const CLUSTER_SIZE = 3;
 
 // How wide a figure is drawn, for the browser's choice among the grid candidates (the fixed GRID_WIDTHS only, so the
 // cluster adds no Cloudflare transformations beyond the ones the Photography page already uses). Below 768 px a figure
-// is about 70% of the viewport minus the page edge; from 768 px up the figures share a row, each about five of twelve
-// columns of the 976 px content column (the column is capped at 5xl).
-export const CLUSTER_SIZES = '(min-width: 1024px) 400px, (min-width: 768px) 42vw, 70vw';
+// is about 40% of the viewport (half of a figure that spans three quarters of the column; see HomeCluster.astro), which
+// keeps every image smaller than the wordmark's text block, so the name stays the largest contentful paint and the images can all be lazy; from 768 px up the figures
+// share a row, each about five of twelve columns of the 976 px content column (the column is capped at 5xl).
+export const CLUSTER_SIZES = '(min-width: 1024px) 400px, (min-width: 768px) 42vw, 40vw';
 
 /** The width of the variant in the `src` attribute, the fallback for a browser that ignores `srcset`. */
 export const CLUSTER_SRC_WIDTH = 640;
@@ -43,8 +45,8 @@ export async function clusterFigures(entries: readonly GalleryEntry<CollectionCa
             width,
             height,
             caption: formatCaption(caption),
-            src: transformedImageUrl(key, { width: CLUSTER_SRC_WIDTH }),
-            srcset: imageSrcset(key, GRID_WIDTHS),
+            src: transformedImageUrl(key, { width: CLUSTER_SRC_WIDTH, quality: GRID_QUALITY }),
+            srcset: imageSrcset(key, GRID_WIDTHS, { quality: GRID_QUALITY }),
             sizes: CLUSTER_SIZES,
             placeholder: await placeholderDataUrl(thumbhash),
         })),
