@@ -79,7 +79,9 @@ src/
                         arguments and plan; galleryView.ts: the per-entry view
                         model the Gallery renders; imageUrl.ts: original and resized-variant URLs and the fixed width
                         sets; thumbhash.ts: ThumbHash validation and the WebP placeholder; exifLocation.ts: which
-                        metadata keys are a location)
+                        metadata keys are a location; location.ts: the city/country schemas, sidecar-vs-derived
+                        merge and the caption text; geonames.ts: offline place lookup and `cities1000`
+                        parsing; zip.ts: a minimal zip reader for the GeoNames download)
   content.config.ts     the `projects` content collection (schema comes from lib/projects.ts)
   content/projects/     one markdown file per project; the frontmatter is the data (the body is unused)
   assets/projects/      generated screenshots (<slug>.avif), committed; rendered through astro:assets
@@ -92,7 +94,8 @@ src/
   pages/                index, photography, projects (default exports required by Astro)
   styles/global.css     Tailwind entry and theme
   styles/lightbox.css   the lightbox caption styles
-  components/           ProjectCard.astro, GitHubIcon.astro, Gallery.astro (generic over the collection)
+  components/           ProjectCard.astro, GitHubIcon.astro, Gallery.astro (generic over the collection),
+                        GeonamesCredit.astro (the CC BY 4.0 credit line)
   scripts/galleryLightbox.ts  (src/scripts/) browser glue for the PhotoSwipe lightbox (DOM only, outside unit-test coverage)
 public/                 static files served from / (favicon.svg)
 tests/e2e/              Playwright specs (smoke.spec.ts is tagged @smoke); its own tsconfig; lightbox.spec.ts skips while
@@ -102,8 +105,9 @@ scripts/smoke.ts        runs the @smoke tests against BASE_URL (Chromium project
 scripts/scaffold-gallery.ts  manual: writes starter sidecars (I/O only; logic is in src/lib/gallerySidecars.ts)
 scripts/sync-projects.ts  manual: writes project-meta.json and the screenshots (I/O only; logic is in src/lib)
 scripts/sync-gallery.ts   manual: processes and uploads gallery images and writes src/data/gallery/<collection>.json
-scripts/galleryImage.ts   the image processing the sync uses (sharp and exifr), with the location guards; specs sit
-                          next to it (scripts/galleryImage.test.ts)
+scripts/galleryImage.ts   the image processing the sync uses (sharp and exifr), with the location guards and the
+                          GPS-to-city lookup; specs sit next to it (scripts/galleryImage.test.ts)
+scripts/geonames.ts       downloads and caches GeoNames `cities1000` (I/O only; logic is in src/lib/geonames.ts)
 .github/                thin caller workflows and Dependabot config
 ```
 
@@ -154,7 +158,7 @@ Images are never in git: originals live in an R2 bucket served from `PHOTOS_ORIG
 the host is set; Cloudflare Images transformations only run on a hostname in the Cloudflare zone, never on workers.dev).
 The page uses resized variants from `<origin>/cdn-cgi/image/<options>/<key>` (helpers in `src/lib/imageUrl.ts`) and links
 "View original" to `<origin>/<key>`. The data file is committed and holds, per photo, the key, size, ThumbHash, caption
-and alt text; the build makes no network calls, and the ThumbHash becomes a small WebP placeholder at build time.
+(camera settings and the place) and alt text; the build makes no network calls, and the ThumbHash becomes a small WebP placeholder at build time.
 With no entries the page shows "Photos are on their way." and references no PhotoSwipe JavaScript.
 
 **Add photos:**
@@ -162,9 +166,9 @@ With no entries the page shows "Photos are on their way." and references no Phot
 2. Scaffold the sidecars: `npm run scaffold:gallery -- photography` (add `--dry-run` to only list what it would do). For
    every accepted JPEG without one it writes `src/content/photography/<basename>.yml` from the collection's template, and
    it never overwrites an existing sidecar (exclusive create). The template holds `alt: "TODO: describe this photo"` and a
-   commented-out `# order: 1`.
+   commented-out `# order: 1` and `# location:` (see "Where it was taken").
 3. Replace each `TODO` with real alt text (EXIF has no alt text) and, optionally, set an integer `order` (lowest first,
-   ahead of photos without one). The photography sidecar schema rejects an `alt` that starts with `TODO`
+   ahead of photos without one) and a `location` override (see "Where it was taken"). The photography sidecar schema rejects an `alt` that starts with `TODO`
    (`ALT_PLACEHOLDER_MARKER` in `src/lib/sidecarPlaceholder.ts`, case-insensitive), so the sync fails, dry run included,
    and lists every such sidecar. It also reports every missing sidecar, orphan sidecar, non-JPEG and duplicate name in one
    run.
@@ -188,6 +192,33 @@ and written into a fresh EXIF block), and re-encodes as a quality-92 4:4:4 JPEG.
 wrote them. The sync throws, before anything is uploaded, if the output still has any location data (`assertNoLocation`)
 or if the camera fields do not round-trip. A file whose bytes and `PROCESSING_VERSION` (in `src/lib/gallerySync.ts`;
 bump it when the processing changes) are unchanged is skipped.
+
+**Where it was taken.** Each photo's caption starts with the city and country (`Lisbon, Portugal · Canon EOS R5 · ...`),
+stored as `caption.location: { city, country, source }` in the JSON. Exact GPS coordinates are still stripped from the
+uploaded original, and they are never written to the JSON or anywhere else in the repo: the schema is strict (an extra
+key such as `latitude` fails the build), and `src/lib/galleryData.test.ts` checks the committed data for coordinate-like
+keys and number pairs.
+- **Derived (`source: "geonames"`).** At sync time `deriveSourceLocation` (in `scripts/galleryImage.ts`) reads the GPS of the
+  SOURCE file and returns only the nearest place's city and country; the coordinates do not leave that function. The lookup is
+  offline: the first use downloads GeoNames `cities1000` (about 11 MB zipped, every place over 1,000 people; CC BY 4.0,
+  https://download.geonames.org/export/dump/) and caches the unzipped text in `node_modules/.cache/geonames/cities1000.txt`;
+  delete that file to refresh. No coordinate is ever sent anywhere, and the build never needs the dataset or the network.
+  The zip is read by `src/lib/zip.ts` (Node's `zlib` plus a small central-directory reader, CRC-checked), so there is no zip
+  dependency. The place is chosen from the haversine
+  distance and the population column: the most populous place within `PREFERRED_RADIUS_KM` (10 km; the nearer on a tie)
+  wins, so Times Square is "New York City", not Weehawken, and the Eiffel Tower is "Paris", not the "Paris 16 Passy"
+  district (a plain `PPL` row, so no feature-code filter can remove it); if none is within 10 km, the nearest wins. `PPLX`
+  rows (sections of a populated place) are skipped, and country names come from `Intl.DisplayNames`. A chosen place more
+  than `MAX_PLACE_DISTANCE_KM` (25 km, `src/lib/geonames.ts`) from the photo, one with
+  GPS of (0, 0), or one in a country ICU does not know gets no place (the first and last also print a warning that names the
+  photo and suggests an override; never a coordinate). Expect an occasional odd name (a big city a photo only borders
+  beats the small town it is actually in); fix those with an override.
+- **Override.** `location:` in the sidecar, with `city` and `country`, replaces the derived place (and names a photo that has
+  no GPS; `source: "sidecar"`). `location: false` shows no place. Absent means derive.
+- **No re-upload.** The place is not in the uploaded bytes, so it does not touch `PROCESSING_VERSION`: every sync recomputes
+  it for every photo, including unchanged ones, so existing entries gain a place on the next sync like an alt-text edit does.
+- **Attribution.** The Photography page shows "Place names from GeoNames, CC BY 4.0" (`GeonamesCredit.astro`) only when at
+  least one entry has `source: "geonames"`.
 
 **R2 objects are never deleted by the script.** A photo whose source is gone is dropped from the JSON with a notice; remove
 its object by hand.

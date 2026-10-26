@@ -3,7 +3,8 @@ import type { Exif } from 'sharp';
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 
-import { assertNoLocation, processImage } from './galleryImage.ts';
+import type { Place } from '../src/lib/geonames.ts';
+import { assertNoLocation, deriveSourceLocation, processImage } from './galleryImage.ts';
 
 const GPS_BLOCK = {
     GPSLatitudeRef: 'N',
@@ -58,6 +59,8 @@ const CAMERA_EXIF = {
     },
     IFD3: GPS_BLOCK,
 };
+
+const CAMERA_EXIF_WITHOUT_GPS = { IFD0: CAMERA_EXIF.IFD0, IFD2: CAMERA_EXIF.IFD2 };
 
 describe('processImage', () => {
     it('drops the GPS block, converts a P3 original to sRGB and applies the orientation', async () => {
@@ -174,5 +177,77 @@ describe('assertNoLocation', () => {
 
     it('passes a JPEG with no metadata', async () => {
         await expect(assertNoLocation(await tinyJpeg(), 'bare.jpg')).resolves.toBeUndefined();
+    });
+});
+
+// Lisbon, as exifr reads it from the rationals below: 38 deg 43' 20.28" N, 9 deg 8' 21.48" W = 38.7223, -9.1393.
+const LISBON_GPS = {
+    GPSLatitudeRef: 'N',
+    GPSLatitude: '38/1 43/1 2028/100',
+    GPSLongitudeRef: 'W',
+    GPSLongitude: '9/1 8/1 2148/100',
+};
+const PLACES: Place[] = [
+    { name: 'Porto', latitude: 41.14961, longitude: -8.61099, countryCode: 'PT', population: 237000 },
+    { name: 'Lisbon', latitude: 38.71667, longitude: -9.13333, countryCode: 'PT', population: 517802 },
+];
+
+describe('deriveSourceLocation', () => {
+    it('names the city and country from the source GPS, and returns nothing else', async () => {
+        const original = await tinyJpeg({ IFD3: LISBON_GPS });
+        const result = await deriveSourceLocation(original, () => Promise.resolve(PLACES));
+
+        expect(result).toEqual({ place: { city: 'Lisbon', country: 'Portugal' }, warning: undefined });
+        expect(JSON.stringify(result)).not.toMatch(/38\.7|9\.13/);
+    });
+
+    it('does not load the dataset for a photo without GPS', async () => {
+        const original = await tinyJpeg(CAMERA_EXIF_WITHOUT_GPS);
+        const loadPlaces = () => Promise.reject(new Error('must not be called'));
+
+        await expect(deriveSourceLocation(original, loadPlaces)).resolves.toEqual({
+            place: undefined,
+            warning: undefined,
+        });
+    });
+
+    it('treats a (0, 0) fix as no GPS', async () => {
+        const original = await tinyJpeg({
+            IFD3: {
+                GPSLatitudeRef: 'N',
+                GPSLatitude: '0/1 0/1 0/1',
+                GPSLongitudeRef: 'E',
+                GPSLongitude: '0/1 0/1 0/1',
+            },
+        });
+        const loadPlaces = () => Promise.reject(new Error('must not be called'));
+
+        await expect(deriveSourceLocation(original, loadPlaces)).resolves.toEqual({
+            place: undefined,
+            warning: undefined,
+        });
+    });
+
+    it('warns instead of naming a place that is too far away', async () => {
+        const original = await tinyJpeg({ IFD3: LISBON_GPS });
+        const farAway: Place[] = [
+            { name: 'Madrid', latitude: 40.4168, longitude: -3.7038, countryCode: 'ES', population: 3255944 },
+        ];
+
+        const result = await deriveSourceLocation(original, () => Promise.resolve(farAway));
+
+        expect(result.place).toBeUndefined();
+        expect(result.warning).toMatch(/no place within 25 km.*sidecar/);
+    });
+
+    it('leaves the processed upload without GPS even though the source has it', async () => {
+        const original = await tinyJpeg({ ...CAMERA_EXIF, IFD3: LISBON_GPS });
+        expect((await exifr.gps(original))?.latitude).toBeCloseTo(38.7223, 3);
+
+        const { jpeg, caption } = await processImage(original, { keepCameraExif: true, label: 'lisbon.jpg' });
+
+        expect(await exifr.gps(jpeg)).toBeUndefined();
+        expect(caption).not.toHaveProperty('location');
+        await expect(assertNoLocation(jpeg, 'lisbon.jpg')).resolves.toBeUndefined();
     });
 });

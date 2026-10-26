@@ -1,10 +1,13 @@
 import { z } from 'astro/zod';
 
+import { formatLocation, locationSchema, sidecarLocationSchema } from './location';
 import { ALT_PLACEHOLDER_MARKER, isPlaceholderAlt, PLACEHOLDER_ALT_MESSAGE } from './sidecarPlaceholder';
 
 // Every field is optional: a file may carry no EXIF at all, and cameras leave out whatever they cannot measure
-// (a manual lens reports no aperture).
-export const photographyCaptionSchema = z.object({
+// (a manual lens reports no aperture). Strict, so nothing outside this list (a coordinate, say) can reach the page.
+export const photographyCaptionSchema = z.strictObject({
+    /** Where the photo was taken, as a city and a country. Set by the sync from the GPS or the sidecar, not from EXIF. */
+    location: locationSchema.optional(),
     camera: z.string().min(1).optional(),
     lens: z.string().min(1).optional(),
     /** Millimeters. */
@@ -28,6 +31,8 @@ export const photographySidecarSchema = z.object({
         .refine((alt) => !isPlaceholderAlt(alt), PLACEHOLDER_ALT_MESSAGE),
     /** Pins the photo's position: lowest first, ahead of every photo without an order. */
     order: z.int().optional(),
+    /** The place shown in the caption instead of the one derived from the GPS, or `false` for none. */
+    location: sidecarLocationSchema.optional(),
 });
 export type PhotographySidecar = z.output<typeof photographySidecarSchema>;
 
@@ -39,6 +44,12 @@ export function photographySidecarTemplate(basename: string): string {
 # order (optional): a whole number that pins this photo's position, lowest first, ahead of photos without one.
 alt: "${ALT_PLACEHOLDER_MARKER}: describe this photo"
 # order: 1
+# location (optional): the place the caption starts with. By default the sync derives a city and a country from the
+#   photo's GPS (offline, with GeoNames). Uncomment to name another place (also for a photo with no GPS), or write
+#   "location: false" to show none.
+# location:
+#   city: Lisbon
+#   country: Portugal
 `;
 }
 
@@ -138,9 +149,10 @@ function formatExposure(seconds: number): string {
     return seconds > 0.5 ? `${Math.round(seconds * 10) / 10} s` : `1/${Math.round(1 / seconds)} s`;
 }
 
-/** A human line such as `Canon EOS R5 · RF 35mm F1.8 · 35 mm · f/1.8 · 1/250 s · ISO 400 · 2026-10-01`. */
+/** A human line such as `Lisbon, Portugal · Canon EOS R5 · RF 35mm F1.8 · 35 mm · f/1.8 · 1/250 s · ISO 400 · 2026-10-01`. */
 export function formatPhotographyCaption(caption: PhotographyCaption): string {
     const parts = [
+        caption.location === undefined ? undefined : formatLocation(caption.location),
         caption.camera,
         caption.lens,
         caption.focalLength === undefined ? undefined : `${caption.focalLength} mm`,
