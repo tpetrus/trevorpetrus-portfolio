@@ -1,6 +1,7 @@
 import { GALLERY_COLLECTIONS, type CollectionCaption, type GalleryCollectionName, type GalleryEntry } from './gallery';
 import { aspectRatio, placeTiles, tileSizes, type TilePlacement } from './galleryLayout';
 import { GRID_WIDTHS, imageSrcset, LIGHTBOX_WIDTHS, originalImageUrl, transformedImageUrl } from './imageUrl';
+import { formatNumber, numberItems } from './numbering';
 import { placeholderDataUrl } from './thumbhash';
 
 // Every candidate width the site already generates: the grid set plus the lightbox set. A tile can be as wide as the
@@ -20,6 +21,8 @@ export const GRID_QUALITY = 70;
 
 export interface GalleryTile {
     key: string;
+    /** The photo's stable index as shown ("01"): by capture date, not by position, so it survives reordering. */
+    number: string;
     alt: string;
     width: number;
     height: number;
@@ -42,6 +45,17 @@ export interface GalleryTile {
     placeholder: string;
 }
 
+// The capture date as a UTC midnight, or undefined for a photo whose EXIF had no usable date (numberItems puts those last).
+function capturedAt({ taken }: CollectionCaption): Date | undefined {
+    return taken === undefined ? undefined : new Date(`${taken}T00:00:00Z`);
+}
+
+/** Each entry's formatted number by key. Numbers come from the data alone, never from the order the tiles display in. */
+function numbersByKey(entries: readonly GalleryEntry<CollectionCaption>[]): Map<string, string> {
+    const numbered = numberItems(entries.map(({ key, caption }) => ({ key, date: capturedAt(caption) })));
+    return new Map(numbered.map(({ key, number }) => [key, formatNumber(number)]));
+}
+
 /** Everything the gallery template needs for each entry, in order. Decoding the placeholders is why it is async. */
 export async function galleryTiles(
     collection: GalleryCollectionName,
@@ -49,10 +63,12 @@ export async function galleryTiles(
 ): Promise<GalleryTile[]> {
     const { formatCaption } = GALLERY_COLLECTIONS[collection];
     const largestLightboxWidth = Math.max(...LIGHTBOX_WIDTHS);
+    const numbers = numbersByKey(entries);
     const placements = placeTiles(entries.map(({ width, height }) => aspectRatio(width, height)));
     return Promise.all(
         entries.map(async ({ key, alt, width, height, caption, thumbhash }, index) => ({
             key,
+            number: numbers.get(key)!,
             alt,
             width,
             height,
