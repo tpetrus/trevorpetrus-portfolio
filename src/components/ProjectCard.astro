@@ -3,83 +3,86 @@ import { Picture } from 'astro:assets';
 import type { CollectionEntry } from 'astro:content';
 
 import { formatDate, isoDate } from '../lib/date';
+import { formatNumber } from '../lib/numbering';
 import { projectHref, statusLabel } from '../lib/projects';
+import Caption from './Caption.astro';
 import GitHubIcon from './GitHubIcon.astro';
 
 interface Props {
     project: CollectionEntry<'projects'>['data'];
-    /** When the newest commit landed; the date line is omitted when the sync has not recorded one. */
+    /** When the newest commit landed; the date is omitted when the sync has not recorded one. */
     updated?: Date | undefined;
-    /** The lead card: full width, image beside the text from `md:`. */
+    /** The cover: a large image, then a giant numeral beside the caption. Index rows draw their own number. */
     featured?: boolean;
-    /** Marks the image as the likely LCP element (eager, high fetch priority). Use it for the first card only. */
+    /** The cover's number. Ignored for index rows, where `SectionIndex` shows it. */
+    number?: number | undefined;
+    /** Marks the image as the likely LCP element (eager, high fetch priority). Use it for the cover only. */
     priority?: boolean;
 }
 
-const { project, updated, featured = false, priority = false } = Astro.props;
+const { project, updated, featured = false, number, priority = false } = Astro.props;
 const { title, description, tech, status, repo, thumbnail } = project;
 
-const STATUS_STYLES = {
-    live: 'border-ink bg-paper text-ink',
-    'in-progress': 'border-ink bg-paper-2 text-ink',
-    archived: 'border-ink-muted bg-paper text-ink-muted',
-} as const;
-
-// The featured image is about half of the 5xl content column from `md:`; the others sit in a 18rem-minimum grid.
+// The cover spans the 5xl content column; a row image sits in an 18rem column from `md:` and is full width below it.
+// The width lists are what the browser may pick from, so a 288px slot gets a 576 or 640px file, never a 1280px one.
 const sizes = featured
-    ? '(min-width: 1024px) 480px, (min-width: 768px) 50vw, calc(100vw - 3rem)'
-    : '(min-width: 1024px) 320px, (min-width: 640px) 45vw, calc(100vw - 3rem)';
+    ? '(min-width: 1024px) 904px, calc(100vw - 2rem)'
+    : '(min-width: 768px) 288px, calc(100vw - 2rem)';
+const widths = featured ? [480, 640, 960, 1280] : [320, 480, 640];
 ---
 
-<article
-    class:list={[
-        'relative w-full overflow-hidden border border-ink bg-paper-2 transition-colors hover:border-accent-deep',
-        featured ? 'md:grid md:grid-cols-2' : 'flex flex-col',
-    ]}
->
+<article class:list={['relative flex flex-col gap-5', featured ? 'md:gap-8' : 'md:grid md:grid-cols-[1fr_18rem]']}>
     {thumbnail && (
-        <Picture
-            src={thumbnail}
-            alt={`Screenshot of ${title}`}
-            formats={['avif']}
-            fallbackFormat="webp"
-            widths={[480, 640, 960, 1280]}
-            sizes={sizes}
-            priority={priority}
-            class:list={['h-auto w-full', featured && 'md:h-full md:object-cover']}
-        />
-    )}
-    <div class="flex flex-col gap-4 p-5">
-        <div class="flex items-start justify-between gap-3">
-            <h2 class="text-step-1 font-bold">
-                <a
-                    href={projectHref(project)}
-                    class="after:absolute after:inset-0 hover:underline focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-accent-deep"
-                >
-                    {title}
-                </a>
-            </h2>
-            <a
-                href={repo}
-                aria-label={`${title} on GitHub`}
-                class="relative z-10 -m-1 inline-flex size-9 shrink-0 items-center justify-center text-ink-muted hover:bg-paper hover:text-ink"
-            >
-                <GitHubIcon class="size-5" />
-            </a>
+        <div class:list={[!featured && 'md:order-2']}>
+            <Picture
+                src={thumbnail}
+                alt={`Screenshot of ${title}`}
+                formats={['avif']}
+                fallbackFormat="webp"
+                widths={widths}
+                sizes={sizes}
+                priority={priority}
+                class="h-auto w-full"
+            />
         </div>
-        <p class="text-ink-muted">{description}</p>
-        <ul role="list" aria-label="Technologies" class="flex flex-wrap gap-2">
-            {tech.map((name) => (
-                <li class="bg-paper px-2.5 py-0.5 font-mono text-step-n1 text-ink">{name}</li>
-            ))}
-        </ul>
-        <div class="mt-auto flex flex-wrap items-center gap-x-4 gap-y-2 text-step-n1 text-ink-muted">
-            <span class:list={['border px-2.5 py-0.5 font-medium', STATUS_STYLES[status]]}>{statusLabel(status)}</span>
-            {updated && (
-                <p>
-                    Updated <time datetime={isoDate(updated)}>{formatDate(updated)}</time>
-                </p>
-            )}
+    )}
+    <div class:list={['flex gap-gutter', featured ? 'flex-col md:flex-row md:items-end' : 'flex-col md:order-1']}>
+        {featured && number !== undefined && (
+            <span data-index class="font-display text-step-6 leading-none font-bold tracking-tight md:min-w-[40%]">
+                {formatNumber(number)}
+            </span>
+        )}
+        <div class="flex flex-1 flex-col gap-4">
+            <div class="flex items-start justify-between gap-3">
+                <Caption label={statusLabel(status)}>
+                    <a
+                        href={projectHref(project)}
+                        class="after:absolute after:inset-0 hover:underline focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-accent-deep"
+                    >
+                        {title}
+                    </a>
+                    <Fragment slot="byline">
+                        <ul role="list" aria-label="Technologies" class="flex flex-wrap gap-x-3 font-mono">
+                            {tech.map((name) => (
+                                <li>{name}</li>
+                            ))}
+                        </ul>
+                        {updated && (
+                            <p>
+                                Updated <time datetime={isoDate(updated)}>{formatDate(updated)}</time>
+                            </p>
+                        )}
+                    </Fragment>
+                </Caption>
+                <a
+                    href={repo}
+                    aria-label={`${title} on GitHub`}
+                    class="relative z-10 -m-1 inline-flex size-9 shrink-0 items-center justify-center text-ink-muted hover:text-ink"
+                >
+                    <GitHubIcon class="size-5" />
+                </a>
+            </div>
+            <p class="max-w-measure">{description}</p>
         </div>
     </div>
 </article>
