@@ -2,7 +2,7 @@ import { experimental_AstroContainer as AstroContainer } from 'astro/container';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import type { CollectionCaption, GalleryEntry } from '../lib/gallery';
-import { GRID_SIZES } from '../lib/galleryView';
+import { GRID_QUALITY, GRID_SIZES } from '../lib/galleryView';
 import { GRID_WIDTHS, LIGHTBOX_WIDTHS, imageSrcset, originalImageUrl, transformedImageUrl } from '../lib/imageUrl';
 import { encodeThumbHash } from '../lib/thumbhash';
 import Gallery from './Gallery.astro';
@@ -100,13 +100,23 @@ describe('Gallery', () => {
     it('gives each image a 640 px src, the grid srcset, sizes, its real dimensions and its alt text', () => {
         const [harbor] = images;
 
-        expect(harbor.src).toBe(transformedImageUrl('photography/harbor.jpg', { width: 640 }));
-        expect(harbor.srcset).toBe(imageSrcset('photography/harbor.jpg', GRID_WIDTHS));
+        expect(harbor.src).toBe(transformedImageUrl('photography/harbor.jpg', { width: 640, quality: GRID_QUALITY }));
+        expect(harbor.srcset).toBe(imageSrcset('photography/harbor.jpg', GRID_WIDTHS, { quality: GRID_QUALITY }));
         expect(harbor.sizes).toBe(GRID_SIZES);
         expect(harbor.width).toBe('4000');
         expect(harbor.height).toBe('3000');
         expect(harbor.alt).toBe('Alt text of harbor');
         expect(harbor.decoding).toBe('async');
+    });
+
+    it('skips rendering tiles far from the viewport, so their images are not all requested up front', () => {
+        const items = tagsOf(html, 'li').map(attributesOf);
+
+        expect(items).toHaveLength(ENTRIES.length);
+        for (const item of items) {
+            expect(item.class).toContain('[content-visibility:auto]');
+            expect(item.class).toContain('[contain-intrinsic-size:auto_16rem]');
+        }
     });
 
     it('crops every tile to 3:2 whatever the photo, so the grid stays even', () => {
