@@ -83,4 +83,32 @@
         outline: 2px solid var(--color-accent-deep);
         outline-offset: 2px;
     }
+
+    /*
+     * Links on paper: accent-deep (5.43:1) plus an underline, so color is never the only cue. Opt-in, so the stretched
+     * whole-card links and the nav keep their own styling.
+     */
+    .link {
+        color: var(--color-accent-deep);
+        text-decoration: underline;
+        text-underline-offset: 0.2em;
+    }
+
+    /*
+     * An ink surface (the footer; the photography section in D4 reuses it): paper text on ink (17.13:1), links in
+     * paper, and the focus ring in accent (5.83:1 on ink; accent-deep would be too dark). Put the class on the
+     * surface itself, not on a wrapper inside it, so the background reaches the edges.
+     */
+    .surface-ink {
+        background-color: var(--color-ink);
+        color: var(--color-paper);
+    }
+
+    .surface-ink .link {
+        color: var(--color-paper);
+    }
+
+    .surface-ink :focus-visible {
+        outline-color: var(--color-accent);
+    }
 }

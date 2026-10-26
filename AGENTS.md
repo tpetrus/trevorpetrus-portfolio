@@ -53,6 +53,9 @@ Cloudflare Workers Builds (see "CI and deploys").
   rules (`font-display: swap`, metric-matched fallbacks) and preloads only Archivo, the face of the h1. The woff2 files
   land in `dist/_astro/fonts/` and have their own `.size-limit.json` entry. `global.css` maps them to Tailwind's
   `font-display`, `font-sans` and `font-mono`.
+- **Shell:** `.surface-ink` (in `global.css`) is the reusable ink surface: ink background, paper text, `.link` in paper and the
+  `:focus-visible` ring in `accent`; the footer is its first user and the D4 photography section reuses it. On paper,
+  `.link` is `accent-deep` plus an underline. No JavaScript is involved in the focus or selection styles.
 - **Design tokens:** `@theme` in `src/styles/global.css` holds the palette (light "paper" theme only), the fluid type
   scale (`text-step-n1` to `text-step-6`) and `px-edge`, `gap-gutter`, `max-w-measure`. `src/lib/designTokens.test.ts`
   reads the CSS and asserts the WCAG contrast of every pair in use; a new color pair goes into that spec in the same
@@ -90,12 +93,13 @@ src/
                         ThumbHash, caption, alt); `[]` until photos are uploaded
   content/<collection>/ one <image basename>.yml sidecar per photo with the `alt` text and an optional `order`
                         (e.g. content/photography/); hand-written
-  layouts/              BaseLayout.astro: head/meta, skip link, nav, View Transitions, footer
+  layouts/              BaseLayout.astro: head/meta, skip link, running-head header and nav, View Transitions, ink footer
   pages/                index, photography, projects (default exports required by Astro)
   styles/global.css     Tailwind entry and theme
   styles/lightbox.css   the lightbox caption styles
   components/           ProjectCard.astro, GitHubIcon.astro, Gallery.astro (generic over the collection),
-                        GeonamesCredit.astro (the CC BY 4.0 credit line)
+                        GeonamesCredit.astro (the CC BY 4.0 credit line),
+                        RunningHead.astro (the decorative vertical site/page name, `aria-hidden`, shown from `xl` up)
   scripts/galleryLightbox.ts  (src/scripts/) browser glue for the PhotoSwipe lightbox (DOM only, outside unit-test coverage)
 public/                 static files served from / (favicon.svg)
 tests/e2e/              Playwright specs (smoke.spec.ts is tagged @smoke); its own tsconfig; lightbox.spec.ts skips while
