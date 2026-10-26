@@ -3,7 +3,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 
 import type { CollectionCaption, GalleryEntry } from '../lib/gallery';
 import { tileSizes } from '../lib/galleryLayout';
-import { TILE_QUALITY } from '../lib/galleryView';
+import { GRID_QUALITY } from '../lib/galleryView';
 import { GRID_WIDTHS, LIGHTBOX_WIDTHS, imageSrcset, originalImageUrl, transformedImageUrl } from '../lib/imageUrl';
 import { encodeThumbHash } from '../lib/thumbhash';
 import Gallery from './Gallery.astro';
@@ -67,15 +67,15 @@ describe('Gallery', () => {
         expect(images).toHaveLength(ENTRIES.length);
     });
 
-    it('places each tile in the 12-column grid from its own aspect ratio', () => {
+    it('places each tile in the 12-column grid and hands it its dimensions for its off-screen stand-in height', () => {
         const styles = tagsOf(html, 'li').map((tag) => attributesOf(tag).style);
 
         expect(styles).toEqual([
-            '--row: 0; --column: 1; --span: 8',
-            '--row: 0; --column: 9; --span: 4',
-            '--row: 1; --column: 1; --span: 12',
-            '--row: 2; --column: 1; --span: 4',
-            '--row: 2; --column: 5; --span: 8',
+            '--row: 0; --column: 1; --span: 8; --w: 4000; --h: 3000',
+            '--row: 0; --column: 9; --span: 4; --w: 2000; --h: 3000',
+            '--row: 1; --column: 1; --span: 12; --w: 9000; --h: 2000',
+            '--row: 2; --column: 1; --span: 4; --w: 2400; --h: 2400',
+            '--row: 2; --column: 5; --span: 8; --w: 3000; --h: 2000',
         ]);
     });
 
@@ -105,9 +105,9 @@ describe('Gallery', () => {
     it('gives each image a 640 px src, the grid srcset, sizes, its real dimensions and its alt text', () => {
         const [harbor] = images;
 
-        expect(harbor.src).toBe(transformedImageUrl('photography/harbor.jpg', { width: 640, quality: TILE_QUALITY }));
+        expect(harbor.src).toBe(transformedImageUrl('photography/harbor.jpg', { width: 640, quality: GRID_QUALITY }));
         expect(harbor.srcset).toBe(
-            imageSrcset('photography/harbor.jpg', [...GRID_WIDTHS, ...LIGHTBOX_WIDTHS], { quality: TILE_QUALITY }),
+            imageSrcset('photography/harbor.jpg', [...GRID_WIDTHS, ...LIGHTBOX_WIDTHS], { quality: GRID_QUALITY }),
         );
         expect(harbor.sizes).toBe(tileSizes(8));
         expect(harbor.width).toBe('4000');

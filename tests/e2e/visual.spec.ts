@@ -22,6 +22,9 @@ const PAGES = [
 async function waitForStablePage(page: Page): Promise<void> {
     // The fonts are swapped in after first paint; a screenshot before then would catch the fallback faces.
     await page.evaluate(() => document.fonts.ready);
+    // The gallery tiles use content-visibility:auto, so a full-page screenshot, which does not scroll, would leave
+    // every tile below the fold unrendered. Force them to render so the baseline shows the whole page.
+    await page.addStyleTag({ content: '* { content-visibility: visible !important; }' });
     // A full-page screenshot does not scroll, so lazy images below the fold would never load without this.
     await page.evaluate(async () => {
         const images = [...document.images];

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { GalleryEntry } from './gallery';
 import { tileSizes } from './galleryLayout';
-import { EAGER_TILE_COUNT, GRID_SRC_WIDTH, TILE_QUALITY, galleryTiles } from './galleryView';
+import { EAGER_TILE_COUNT, GRID_SRC_WIDTH, GRID_QUALITY, galleryTiles } from './galleryView';
 import { GRID_WIDTHS, LIGHTBOX_WIDTHS, imageSrcset, originalImageUrl, transformedImageUrl } from './imageUrl';
 import { encodeThumbHash } from './thumbhash';
 import type { PhotographyCaption } from './photography';
@@ -45,9 +45,9 @@ describe('galleryTiles', () => {
             original: originalImageUrl('photography/harbor.jpg'),
             href: transformedImageUrl('photography/harbor.jpg', { width: Math.max(...LIGHTBOX_WIDTHS) }),
             lightboxSrcset: imageSrcset('photography/harbor.jpg', LIGHTBOX_WIDTHS),
-            src: transformedImageUrl('photography/harbor.jpg', { width: GRID_SRC_WIDTH, quality: TILE_QUALITY }),
+            src: transformedImageUrl('photography/harbor.jpg', { width: GRID_SRC_WIDTH, quality: GRID_QUALITY }),
             srcset: imageSrcset('photography/harbor.jpg', [...GRID_WIDTHS, ...LIGHTBOX_WIDTHS], {
-                quality: TILE_QUALITY,
+                quality: GRID_QUALITY,
             }),
             sizes: tileSizes(12),
             placement: { row: 0, column: 1, span: 12 },
@@ -64,7 +64,7 @@ describe('galleryTiles', () => {
     it('encodes the tile variants lighter than the lightbox ones, which keep the default quality', async () => {
         const [tile] = await galleryTiles('photography', [entry('a')]);
 
-        expect(tile.src).toContain(`quality=${TILE_QUALITY},`);
+        expect(tile.src).toContain(`quality=${GRID_QUALITY},`);
         expect(tile.srcset.match(/quality=/g)).toHaveLength(6);
         expect(tile.href).not.toContain('quality');
         expect(tile.lightboxSrcset).not.toContain('quality');

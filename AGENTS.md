@@ -248,9 +248,17 @@ panorama (ratio 2 or more) takes a row, other rows alternate two and three photo
 photos take turns) and three get 4 each. Each tile spans two grid rows (photo, caption) as a subgrid, so the captions of a row line up;
 without subgrid support each caption sits under its photo. `tileSizes` derives `sizes` from the span. The tile `srcset` offers
 the grid and the lightbox widths together (the same six transformations per photo, so the quota is unchanged), because a
-full-width tile is wider than 960 px. Tile variants use `quality=75` (`TILE_QUALITY`; quality is not counted in the quota) and the
+full-width tile is wider than 960 px. Every tile candidate uses `quality=70` (`GRID_QUALITY` in `src/lib/galleryView.ts`, the one constant; quality is not counted in the quota; the lightbox keeps the default) and the
 phone `sizes` is 88vw, slightly under the real column, so a 1.75x phone takes the 640 px variant: both keep `/photography` above 0.9 mobile
 Lighthouse with real photos. The caption markup is `PhotoCaption.astro`.
+
+**Off-screen photos.** `.photo` (the link around each image) has `content-visibility: auto`, so photos far from the viewport are
+not rendered and their images are not all requested up front. It is on the photo and not on the tile on purpose: containment
+on the tile, which is a subgrid, stops it sharing rows with its neighbors and the captions of a row stop lining up (measured
+in Chromium and WebKit); on the photo, a normal grid item of that subgrid, they stay aligned. Its stand-in height
+(`contain-intrinsic-block-size: auto ...`) is computed from the tile's width (`100cqi` of the `.gallery` container and the
+tile's `--span`) and the photo's own ratio (`--w`, `--h` set inline on the tile), so the scrollbar stays put. The visual spec
+forces `content-visibility: visible` because a full-page screenshot does not scroll.
 
 **Unverified until the first real upload:** the upload path (wrangler's R2 `object put` against the real bucket), whether
 Cloudflare Images transformations are enabled on the `trevorpetr.us` zone (a probe of `/cdn-cgi/image/...` could not tell),

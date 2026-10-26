@@ -17,7 +17,7 @@ const tiles = await galleryTiles(collection, entries);
     {tiles.map((tile) => (
         <li
             class="tile"
-            style={`--row: ${tile.placement.row}; --column: ${tile.placement.column}; --span: ${tile.placement.span}`}
+            style={`--row: ${tile.placement.row}; --column: ${tile.placement.column}; --span: ${tile.placement.span}; --w: ${tile.width}; --h: ${tile.height}`}
         >
             <a
                 href={tile.href}
@@ -52,9 +52,12 @@ const tiles = await galleryTiles(collection, entries);
     .gallery {
         display: grid;
         grid-template-columns: minmax(0, 1fr);
+        /* Lets a tile size its stand-in height from the grid's width (cqi) before it is rendered. */
+        container-type: inline-size;
     }
 
     .tile {
+        --tile-width: 100cqi;
         display: flex;
         flex-direction: column;
         padding-bottom: calc(var(--spacing-gutter) * 3);
@@ -69,12 +72,28 @@ const tiles = await galleryTiles(collection, entries);
         display: block;
         width: 100%;
         align-self: start;
+        /*
+         * content-visibility keeps photos far from the viewport unrendered, so their images are not all requested up
+         * front. It goes on the photo and not on the tile: containment on the tile, a subgrid, stops it sharing its rows
+         * with the other tiles, and the captions of a row no longer line up (measured in Chromium and WebKit). An
+         * unrendered photo has no height of its own, so contain-intrinsic-block-size stands in for it: exactly the image
+         * at its own ratio across the tile's width. "auto" makes the browser remember the real height once rendered.
+         */
+        content-visibility: auto;
+        contain-intrinsic-block-size: auto calc(var(--tile-width) * var(--h) / var(--w));
     }
 
     @media (min-width: 48rem) {
         .gallery {
             grid-template-columns: repeat(12, minmax(0, 1fr));
             column-gap: var(--spacing-gutter);
+        }
+
+        .tile {
+            /* The width of `span` of the twelve columns, with the eleven gaps taken out of the grid's width first. */
+            --tile-width: calc(
+                (100cqi - var(--spacing-gutter) * 11) * var(--span) / 12 + var(--spacing-gutter) * (var(--span) - 1)
+            );
         }
 
         /* Two grid rows per tile: the photo, then its caption. */
