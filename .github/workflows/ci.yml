@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   ci:
-    uses: tpetrus/ci-workflows/.github/workflows/node-ci.yml@v0.2.0
+    uses: tpetrus/ci-workflows/.github/workflows/node-ci.yml@v0.3.0
     with:
       build-dir: dist
       # The size, lighthouse, e2e and links jobs are on by default. Fails the build if any tracked file is larger.
