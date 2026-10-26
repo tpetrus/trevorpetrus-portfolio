@@ -1,1 +1,606 @@
-[]
+[
+  {
+    "key": "photography/DSC_0098-Edit.jpg",
+    "width": 1080,
+    "height": 1350,
+    "thumbhash": "HCgOHgh/udU4h3dXiHiHeGd38YYHWBg=",
+    "sourceSha256": "1f9f2eb23bbac214b8d9071e962d5e830c65d423b1eeb725be72211c3696e354",
+    "processingVersion": 1,
+    "alt": "A building painted half blue and half pink is framed by another building to the left and right",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_5047.jpg",
+    "width": 4016,
+    "height": 6016,
+    "thumbhash": "HhgSDQJ2h593Z5eIhnh4l2iwhQUq",
+    "sourceSha256": "467138741269990f25d26d7a8ec2888a7921bd2b12e321a0f03560024bcf3b41",
+    "processingVersion": 1,
+    "alt": "A tan apartment building is shown with a restaurant underneath with a sign that says 'The Souvlaki House'",
+    "caption": {
+      "camera": "NIKON D750",
+      "lens": "35.0 mm f/1.4",
+      "focalLength": 35,
+      "aperture": 8,
+      "exposure": 0.008,
+      "iso": 100,
+      "taken": "2025-07-22"
+    }
+  },
+  {
+    "key": "photography/DSC_5051.jpg",
+    "width": 3804,
+    "height": 5367,
+    "thumbhash": "3OcNDQRGh4Vm+HqGd3WpmMFAgAlY",
+    "sourceSha256": "786bc876f5dbed42587260d5d65e87600371a10fea2be8e9088e2165b9f81685",
+    "processingVersion": 1,
+    "alt": "A row of single family homes are shown lining a steeply declined road",
+    "caption": {
+      "camera": "NIKON D750",
+      "lens": "35.0 mm f/1.4",
+      "focalLength": 35,
+      "aperture": 8,
+      "exposure": 0.005,
+      "iso": 100,
+      "taken": "2025-07-22"
+    }
+  },
+  {
+    "key": "photography/DSC_1158-Edit (2).jpg",
+    "width": 4016,
+    "height": 4750,
+    "thumbhash": "XygSDgI4Z/dod3iGeHaIiIh4dWww90Y=",
+    "sourceSha256": "38dda9e31ce1362c09e942c0ffbc6f3e995058e76f1380864769b0ba59c4ff0c",
+    "processingVersion": 1,
+    "alt": "A skyscraper and monument are shown at the end of a road flanked by city buildings",
+    "caption": {
+      "taken": "2021-05-22"
+    }
+  },
+  {
+    "key": "photography/DSC_9783-Crop.jpg",
+    "width": 3734,
+    "height": 3043,
+    "thumbhash": "0SgGDoJp+ZeuhXZ3aqSIl2eGUP0Dhy0=",
+    "sourceSha256": "c2ae293e32256ea38c4ad313d9b55d5d4d7449be8c7450349896892e6bfeb969",
+    "processingVersion": 1,
+    "alt": "A narrow, vibrant yellow alley-way is shown through an arched entryway",
+    "caption": {
+      "camera": "NIKON D3400",
+      "lens": "35.0 mm f/1.8",
+      "focalLength": 35,
+      "aperture": 1.8,
+      "exposure": 0.001,
+      "iso": 100,
+      "taken": "2018-10-21"
+    }
+  },
+  {
+    "key": "photography/DSC_9660.jpg",
+    "width": 6000,
+    "height": 4000,
+    "thumbhash": "3QgOFYRdZXe/dXichqiIiK9wYzn4",
+    "sourceSha256": "ec7c57bebb7a03e25371137ea9cffded5ebd7c856acf87092a9de9c9f9dfdac8",
+    "processingVersion": 1,
+    "alt": "A small waterfall flows over grass-lined hills",
+    "caption": {
+      "camera": "NIKON D3400",
+      "lens": "35.0 mm f/1.8",
+      "focalLength": 35,
+      "aperture": 1.8,
+      "exposure": 0.0025,
+      "iso": 200,
+      "taken": "2018-10-14"
+    }
+  },
+  {
+    "key": "photography/DSC_9685.jpg",
+    "width": 6000,
+    "height": 4000,
+    "thumbhash": "5AgWFYBZiHiPh3eIeYeIZ2dgdOYH",
+    "sourceSha256": "82d9b796beca33eb8ca19957a2cc1c6ac8af50f83b184a10d777bd5961e3a8ea",
+    "processingVersion": 1,
+    "alt": "Fog rises over grass-lined hills",
+    "caption": {
+      "camera": "NIKON D3400",
+      "lens": "35.0 mm f/1.8",
+      "focalLength": 35,
+      "aperture": 1.8,
+      "exposure": 0.0025,
+      "iso": 200,
+      "taken": "2018-10-14"
+    }
+  },
+  {
+    "key": "photography/DSC_9699.jpg",
+    "width": 4000,
+    "height": 6000,
+    "thumbhash": "ZAkWJQB2d4+IuIiHh4V4eJagpGUG",
+    "sourceSha256": "4e4038206c57d5e5971c712019d14be930c67ce46c6f7ed7cc1251f358448108",
+    "processingVersion": 1,
+    "alt": "A small waterfall flows over grass-lined hills",
+    "caption": {
+      "camera": "NIKON D3400",
+      "lens": "35.0 mm f/1.8",
+      "focalLength": 35,
+      "aperture": 1.8,
+      "exposure": 0.0025,
+      "iso": 200,
+      "taken": "2018-10-14"
+    }
+  },
+  {
+    "key": "photography/DSC_9707.jpg",
+    "width": 3707,
+    "height": 5561,
+    "thumbhash": "X/kJHQJYeI94x3iIiWm4aGZgdAfq",
+    "sourceSha256": "61cf81745004bd177be60a172592b5e070843b0b9ae6a3047a4809cb2fbf3ecc",
+    "processingVersion": 1,
+    "alt": "A small waterfall flows over grass-lined hills",
+    "caption": {
+      "camera": "NIKON D3400",
+      "lens": "35.0 mm f/1.8",
+      "focalLength": 35,
+      "aperture": 1.8,
+      "exposure": 0.0025,
+      "iso": 200,
+      "taken": "2018-10-14"
+    }
+  },
+  {
+    "key": "photography/DSC_9725.jpg",
+    "width": 4000,
+    "height": 6000,
+    "thumbhash": "qBgaHQJ5eH93eHd3h4eIeHlgdwcX",
+    "sourceSha256": "3f235b5cbfa38d8d204344cb81bf8209b9088b536a7ef05a0ef8b8e3fdc6ef14",
+    "processingVersion": 1,
+    "alt": "A group of people walk down a dirt path over rolling hills",
+    "caption": {
+      "camera": "NIKON D3400",
+      "lens": "35.0 mm f/1.8",
+      "focalLength": 35,
+      "aperture": 1.8,
+      "exposure": 0.002,
+      "iso": 200,
+      "taken": "2018-10-14"
+    }
+  },
+  {
+    "key": "photography/DSC_9735.jpg",
+    "width": 4000,
+    "height": 6000,
+    "thumbhash": "qwgaHQJoeI94iHZYeIiIeHhghQhW",
+    "sourceSha256": "6d19a88dfc6ee2512ccc803061f223155295961520a87fee49941f48ecee65f4",
+    "processingVersion": 1,
+    "alt": "A small waterfall flows over grass-lined hills",
+    "caption": {
+      "camera": "NIKON D3400",
+      "lens": "35.0 mm f/1.8",
+      "focalLength": 35,
+      "aperture": 1.8,
+      "exposure": 0.002,
+      "iso": 200,
+      "taken": "2018-10-14"
+    }
+  },
+  {
+    "key": "photography/DSC_9619.jpg",
+    "width": 3483,
+    "height": 5224,
+    "thumbhash": "DugJFQSleH+HCFhXiHhpiKaCcAko",
+    "sourceSha256": "eb45fa8c121e4d76cda923923416cc07657f554d50a7490a7fdda114b5ce9e40",
+    "processingVersion": 1,
+    "alt": "Two skyscrapers are dimmy lit behind a setting sun",
+    "caption": {
+      "camera": "NIKON D3400",
+      "lens": "35.0 mm f/1.8",
+      "focalLength": 35,
+      "aperture": 1.8,
+      "exposure": 0.005,
+      "iso": 400,
+      "taken": "2018-10-10"
+    }
+  },
+  {
+    "key": "photography/DSC_9441.jpg",
+    "width": 4000,
+    "height": 6000,
+    "thumbhash": "oJYNDQKPeIWHaIeHeHZ4dwxZ2YDU",
+    "sourceSha256": "39bd85be84976ecbaf13b638b20f27e4ac35fd8f200297016d800ea90f906dc0",
+    "processingVersion": 1,
+    "alt": "A tall metal pole is shown from the bottom up, as if it goes up forever",
+    "caption": {
+      "camera": "NIKON D3400",
+      "lens": "35.0 mm f/1.8",
+      "focalLength": 35,
+      "aperture": 1.8,
+      "exposure": 0.00025,
+      "iso": 100,
+      "taken": "2018-09-29"
+    }
+  },
+  {
+    "key": "photography/DSC_8027.jpg",
+    "width": 3826,
+    "height": 5739,
+    "thumbhash": "1jgKFQQnCH13N4eYd4e3pwqMosAo",
+    "sourceSha256": "fdc3470ff36286789c9f98f010ceeee6e85e31c444094aeb922431e0e09a2ff0",
+    "processingVersion": 1,
+    "alt": "An old brick apartment building is viewed through a large-paned window",
+    "caption": {
+      "camera": "NIKON D3400",
+      "lens": "35.0 mm f/1.8",
+      "focalLength": 35,
+      "aperture": 2.8,
+      "exposure": 0.005,
+      "iso": 100,
+      "taken": "2018-08-30"
+    }
+  },
+  {
+    "key": "photography/DSC_2638-1.jpg",
+    "width": 5822,
+    "height": 3881,
+    "thumbhash": "KvgVDYJ7iId/d3h0iIeHd6VQqAmW",
+    "sourceSha256": "1726c50c8011c16ff2ccc9bd60e8ee3d59cc15b693516833995578e9ee1a0cb9",
+    "processingVersion": 1,
+    "alt": "A palm tree is shown looking over a beach, the ocean, and mountains",
+    "caption": {
+      "camera": "NIKON D3400",
+      "lens": "18.0-55.0 mm f/3.5-5.6",
+      "focalLength": 36,
+      "aperture": 6.3,
+      "exposure": 0.0015625,
+      "iso": 100,
+      "taken": "2018-03-14"
+    }
+  },
+  {
+    "key": "photography/DSC_1883-12.jpg",
+    "width": 6000,
+    "height": 4000,
+    "thumbhash": "LPgRHYSKaJiPeIdyeKhpeGqQ1wZb",
+    "sourceSha256": "cc762dd1b095fd27fd658300d8467bb30b207eac472e8515157a855265a8b2aa",
+    "processingVersion": 1,
+    "alt": "Two palm trees are shown next to each with on a beach, with mountains and lifeguard huts in the background",
+    "caption": {
+      "camera": "NIKON D3400",
+      "lens": "18.0-55.0 mm f/3.5-5.6",
+      "focalLength": 29,
+      "aperture": 6.3,
+      "exposure": 0.005,
+      "iso": 100,
+      "taken": "2018-03-11"
+    }
+  },
+  {
+    "key": "photography/DSC_0093.jpg",
+    "width": 3474,
+    "height": 5211,
+    "thumbhash": "nBgSFQJmd4+XaHd4eIh4l637nHyf",
+    "sourceSha256": "5ae58a63d37cc6115ff3cb96b6b350d5dbbfed3b1256f65e5e05777920c40633",
+    "processingVersion": 1,
+    "alt": "A woman holds a protest sign that says Black Lives Matter in a crowd of others protesting with her",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_0096.jpg",
+    "width": 2595,
+    "height": 3892,
+    "thumbhash": "oNcRLQaIen94OIh2eIhnh3eAlQcm",
+    "sourceSha256": "cf4e6eb046e2ec34976dd9ff3292361ef6965ba02eae91137e62199fff11fc6b",
+    "processingVersion": 1,
+    "alt": "A lady is just about to cut a strand of white balloons tied to a railing with the Pittsburgh skyline in the background",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_0098.jpg",
+    "width": 4000,
+    "height": 6000,
+    "thumbhash": "4/cZHQR6eH+IaId3eIZ4l5uAwwhI",
+    "sourceSha256": "a1b0a211708f8030998022009d3effe5a1d073cdda0df4e64974aa903f613fd5",
+    "processingVersion": 1,
+    "alt": "A man is holding a sign that says Defend Black Lives along with a group of others also holding protest signs",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_0129.jpg",
+    "width": 3439,
+    "height": 5158,
+    "thumbhash": "FggKDQJ1qGBLWZZZmGqmmKBlYwdJ",
+    "sourceSha256": "e3941d9a8824ace55ac5373bdca6251c1f76779fc3f129c542963ea0f6498894",
+    "processingVersion": 1,
+    "alt": "A group of Black Lives Matter protestors crowd a city street",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_0147.jpg",
+    "width": 3427,
+    "height": 5140,
+    "thumbhash": "5OcdFQaIh4+IeHd3h4eIiGmAlAdo",
+    "sourceSha256": "3e3e6a31a56a1dfac81df52a40f1e5428894f4b21104ec23879372c888eaa298",
+    "processingVersion": 1,
+    "alt": "Someone holds a Black Lives Matter sign in the middle of a protest",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_0171.jpg",
+    "width": 3333,
+    "height": 5000,
+    "thumbhash": "nOcRDQR2mI93aIhnhoeHaE8TgQdW",
+    "sourceSha256": "a6f50a9a70b2f3d2c1904745b60ef035a702a1b49355179faae7ddee54c05c6b",
+    "processingVersion": 1,
+    "alt": "Someone holds a sign that says Police the Police in the middle of a Pittsburgh Black Lives Matter protest.  To the left is a woman with a sunflower in her hair, and the right is a flag with the names of those who have died in recent months since the BLM protests started.",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_0172.jpg",
+    "width": 2965,
+    "height": 4447,
+    "thumbhash": "HggSFQRIeo+GWHeHiIeHh/2j0R8q",
+    "sourceSha256": "96b1f76ac6e0711ed9789c1f22fb0eee24413423666d39a2e05ee028eaf57d27",
+    "processingVersion": 1,
+    "alt": "Someone holds a protest sign that says 'Breonna Taylor, say her name' during a Pittsburgh Black Lives Matter protest",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_0354-Edit.jpg",
+    "width": 4428,
+    "height": 6198,
+    "thumbhash": "7gcWDQKHiH92d4hnd4iHh2l/rJf3",
+    "sourceSha256": "da6b3718696d13efa47914ab114b32df203c12c45d071784d101207b177f3351",
+    "processingVersion": 1,
+    "alt": "Electrical infrastructure lines are shown scaling down a mountain with snow covered alps in the background",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_0413-Edit.jpg",
+    "width": 2943,
+    "height": 4120,
+    "thumbhash": "JecVFQJ6h3+Hl4d4h4ZoeIHUDxj8",
+    "sourceSha256": "bfb41aa9746b2a44ee3f9ba7290f79bbb4b721fd8a37aac7ec7e731800b63d42",
+    "processingVersion": 1,
+    "alt": "Dozens of mountains are shown intersecting as you look further and further",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_0426.jpg",
+    "width": 1080,
+    "height": 1350,
+    "thumbhash": "KdcRFgKGePeJiJiIh4WHdnd3pKdfXfw=",
+    "sourceSha256": "cc6b8ed92dc0234ad7c498e84bac6294ab1b1f9b5c748591bbc7b44dfbac5934",
+    "processingVersion": 1,
+    "alt": "A gandola is shown descending a snow-covered mountain above a large body of clouds and mountain tops",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_0814.jpg",
+    "width": 3933,
+    "height": 5891,
+    "thumbhash": "0igSFQI4iHV5B5iHeHqHh1hzkDcH",
+    "sourceSha256": "02bacce309c71d69f1b9b148274ba0f204bfe8575466787800c12613e0396cbe",
+    "processingVersion": 1,
+    "alt": "A lake is shown at the end of a concrete tunnel that has a 'No Trespassing' sign at the end",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_0868.jpg",
+    "width": 3784,
+    "height": 5669,
+    "thumbhash": "ZwgaDQJ7eH93eIaIiIeHaFOABzRr",
+    "sourceSha256": "553ad450e571a18097fd23c310dc482adbe8fee304d590a67ce14069cd26e93f",
+    "processingVersion": 1,
+    "alt": "A large waterfall is shown going over a mountain cliff that sits an observation station",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_0883.jpg",
+    "width": 3524,
+    "height": 5279,
+    "thumbhash": "aggaHQaIeH+IWGiId3iHaHpgiwjW",
+    "sourceSha256": "93bcc3a742a26b8919cac5854077591b077f8ea1140ffe3b2ab43ace38bce6d5",
+    "processingVersion": 1,
+    "alt": "swirling water is shown crashing along a rock bed",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_1026-Edit.jpg",
+    "width": 1080,
+    "height": 1350,
+    "thumbhash": "7QcODgKHd/d4iHiIiHZ3hbd4iXChaAc=",
+    "sourceSha256": "44d7b8abbe72ee151b137ccbd1339b1dd7ee6c77494aa18c72b2ad1ef14c1bcd",
+    "processingVersion": 1,
+    "alt": "A pontoon boat is shown traversing a lake at sunset",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_1059-Edit.jpg",
+    "width": 3220,
+    "height": 4824,
+    "thumbhash": "lwYGLQJbZm2HGGkIhnaISXhgmwel",
+    "sourceSha256": "16886e3888c71dbff180402b5195a10b326ce5ea61745fa2c3522f1b3ee3de79",
+    "processingVersion": 1,
+    "alt": "Three skyscrapers under a sky of stars, with a canadian flag in the foreground",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_1289-Edit.jpg",
+    "width": 4016,
+    "height": 6016,
+    "thumbhash": "GggaDQJId3+Hhpdoh4eIeFZRYHAG",
+    "sourceSha256": "9bc7f894cd7ac1a7e3a5fb1ca0170eba7679e4197ae08c5b3f70cc90173e72f1",
+    "processingVersion": 1,
+    "alt": "A building is shown behind a lake.  The perspective shows this building framed by two pine trees",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_1597.jpg",
+    "width": 3782,
+    "height": 5666,
+    "thumbhash": "4UgKFQSTSsBUaJhnqHhVt57AI4sJ",
+    "sourceSha256": "eb715b8c633f332c80d5feb349ed59eb534a3761e3b585e9495e212803aef5ee",
+    "processingVersion": 1,
+    "alt": "A marquee sign that says 'Sheas Buffalo' is shown from directly below it looking up",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_1785-Edit.jpg",
+    "width": 1080,
+    "height": 1618,
+    "thumbhash": "5vcVDQKbeXZ3CIh4aXaHZ01/3PSm",
+    "sourceSha256": "764d4d2208bc54abbdf698c09d4a5b9ef5e708da9cfcfa1b500f78f599b99a22",
+    "processingVersion": 1,
+    "alt": "Three skyscrapers are shown looking straight up with a blue cloudy sky in the background",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_1809-Edit.jpg",
+    "width": 1080,
+    "height": 1350,
+    "thumbhash": "IvgRBgB/iaeJZmd4hnmGhoh3kFtn+0Y=",
+    "sourceSha256": "0a4ae4bc5b6946b30c632fd827bc033a15b1cd1cf0b68df20dfbb4e643c0523d",
+    "processingVersion": 1,
+    "alt": "A skyscraper with pointed, geometric windows is shown against a blue cloudy sky",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_1924-Edit.jpg",
+    "width": 4016,
+    "height": 6016,
+    "thumbhash": "5zgWFQJ1d4+Id4hnd4Wnh4hw1fVP",
+    "sourceSha256": "4b915af9e4aa273ae00d3cbcc4394e9d0f3d8b4fed1c0dff2792b810bb11c9fa",
+    "processingVersion": 1,
+    "alt": "A wooden pedestrian bridge goes over a small river or canal",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_1950-Pano.jpg",
+    "width": 7388,
+    "height": 2867,
+    "thumbhash": "KucNI4j6eIeahXh3TIC4A4g=",
+    "sourceSha256": "06c870fddb78415dd9cd966f069f770c56e906f088acae5fabe67626c3b6a185",
+    "processingVersion": 1,
+    "alt": "An old abandoned factory building is shown against a blue cloudy sky",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_2059-Edit.jpg",
+    "width": 2883,
+    "height": 3932,
+    "thumbhash": "1wgOHQh8lb94lph3hohnZ2AndgZG",
+    "sourceSha256": "c6d255fda48595905889a325ada97d15c23e3aaa4dc209573d232b498f27b574",
+    "processingVersion": 1,
+    "alt": "A bakery is shown with a sign saying 'Lucibello Pastries'",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_2109-Edit.jpg",
+    "width": 3097,
+    "height": 3862,
+    "thumbhash": "5QcOHgZwmeeXeKh5eJh3iId4RnB1A2c=",
+    "sourceSha256": "b00d6af0da37d347f01eec3e704b09b226a78e3ceea831e0777eca37b31e7479",
+    "processingVersion": 1,
+    "alt": "Top up shot of a brick building in Manhattan",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_2219-Edit.jpg",
+    "width": 6000,
+    "height": 4000,
+    "thumbhash": "JQceFYR2d4d/d3eHd3iHiGZYf/hp",
+    "sourceSha256": "ff7ff17e9aca593922567c86a86580f65dfd35a34e3290cd125984302766c009",
+    "processingVersion": 1,
+    "alt": "An observatory is shown deep in the foreground over cascading hills",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_3620-Edit.jpg",
+    "width": 3914,
+    "height": 4892,
+    "thumbhash": "ihgKFgIJxsh5ZzioaHeGZjd3CpimkHk=",
+    "sourceSha256": "9c4bcb0d5dfe574a7b0cd8877c367e132f3853f362ebf46e896f1443f0bdcc32",
+    "processingVersion": 1,
+    "alt": "A gold-plated elevator entrance is open with a sign that says 'This car up'",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_3699-Edit.jpg",
+    "width": 1080,
+    "height": 1350,
+    "thumbhash": "XQgSDgKAQnl6mKZ1qGiYdXh4j6b8e5g=",
+    "sourceSha256": "e8955a75991bf7390dea8a1e40fa07f8ebe4283257afab9c1912556ebb44cbea",
+    "processingVersion": 1,
+    "alt": "A skyscraper is viewed through a curved gold railing",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_8062.jpg",
+    "width": 3576,
+    "height": 5364,
+    "thumbhash": "ElkOFQqPmnV2mJhniHiXmA6slmBI",
+    "sourceSha256": "f6aa70e97a423d4295e520d8e781a19401cc0cab8b173165033d4ce1208fe766",
+    "processingVersion": 1,
+    "alt": "A bright red telephone booth is shown centered with a park behind it",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_9119.jpg",
+    "width": 5836,
+    "height": 3891,
+    "thumbhash": "LggODYCZiId/d3hrdzd3g3ZzoAa1",
+    "sourceSha256": "59d52a8c701aaf525a7fb5f890871c22707e4da65be0350eefdebf8554e23ba1",
+    "processingVersion": 1,
+    "alt": "A red castle with a Swedish flag is centered on a large stone outcropping on a body of water",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_9127.jpg",
+    "width": 4912,
+    "height": 3275,
+    "thumbhash": "YRgSDYJXeHdcd3eYePZ5dZEEgQoy",
+    "sourceSha256": "0d75d6d0412bca112207492a45c8f0cb9a60559074dbca6b21fd5b33d44a9b97",
+    "processingVersion": 1,
+    "alt": "A cup of hot coffee is sitting on a table with steam rising from the top",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_9676.jpg",
+    "width": 4000,
+    "height": 6000,
+    "thumbhash": "WhkODQRWd2+HyHe3dXiIiB3vRgao",
+    "sourceSha256": "20c38a9c2d725cf1a38874dd7802efc13b63cae1c8cd3ae1d3850f3270b38aff",
+    "processingVersion": 1,
+    "alt": "A small waterfall flows over grass-lined hills",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_9740.jpg",
+    "width": 3072,
+    "height": 4608,
+    "thumbhash": "bQgWFQB4d3+HOHiYiHlniHhwewe3",
+    "sourceSha256": "b828be47cd7da701badf6da47bec371cd802d6b2a0d2850fc98b8cef9f3e347f",
+    "processingVersion": 1,
+    "alt": "A mountain goat peers over a field of grass",
+    "caption": {}
+  },
+  {
+    "key": "photography/DSC_9788.jpg",
+    "width": 3804,
+    "height": 5706,
+    "thumbhash": "JAgSDQJpZ4+Hl4eJeHaXmHZ2cGcH",
+    "sourceSha256": "ef3479daf7176f7675c8c3c1f71be9a162bfe19e95079600867bfee19b22beb0",
+    "processingVersion": 1,
+    "alt": "A sight-seeing boat glides along a canal flanked by side-by-side old apartment buildings",
+    "caption": {}
+  },
+  {
+    "key": "photography/MiamiV1.jpg",
+    "width": 3274,
+    "height": 4911,
+    "thumbhash": "IggKBQI5FoqIGIeIdoCah1IQdE71",
+    "sourceSha256": "b64aec9761a92ac003dc960a1b2f564494e2cb382e1a3247a7bcb4101533238c",
+    "processingVersion": 1,
+    "alt": "two palm trees are surrounded by many roofs",
+    "caption": {}
+  }
+]
