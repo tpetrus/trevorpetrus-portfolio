@@ -9,12 +9,15 @@ interface Props {
 }
 
 const { collection, entries } = Astro.props;
+// content-visibility keeps tiles far from the viewport unrendered, so their images are not all requested up front.
+// contain-intrinsic-size is a stand-in height (one 3:2 tile on a phone); the browser remembers the real one after the
+// first render.
 const tiles = await galleryTiles(collection, entries);
 ---
 
 <ul role="list" id="gallery" class="grid grid-cols-1 gap-gutter sm:grid-cols-2 lg:grid-cols-3">
     {tiles.map((tile) => (
-        <li>
+        <li class="[contain-intrinsic-size:auto_16rem] [content-visibility:auto]">
             <a
                 href={tile.href}
                 data-pswp-width={tile.width}

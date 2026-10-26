@@ -13,6 +13,10 @@ export const GRID_SRC_WIDTH = 640;
 /** How many of the first tiles load eagerly: about a screenful of the three-column grid, so the LCP image is not lazy. */
 export const EAGER_TILE_COUNT = 3;
 
+// Grid tiles are small and shown beside many others; Cloudflare's default (85) spends bytes nobody can see there. The
+// lightbox keeps the default. Quality is not part of the unique-transformation count.
+export const GRID_QUALITY = 70;
+
 export interface GalleryTile {
     key: string;
     alt: string;
@@ -52,8 +56,8 @@ export async function galleryTiles(
             original: originalImageUrl(key),
             href: transformedImageUrl(key, { width: largestLightboxWidth }),
             lightboxSrcset: imageSrcset(key, LIGHTBOX_WIDTHS),
-            src: transformedImageUrl(key, { width: GRID_SRC_WIDTH }),
-            srcset: imageSrcset(key, GRID_WIDTHS),
+            src: transformedImageUrl(key, { width: GRID_SRC_WIDTH, quality: GRID_QUALITY }),
+            srcset: imageSrcset(key, GRID_WIDTHS, { quality: GRID_QUALITY }),
             sizes: GRID_SIZES,
             loading: index < EAGER_TILE_COUNT ? ('eager' as const) : ('lazy' as const),
             fetchpriority: index === 0 ? ('high' as const) : undefined,

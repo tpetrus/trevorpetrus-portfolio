@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { GalleryEntry } from './gallery';
-import { EAGER_TILE_COUNT, GRID_SIZES, GRID_SRC_WIDTH, galleryTiles } from './galleryView';
+import { EAGER_TILE_COUNT, GRID_QUALITY, GRID_SIZES, GRID_SRC_WIDTH, galleryTiles } from './galleryView';
 import { GRID_WIDTHS, LIGHTBOX_WIDTHS, imageSrcset, originalImageUrl, transformedImageUrl } from './imageUrl';
 import { encodeThumbHash } from './thumbhash';
 import type { PhotographyCaption } from './photography';
@@ -39,8 +39,8 @@ describe('galleryTiles', () => {
             original: originalImageUrl('photography/harbor.jpg'),
             href: transformedImageUrl('photography/harbor.jpg', { width: Math.max(...LIGHTBOX_WIDTHS) }),
             lightboxSrcset: imageSrcset('photography/harbor.jpg', LIGHTBOX_WIDTHS),
-            src: transformedImageUrl('photography/harbor.jpg', { width: GRID_SRC_WIDTH }),
-            srcset: imageSrcset('photography/harbor.jpg', GRID_WIDTHS),
+            src: transformedImageUrl('photography/harbor.jpg', { width: GRID_SRC_WIDTH, quality: GRID_QUALITY }),
+            srcset: imageSrcset('photography/harbor.jpg', GRID_WIDTHS, { quality: GRID_QUALITY }),
             sizes: GRID_SIZES,
         });
     });
