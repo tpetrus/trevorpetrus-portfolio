@@ -200,6 +200,33 @@ describe('parseSidecar', () => {
         });
     });
 
+    it('parses a location override: a place, or false to hide it', () => {
+        const place = 'location:\n  city: Lisbon\n  country: Portugal\n';
+        expect(parseSidecar('photography', `alt: A harbor\n${place}`, 'a.yml')).toEqual({
+            alt: 'A harbor',
+            location: { city: 'Lisbon', country: 'Portugal' },
+        });
+        expect(parseSidecar('photography', 'alt: A harbor\nlocation: false\n', 'a.yml')).toEqual({
+            alt: 'A harbor',
+            location: false,
+        });
+    });
+
+    it('leaves the location absent when the sidecar has none, so the sync derives it', () => {
+        expect(parseSidecar('photography', 'alt: A harbor\n', 'a.yml')).not.toHaveProperty('location');
+    });
+
+    it.each([
+        ['true', 'location: true'],
+        ['a bare string', 'location: Lisbon'],
+        ['a place without a country', 'location:\n  city: Lisbon'],
+        ['a coordinate', 'location:\n  city: Lisbon\n  country: Portugal\n  latitude: 38.7'],
+    ])('rejects a location that is %s', (_label, location) => {
+        expect(() => parseSidecar('photography', `alt: A harbor\n${location}\n`, 'a.yml')).toThrow(
+            /a\.yml: invalid sidecar/,
+        );
+    });
+
     it('names the file when the sidecar is invalid', () => {
         expect(() => parseSidecar('photography', 'order: 1\n', 'src/content/photography/a.yml')).toThrow(
             /src\/content\/photography\/a\.yml: invalid sidecar/,
@@ -282,6 +309,13 @@ describe('decideAction', () => {
         expect(decideAction({ ...existing, processingVersion: PROCESSING_VERSION - 1 }, 'a'.repeat(64))).toBe(
             'changed',
         );
+    });
+
+    // The place is derived from the source, not from the uploaded bytes, so an entry that has none yet is not
+    // re-uploaded to gain one: the sync fills it in on the unchanged path.
+    it('stays unchanged for an entry that has no location yet', () => {
+        const existing = { ...entry('photography/a.jpg', undefined), caption: {} };
+        expect(decideAction(existing, 'a'.repeat(64))).toBe('unchanged');
     });
 });
 
