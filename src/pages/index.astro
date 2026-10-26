@@ -1,11 +1,25 @@
 ---
+import HomeCluster from '../components/HomeCluster.astro';
+import Wordmark from '../components/Wordmark.astro';
+import photographyJson from '../data/gallery/photography.json';
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { parseGallery } from '../lib/gallery';
+
+const entries = parseGallery('photography', photographyJson);
 ---
 
 <BaseLayout title="Home" description="Trevor Petrus: software projects and photography.">
-    <h1 class="text-step-4 font-bold">Trevor Petrus</h1>
-    <p class="mt-4 max-w-measure text-step-1 text-ink-muted">Software projects and photography.</p>
-    <p class="mt-8 max-w-measure border border-dashed border-ink p-4 text-ink-muted">
-        Placeholder: an interactive 3D hero will replace this introduction in a later step.
+    <Wordmark first="Trevor" second="Petrus" />
+    <p class="mt-8 max-w-measure border-t border-ink pt-4 text-step-1 text-pretty">
+        This site holds my photography and the software projects I build. Start with the{' '}
+        <a href="/photography/" class="link">
+            photographs
+        </a>{' '}
+        or the{' '}
+        <a href="/projects/" class="link">
+            projects
+        </a>
+        .
     </p>
+    <HomeCluster entries={entries} />
 </BaseLayout>
