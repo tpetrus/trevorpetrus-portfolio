@@ -98,7 +98,7 @@ src/
   styles/global.css     Tailwind entry and theme
   styles/lightbox.css   the lightbox caption styles
   components/           ProjectCard.astro, GitHubIcon.astro, Gallery.astro (generic over the collection),
-                        GeonamesCredit.astro (the CC BY 4.0 credit line),
+                        PhotoCaption.astro (the visible caption under a tile), GeonamesCredit.astro (the CC BY 4.0 credit line),
                         RunningHead.astro (the decorative vertical site/page name, `aria-hidden`, shown from `xl` up)
   scripts/galleryLightbox.ts  (src/scripts/) browser glue for the PhotoSwipe lightbox (DOM only, outside unit-test coverage)
 public/                 static files served from / (favicon.svg)
@@ -233,7 +233,18 @@ width sets in `src/lib/imageUrl.ts` (`GRID_WIDTHS` 320/640/960 and `LIGHTBOX_WID
 Do not add widths casually. `format=auto` serves AVIF only up to 1,200 px.
 
 **Loading.** The first three tiles load eagerly and only the first has `fetchpriority="high"` (the likely LCP image); the
-rest are lazy. Tiles are cropped to 3:2 with `object-fit: cover`, and the lightbox shows the uncropped photo.
+rest are lazy. Nothing is cropped: each tile is drawn at its photo's own aspect ratio, and the space is reserved by the
+img's `width` and `height` (so there is no layout shift; keep the link `width: 100%`, or a lazy image collapses). There is no
+`data-cropped`; the lightbox reads only the `data-pswp-*`, `data-original` and `data-caption` attributes.
+
+**Layout.** The page is a full-bleed ink section (`BaseLayout`'s optional `bleed` prop drops the padded 5xl column; the
+section uses `.surface-ink`) holding a 12-column grid from 768 px up and one column below. `placeTiles` in
+`src/lib/galleryLayout.ts` decides each tile's row, column and span from the aspect ratios, in the data's order: a
+panorama (ratio 2 or more) takes a row, other rows alternate two and three photos, a pair gives 8 to the wider photo (6/6 for two portraits, alike
+photos take turns) and three get 4 each. Each tile spans two grid rows (photo, caption) as a subgrid, so the captions of a row line up;
+without subgrid support each caption sits under its photo. `tileSizes` derives `sizes` from the span. The tile `srcset` offers
+the grid and the lightbox widths together (the same six transformations per photo, so the quota is unchanged), because a
+full-width tile is wider than 960 px. The caption markup is `PhotoCaption.astro`.
 
 **Unverified until the first real upload:** the upload path (wrangler's R2 `object put` against the real bucket), whether
 Cloudflare Images transformations are enabled on the `trevorpetr.us` zone (a probe of `/cdn-cgi/image/...` could not tell),

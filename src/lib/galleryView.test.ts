@@ -1,18 +1,24 @@
 import { describe, expect, it } from 'vitest';
 
 import type { GalleryEntry } from './gallery';
-import { EAGER_TILE_COUNT, GRID_SIZES, GRID_SRC_WIDTH, galleryTiles } from './galleryView';
+import { tileSizes } from './galleryLayout';
+import { EAGER_TILE_COUNT, GRID_SRC_WIDTH, galleryTiles } from './galleryView';
 import { GRID_WIDTHS, LIGHTBOX_WIDTHS, imageSrcset, originalImageUrl, transformedImageUrl } from './imageUrl';
 import { encodeThumbHash } from './thumbhash';
 import type { PhotographyCaption } from './photography';
 
 const THUMBHASH = encodeThumbHash(4, 4, new Uint8Array(4 * 4 * 4).fill(128));
 
-function entry(name: string, caption: PhotographyCaption = {}): GalleryEntry<PhotographyCaption> {
+function entry(
+    name: string,
+    caption: PhotographyCaption = {},
+    width = 3000,
+    height = 2000,
+): GalleryEntry<PhotographyCaption> {
     return {
         key: `photography/${name}.jpg`,
-        width: 3000,
-        height: 2000,
+        width,
+        height,
         thumbhash: THUMBHASH,
         sourceSha256: 'a'.repeat(64),
         processingVersion: 1,
@@ -40,8 +46,9 @@ describe('galleryTiles', () => {
             href: transformedImageUrl('photography/harbor.jpg', { width: Math.max(...LIGHTBOX_WIDTHS) }),
             lightboxSrcset: imageSrcset('photography/harbor.jpg', LIGHTBOX_WIDTHS),
             src: transformedImageUrl('photography/harbor.jpg', { width: GRID_SRC_WIDTH }),
-            srcset: imageSrcset('photography/harbor.jpg', GRID_WIDTHS),
-            sizes: GRID_SIZES,
+            srcset: imageSrcset('photography/harbor.jpg', [...GRID_WIDTHS, ...LIGHTBOX_WIDTHS]),
+            sizes: tileSizes(12),
+            placement: { row: 0, column: 1, span: 12 },
         });
     });
 
@@ -87,6 +94,28 @@ describe('galleryTiles', () => {
         const [tile] = await galleryTiles('photography', [entry('a')]);
 
         expect(tile.placeholder.startsWith('data:image/webp;base64,')).toBe(true);
+    });
+
+    it('places the tiles from their own aspect ratios and sizes each for its span', async () => {
+        const tiles = await galleryTiles('photography', [
+            entry('wide', {}, 3000, 2000),
+            entry('tall', {}, 2000, 3000),
+            entry('pano', {}, 8000, 2000),
+        ]);
+
+        expect(tiles.map((tile) => tile.placement)).toEqual([
+            { row: 0, column: 1, span: 8 },
+            { row: 0, column: 9, span: 4 },
+            { row: 1, column: 1, span: 12 },
+        ]);
+        expect(tiles.map((tile) => tile.sizes)).toEqual([tileSizes(8), tileSizes(4), tileSizes(12)]);
+    });
+
+    it('offers the grid and the lightbox widths as candidates, and no others', async () => {
+        const [tile] = await galleryTiles('photography', [entry('a')]);
+        const widths = [...tile.srcset.matchAll(/width=(\d+),/g)].map(([, width]) => Number(width));
+
+        expect(widths).toEqual([...GRID_WIDTHS, ...LIGHTBOX_WIDTHS]);
     });
 
     it('keeps the order of the entries', async () => {

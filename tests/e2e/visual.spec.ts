@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { PHOTOS_ORIGIN } from '../../src/config/site';
+import { stubRemotePhotos } from './stubPhotos';
 
 // Full-page visual baselines for every page, once per Playwright project (desktop Chrome, Pixel 7, iPhone 15).
 //
@@ -18,21 +18,6 @@ const PAGES = [
     { name: 'photography', path: '/photography/' },
     { name: 'projects', path: '/projects/' },
 ] as const;
-
-// One fixed 1x1 gray PNG stands in for every remote gallery image (they come from R2 / Cloudflare Images on
-// PHOTOS_ORIGIN), so a snapshot never depends on the network or on which photos exist. The tiles keep their real
-// width and height attributes, so the layout is the real one.
-const PLACEHOLDER_PNG = Buffer.from(
-    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
-    'base64',
-);
-
-// Photos are the only remote content; stubbing them keeps a snapshot a function of the build alone.
-async function stubRemotePhotos(page: Page): Promise<void> {
-    await page.route(`${PHOTOS_ORIGIN}/**`, (route) =>
-        route.fulfill({ status: 200, contentType: 'image/png', body: PLACEHOLDER_PNG }),
-    );
-}
 
 async function waitForStablePage(page: Page): Promise<void> {
     // The fonts are swapped in after first paint; a screenshot before then would catch the fallback faces.
