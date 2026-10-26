@@ -2,6 +2,7 @@
 import { Font } from 'astro:assets';
 import { ClientRouter } from 'astro:transitions';
 
+import RunningHead from '../components/RunningHead.astro';
 import { NAV_ITEMS, isCurrentPage } from '../lib/nav';
 import { THEME_COLOR } from '../lib/theme';
 import '../styles/global.css';
@@ -34,26 +35,26 @@ const canonicalUrl = new URL(Astro.url.pathname, Astro.site);
         <Font cssVariable="--font-plex-mono" />
         <ClientRouter />
     </head>
-    <body class="flex min-h-screen flex-col bg-paper font-sans text-ink antialiased">
+    <body class="relative flex min-h-screen flex-col bg-paper font-sans text-ink antialiased">
         <a
             href="#main"
-            class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-10 focus:bg-ink focus:px-4 focus:py-2 focus:text-paper"
+            class="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-edge focus:z-10 focus:bg-ink focus:px-4 focus:py-2 focus:font-mono focus:text-step-n1 focus:tracking-[0.05em] focus:text-paper focus:uppercase"
         >
             Skip to main content
         </a>
         <header class="border-b border-ink">
-            <div class="mx-auto flex max-w-5xl items-center justify-between gap-4 px-edge py-4">
-                <a href="/" class="font-display text-step-0 font-bold whitespace-nowrap">
+            <div class="mx-auto flex max-w-5xl items-center justify-between gap-gutter px-edge py-3">
+                <a href="/" class="font-display text-step-n1 font-bold tracking-[0.06em] whitespace-nowrap uppercase">
                     {siteName}
                 </a>
                 <nav aria-label="Primary">
-                    <ul class="flex gap-6">
+                    <ul role="list" class="flex gap-gutter">
                         {NAV_ITEMS.map(({ label, href }) => (
                             <li>
                                 <a
                                     href={href}
                                     aria-current={isCurrentPage(Astro.url.pathname, href) ? 'page' : undefined}
-                                    class="py-2 text-ink-muted underline-offset-4 hover:text-ink hover:underline aria-[current=page]:text-ink aria-[current=page]:underline"
+                                    class="block py-2 font-mono text-step-n1 tracking-[0.05em] text-ink-muted uppercase underline-offset-4 hover:text-ink hover:underline aria-[current=page]:text-ink aria-[current=page]:underline"
                                 >
                                     {label}
                                 </a>
@@ -63,13 +64,22 @@ const canonicalUrl = new URL(Astro.url.pathname, Astro.site);
                 </nav>
             </div>
         </header>
+        <RunningHead siteName={siteName} />
         <main id="main" tabindex="-1" class="mx-auto w-full max-w-5xl flex-1 px-edge py-12">
             <slot />
         </main>
-        <footer class="border-t border-ink">
-            <p class="mx-auto max-w-5xl px-edge py-6 font-mono text-step-n1 text-ink-muted">
-                &copy; {new Date().getFullYear()} {siteName}
-            </p>
+        <footer class="surface-ink">
+            <div class="mx-auto flex max-w-5xl flex-col gap-2 px-edge py-8 text-step-n1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-gutter">
+                <p class="font-display font-bold tracking-[0.06em] uppercase">
+                    &copy; {new Date().getFullYear()} {siteName}
+                </p>
+                <p class="font-mono text-ink-muted-on-ink">
+                    Set in Archivo, Inter and IBM Plex Mono; built with{' '}
+                    <a href="https://astro.build" class="link">
+                        Astro
+                    </a>
+                </p>
+            </div>
         </footer>
     </body>
 </html>

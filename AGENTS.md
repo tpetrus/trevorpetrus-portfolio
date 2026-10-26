@@ -53,6 +53,9 @@ Cloudflare Workers Builds (see "CI and deploys").
   rules (`font-display: swap`, metric-matched fallbacks) and preloads only Archivo, the face of the h1. The woff2 files
   land in `dist/_astro/fonts/` and have their own `.size-limit.json` entry. `global.css` maps them to Tailwind's
   `font-display`, `font-sans` and `font-mono`.
+- **Shell:** `.surface-ink` (in `global.css`) is the reusable ink surface: ink background, paper text, `.link` in paper and the
+  `:focus-visible` ring in `accent`; the footer is its first user and the D4 photography section reuses it. On paper,
+  `.link` is `accent-deep` plus an underline. No JavaScript is involved in the focus or selection styles.
 - **Design tokens:** `@theme` in `src/styles/global.css` holds the palette (light "paper" theme only), the fluid type
   scale (`text-step-n1` to `text-step-6`) and `px-edge`, `gap-gutter`, `max-w-measure`. `src/lib/designTokens.test.ts`
   reads the CSS and asserts the WCAG contrast of every pair in use; a new color pair goes into that spec in the same
@@ -90,12 +93,13 @@ src/
                         ThumbHash, caption, alt); `[]` until photos are uploaded
   content/<collection>/ one <image basename>.yml sidecar per photo with the `alt` text and an optional `order`
                         (e.g. content/photography/); hand-written
-  layouts/              BaseLayout.astro: head/meta, skip link, nav, View Transitions, footer
+  layouts/              BaseLayout.astro: head/meta, skip link, running-head header and nav, View Transitions, ink footer
   pages/                index, photography, projects (default exports required by Astro)
   styles/global.css     Tailwind entry and theme
   styles/lightbox.css   the lightbox caption styles
   components/           ProjectCard.astro, GitHubIcon.astro, Gallery.astro (generic over the collection),
-                        GeonamesCredit.astro (the CC BY 4.0 credit line)
+                        GeonamesCredit.astro (the CC BY 4.0 credit line),
+                        RunningHead.astro (the decorative vertical site/page name, `aria-hidden`, shown from `xl` up)
   scripts/galleryLightbox.ts  (src/scripts/) browser glue for the PhotoSwipe lightbox (DOM only, outside unit-test coverage)
 public/                 static files served from / (favicon.svg)
 tests/e2e/              Playwright specs (smoke.spec.ts is tagged @smoke); its own tsconfig; lightbox.spec.ts skips while
@@ -173,7 +177,8 @@ With no entries the page shows "Photos are on their way." and references no Phot
    and lists every such sidecar. It also reports every missing sidecar, orphan sidecar, non-JPEG and duplicate name in one
    run.
 4. Dry run: `npm run sync:gallery -- photography`. It processes in memory and prints what it would do; it touches neither
-   R2 nor the JSON. Check the sizes and captions.
+   R2 nor the JSON. Check the sizes and captions. Its last line says so: `49 new, ... entries (dry run: src/data/gallery/photography.json
+   not written; re-run with --upload to publish)`, so the count of entries is not mistaken for a write.
 5. Upload: `npm run sync:gallery -- photography --upload`. The bucket defaults to `portfolio-photos` (override with
    `--bucket` or `R2_BUCKET`). The account ID is deliberately not in the repo: the script reads the user-scope environment
    variable `CLOUDFLARE_ACCOUNT_ID` (the 32-character number in any Cloudflare dashboard URL,
@@ -202,7 +207,10 @@ keys and number pairs.
   SOURCE file and returns only the nearest place's city and country; the coordinates do not leave that function. The lookup is
   offline: the first use downloads GeoNames `cities1000` (about 11 MB zipped, every place over 1,000 people; CC BY 4.0,
   https://download.geonames.org/export/dump/) and caches the unzipped text in `node_modules/.cache/geonames/cities1000.txt`;
-  delete that file to refresh. No coordinate is ever sent anywhere, and the build never needs the dataset or the network.
+  delete that file to refresh. The download times out after 120 s (`DOWNLOAD_TIMEOUT_MS` in `scripts/geonames.ts`) with an error
+  that names the URL; nothing is cached on failure, and a response announcing more than 64 MB is refused. The sync locates
+  every photo before it uploads any, so a failed lookup aborts the run with nothing uploaded. No coordinate is ever sent
+  anywhere, and the build never needs the dataset or the network.
   The zip is read by `src/lib/zip.ts` (Node's `zlib` plus a small central-directory reader, CRC-checked), so there is no zip
   dependency. The place is chosen from the haversine
   distance and the population column: the most populous place within `PREFERRED_RADIUS_KM` (10 km; the nearer on a tie)
