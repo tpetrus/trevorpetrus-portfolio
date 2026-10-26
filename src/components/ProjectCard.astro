@@ -1,5 +1,4 @@
 ---
-import { Picture } from 'astro:assets';
 import type { CollectionEntry } from 'astro:content';
 
 import { formatDate, isoDate } from '../lib/date';
@@ -7,6 +6,7 @@ import { formatNumber } from '../lib/numbering';
 import { projectHref, statusLabel } from '../lib/projects';
 import Caption from './Caption.astro';
 import GitHubIcon from './GitHubIcon.astro';
+import ProjectScreenshot from './ProjectScreenshot.astro';
 
 interface Props {
     project: CollectionEntry<'projects'>['data'];
@@ -29,24 +29,14 @@ const sizes = featured
     ? '(min-width: 1024px) 904px, calc(100vw - 2rem)'
     : '(min-width: 768px) 288px, calc(100vw - 2rem)';
 const widths = featured ? [480, 640, 960, 1280] : [320, 480, 640];
+// Reading order follows the DOM (WCAG 1.3.2), so the cover places the screenshot before the text and a row after it in
+// the markup below, never with CSS `order`.
+const screenshot = { src: thumbnail, title, widths, sizes, priority };
 ---
 
 <article class:list={['relative flex flex-col gap-5', featured ? 'md:gap-8' : 'md:grid md:grid-cols-[1fr_18rem]']}>
-    {thumbnail && (
-        <div class:list={[!featured && 'md:order-2']}>
-            <Picture
-                src={thumbnail}
-                alt={`Screenshot of ${title}`}
-                formats={['avif']}
-                fallbackFormat="webp"
-                widths={widths}
-                sizes={sizes}
-                priority={priority}
-                class="h-auto w-full"
-            />
-        </div>
-    )}
-    <div class:list={['flex gap-gutter', featured ? 'flex-col md:flex-row md:items-end' : 'flex-col md:order-1']}>
+    {featured && <ProjectScreenshot {...screenshot} />}
+    <div class:list={['flex gap-gutter', featured ? 'flex-col md:flex-row md:items-end' : 'flex-col']}>
         {featured && number !== undefined && (
             <span data-index class="font-display text-step-6 leading-none font-bold tracking-tight md:min-w-[40%]">
                 {formatNumber(number)}
@@ -85,4 +75,5 @@ const widths = featured ? [480, 640, 960, 1280] : [320, 480, 640];
             <p class="max-w-measure">{description}</p>
         </div>
     </div>
+    {!featured && <ProjectScreenshot {...screenshot} />}
 </article>
