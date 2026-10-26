@@ -1,0 +1,20 @@
+---
+import { runningHeadText } from '../lib/nav';
+
+interface Props {
+    siteName: string;
+}
+
+const { siteName } = Astro.props;
+const text = runningHeadText(Astro.url.pathname, siteName);
+---
+
+{/* Decorative only: it repeats the site and page names, which the header and the h1 already give. Hidden below the
+    wide breakpoint, where the page margin is too narrow to hold it without touching the content. */}
+<p
+    aria-hidden="true"
+    data-running-head
+    class="pointer-events-none absolute top-24 left-edge hidden font-mono text-step-n1 tracking-[0.05em] text-ink-muted uppercase [writing-mode:vertical-rl] select-none xl:block"
+>
+    {text}
+</p>
