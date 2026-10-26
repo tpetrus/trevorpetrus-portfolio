@@ -73,7 +73,8 @@ Cloudflare Workers Builds (see "CI and deploys").
 src/
   config/site.ts        THE site-config module: SITE_URL and PROJECTS_DOMAIN (the one place the domain is set), projectUrl(),
                         and PHOTOS_ORIGIN (the one place the image host is set)
-  lib/                  pure, unit-tested logic (nav.ts; projects.ts: the project schema and card helpers; projectMeta.ts,
+  lib/                  pure, unit-tested logic (nav.ts; numbering.ts: stable index numbers by date, shared by Projects
+                        and later Photography/Art; projects.ts: the project schema and card helpers; projectMeta.ts,
                         projectSource.ts: parsing for the sync script and the page; date.ts: UTC date formatting;
                         gallery.ts: the collection registry (GALLERY_COLLECTIONS) and the entry schema; photography.ts:
                         the photography caption/sidecar schemas and template, EXIF mapping and caption
@@ -88,7 +89,7 @@ src/
   content.config.ts     the `projects` content collection (schema comes from lib/projects.ts)
   content/projects/     one markdown file per project; the frontmatter is the data (the body is unused)
   assets/projects/      generated screenshots (<slug>.avif), committed; rendered through astro:assets
-  data/project-meta.json  generated last-updated dates keyed by project slug, committed
+  data/project-meta.json  generated last-updated and creation dates keyed by project slug, committed
   data/gallery/         <collection>.json, written by sync-gallery and committed: one entry per photo (key, size,
                         ThumbHash, caption, alt); `[]` until photos are uploaded
   content/<collection>/ one <image basename>.yml sidecar per photo with the `alt` text and an optional `order`
@@ -97,8 +98,11 @@ src/
   pages/                index, photography, projects (default exports required by Astro)
   styles/global.css     Tailwind entry and theme
   styles/lightbox.css   the lightbox caption styles
-  components/           ProjectCard.astro, GitHubIcon.astro, Gallery.astro (generic over the collection),
-                        PhotoCaption.astro (the visible caption under a tile), GeonamesCredit.astro (the CC BY 4.0 credit line),
+  components/           ProjectCard.astro, Caption.astro (label/title/byline/credit stack, slots for title, `byline`,
+                        `credit`), SectionIndex.astro (numbered `role="list"` rows with 1px ink rules, one named slot per
+                        row id), GitHubIcon.astro, Gallery.astro (generic over the collection),
+                        PhotoCaption.astro (the visible caption under a tile),
+                        GeonamesCredit.astro (the CC BY 4.0 credit line),
                         RunningHead.astro (the decorative vertical site/page name, `aria-hidden`, shown from `xl` up)
   scripts/galleryLightbox.ts  (src/scripts/) browser glue for the PhotoSwipe lightbox (DOM only, outside unit-test coverage)
 public/                 static files served from / (favicon.svg)
@@ -133,8 +137,14 @@ repository settings).
 
 ## Projects
 The Projects page is built from the `projects` content collection (`src/content/projects/*.md`, schema in
-`src/lib/projects.ts`; a bad frontmatter file fails the build). The lowest `order` renders as a full-width featured card,
-the rest in a responsive grid. A card's main link is `projectUrl(subdomain)` when `subdomain` is set, otherwise the repo;
+`src/lib/projects.ts`; a bad frontmatter file fails the build). The lowest `order` renders as the cover (large image,
+giant numeral, caption); the rest are a numbered index (`SectionIndex`: a 1px rule, the number, then the caption stack
+with the image on the right from `md:`), newest first. Each card is a `Caption`: a bold caps status label (plain text, no
+chip), a bold caps title, and a byline with the tech list and "Updated <date>". **Numbers** come from `numberItems` in
+`src/lib/numbering.ts`: ascending by the repo's creation date (`created` in `project-meta.json`), so the oldest is 01, the
+newest has the highest number, and adding a project never renumbers another; ties on the same date go by slug, and a
+project with no recorded `created` is numbered after every dated one (by slug), so it still renders; run the sync to
+give it its place. The page shows them highest first. A card's main link is `projectUrl(subdomain)` when `subdomain` is set, otherwise the repo;
 every card also has a GitHub icon link. The status is `live`, `in-progress` or `archived`. Tech tags and the description
 are curated by hand in the frontmatter; the sync script never rewrites them.
 
@@ -142,11 +152,12 @@ are curated by hand in the frontmatter; the sync script never rewrites them.
 1. Create `src/content/projects/<slug>.md` with `title`, `description` (1-2 sentences), `tech`, `status`, `repo`
    (`https://github.com/<owner>/<repo>`), `order`, and `subdomain` if it has its own address (the DNS label only).
 2. Run `npm run sync:projects` (set `GITHUB_TOKEN` to avoid the unauthenticated GitHub rate limit). It records the newest
-   default-branch commit date in `src/data/project-meta.json`, and for live projects with a subdomain it screenshots the
+   default-branch commit date (`updated`) and the repo's creation date (`created`, which numbers the project) in
+   `src/data/project-meta.json`, and for live projects with a subdomain it screenshots the
    site to `src/assets/projects/<slug>.avif` and prints a reminder to add
    `thumbnail: ../../assets/projects/<slug>.avif` to the frontmatter. Add it, look at the screenshot, and commit all of it.
-3. `thumbnail` is optional (a card without one renders without an image); the date is omitted when the meta file has no
-   entry for the slug.
+3. `thumbnail` is optional (a card without one renders without an image); the date is omitted, and the number comes last, when the meta file
+   has no entry for the slug.
 
 **The sync is manual and its outputs are committed.** The build makes no network calls. Re-run the script when a project
 changes and commit the diff (the screenshot is written only if its bytes changed; it fails above 500 kB). The

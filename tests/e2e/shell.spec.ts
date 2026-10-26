@@ -92,4 +92,20 @@ test.describe('site shell', () => {
             await expect(nav.getByRole('link', { name })).toHaveAttribute('aria-current', 'page');
         }
     });
+
+    // WCAG 1.4.10 Reflow: no sideways scrolling down to 320 CSS px wide.
+    for (const width of [320, 360]) {
+        for (const path of ['/', '/photography/', '/projects/']) {
+            test(`${path} does not scroll sideways at ${width}px wide`, async ({ page }) => {
+                await page.setViewportSize({ width, height: 800 });
+                await page.goto(path);
+
+                const { scrollWidth, innerWidth } = await page.evaluate(() => ({
+                    scrollWidth: document.documentElement.scrollWidth,
+                    innerWidth: window.innerWidth,
+                }));
+                expect(scrollWidth).toBeLessThanOrEqual(innerWidth);
+            });
+        }
+    }
 });
