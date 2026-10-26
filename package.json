@@ -2,7 +2,7 @@
   "name": "trevorpetrus-portfolio-site",
   "private": true,
   "type": "module",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "engines": {
     "node": ">=24"
   },
@@ -20,6 +20,7 @@
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install --with-deps chromium webkit",
     "sync:projects": "esbuild scripts/sync-projects.ts --bundle --platform=node --format=esm --packages=external --log-level=warning --outfile=node_modules/.cache/sync-projects.mjs && node node_modules/.cache/sync-projects.mjs",
+    "scaffold:gallery": "esbuild scripts/scaffold-gallery.ts --bundle --platform=node --format=esm --packages=external --log-level=warning --outfile=node_modules/.cache/scaffold-gallery.mjs && node node_modules/.cache/scaffold-gallery.mjs",
     "sync:gallery": "esbuild scripts/sync-gallery.ts --bundle --platform=node --format=esm --packages=external --log-level=warning --outfile=node_modules/.cache/sync-gallery.mjs && node node_modules/.cache/sync-gallery.mjs",
     "test:smoke": "esbuild scripts/smoke.ts --bundle --platform=node --format=esm --log-level=warning --outfile=node_modules/.cache/smoke.mjs && node node_modules/.cache/smoke.mjs",
     "preview": "npm run build && wrangler dev"

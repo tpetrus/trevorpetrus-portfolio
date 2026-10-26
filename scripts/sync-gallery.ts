@@ -25,7 +25,7 @@ import {
     galleryDataFile,
     galleryKey,
     mergeGallery,
-    parseSidecar,
+    parseSidecars,
     parseSyncArgs,
     planInputs,
     PROCESSING_VERSION,
@@ -33,6 +33,7 @@ import {
     R2_TOKEN_ENV,
     serializeGallery,
     sidecarDirectory,
+    sidecarFileName,
     type CuratedEntry,
     type SyncAction,
 } from '../src/lib/gallerySync.ts';
@@ -118,6 +119,19 @@ if (problems.length > 0) {
     throw new Error(`Cannot sync ${collectionName} from ${sourceDir}:\n${problems.map((p) => `  - ${p}`).join('\n')}`);
 }
 
+// Every sidecar is read and validated up front, so one run lists all the bad ones (a TODO placeholder included).
+const sidecarResult = parseSidecars(
+    collectionName,
+    images.map(({ basename }) => {
+        const source = join(sidecarDir, sidecarFileName(basename));
+        return { basename, source, text: readFileSync(source, 'utf8') };
+    }),
+);
+if (sidecarResult.problems.length > 0) {
+    const lines = sidecarResult.problems.map((problem) => `  - ${problem.replaceAll('\n', '\n    ')}`);
+    throw new Error(`Cannot sync ${collectionName}: ${lines.length} sidecar(s) are invalid:\n${lines.join('\n')}`);
+}
+
 const previous = parseGallery(collectionName, JSON.parse(readFileSync(dataFile, 'utf8')));
 const previousByKey = new Map(previous.map((entry) => [entry.key, entry]));
 const credentials = options.upload
@@ -130,8 +144,7 @@ const counts: Record<SyncAction, number> = { new: 0, changed: 0, unchanged: 0 };
 
 for (const { file, basename } of images) {
     const key = galleryKey(collectionName, basename);
-    const sidecarPath = join(sidecarDir, `${basename}.yml`);
-    const sidecar = parseSidecar(collectionName, readFileSync(sidecarPath, 'utf8'), sidecarPath);
+    const sidecar = sidecarResult.sidecars.get(basename)!;
     const original = readFileSync(join(sourceDir, file));
     const sourceSha256 = createHash('sha256').update(original).digest('hex');
     const existing = previousByKey.get(key);

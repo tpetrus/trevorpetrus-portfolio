@@ -1,6 +1,11 @@
 import { z } from 'astro/zod';
 
-import { formatPhotographyCaption, photographyCaptionSchema, photographySidecarSchema } from './photography';
+import {
+    formatPhotographyCaption,
+    photographyCaptionSchema,
+    photographySidecarSchema,
+    photographySidecarTemplate,
+} from './photography';
 import { isThumbHash } from './thumbhash';
 
 const SHA256_HEX = /^[0-9a-f]{64}$/;
@@ -47,6 +52,8 @@ interface GalleryCollection<Caption extends z.ZodType, Sidecar extends z.ZodType
     captionSchema: Caption;
     /** The hand-written `src/content/<collection>/<image basename>.yml` next to each image. */
     sidecarSchema: Sidecar;
+    /** The text of a new sidecar for an image with this basename; its `alt` must be a placeholder the schema rejects. */
+    sidecarTemplate(basename: string): string;
     /** Whether the processed JPEG keeps the camera's EXIF (never GPS). Art has none worth keeping. */
     keepsCameraExif: boolean;
     // A method, not a property, so each collection can take its own caption type (parameters are checked bivariantly).
@@ -58,6 +65,7 @@ export const GALLERY_COLLECTIONS = {
     photography: {
         captionSchema: photographyCaptionSchema,
         sidecarSchema: photographySidecarSchema,
+        sidecarTemplate: photographySidecarTemplate,
         keepsCameraExif: true,
         formatCaption: formatPhotographyCaption,
     },

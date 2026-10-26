@@ -37,13 +37,17 @@ export interface SyncOptions {
 
 export const SYNC_USAGE =
     `Usage: sync-gallery <collection> [--source <dir>] [--upload] [--bucket <name>] [--account <id>]
-` + `The bucket defaults to ${DEFAULT_BUCKET} (override with --bucket or R2_BUCKET).`;
+` +
+    `The bucket defaults to ${DEFAULT_BUCKET} (override with --bucket or R2_BUCKET).
+` +
+    `The account ID defaults to the CLOUDFLARE_ACCOUNT_ID environment variable (override with --account).`;
 
 const VALUE_FLAGS = ['--source', '--bucket', '--account'];
 
 /**
  * Parses `sync-gallery <collection> [--source <dir>] [--upload] [--bucket <name>] [--account <id>]`. The bucket and
- * account fall back to `R2_BUCKET` (then `DEFAULT_BUCKET`) and `CLOUDFLARE_ACCOUNT_ID`. Without `--upload` this is a
+ * account fall back to `R2_BUCKET` (then `DEFAULT_BUCKET`) and `CLOUDFLARE_ACCOUNT_ID`; a flag, when given, wins over
+ * the environment. Without `--upload` this is a
  * dry run, and the account and token are not needed. Errors name what is missing, never a secret's value.
  */
 export function parseSyncArgs(argv: readonly string[], env: Readonly<Record<string, string | undefined>>): SyncOptions {
@@ -123,14 +127,10 @@ function splitExtension(file: string): { basename: string; extension: string } {
 }
 
 /**
- * Checks the source directory against the sidecar directory (both as plain file-name lists) and collects EVERY
- * problem, so one run reports all of them: files that are not JPEGs, duplicate names, images without a sidecar and
- * sidecars without an image.
+ * Sorts the files in a source directory into the images the sync accepts and a problem line for each file it does not:
+ * non-JPEGs, hidden files and names that collide once the extension is removed.
  */
-export function planInputs(
-    imageFiles: readonly string[],
-    sidecarFiles: readonly string[],
-): { images: SourceImage[]; problems: string[] } {
+export function acceptImages(imageFiles: readonly string[]): { images: SourceImage[]; problems: string[] } {
     const problems: string[] = [];
     const images: SourceImage[] = [];
     const seen = new Set<string>();
@@ -148,6 +148,25 @@ export function planInputs(
             images.push({ file, basename });
         }
     }
+    return { images, problems };
+}
+
+/** The sidecar file name for an image basename. */
+export function sidecarFileName(basename: string): string {
+    return `${basename}.yml`;
+}
+
+/**
+ * Checks the source directory against the sidecar directory (both as plain file-name lists) and collects EVERY
+ * problem, so one run reports all of them: files that are not JPEGs, duplicate names, images without a sidecar and
+ * sidecars without an image.
+ */
+export function planInputs(
+    imageFiles: readonly string[],
+    sidecarFiles: readonly string[],
+): { images: SourceImage[]; problems: string[] } {
+    const { images, problems } = acceptImages(imageFiles);
+    const seen = new Set(images.map(({ basename }) => basename));
 
     const sidecarBasenames = new Set<string>();
     for (const file of [...sidecarFiles].sort()) {
@@ -160,10 +179,12 @@ export function planInputs(
     }
 
     for (const { file, basename } of images) {
-        if (!sidecarBasenames.has(basename)) problems.push(`Image "${file}" has no sidecar "${basename}.yml".`);
+        if (!sidecarBasenames.has(basename)) {
+            problems.push(`Image "${file}" has no sidecar "${sidecarFileName(basename)}".`);
+        }
     }
     for (const basename of sidecarBasenames) {
-        if (!seen.has(basename)) problems.push(`Sidecar "${basename}.yml" has no image.`);
+        if (!seen.has(basename)) problems.push(`Sidecar "${sidecarFileName(basename)}" has no image.`);
     }
     return { images, problems };
 }
@@ -180,6 +201,26 @@ export function parseSidecar(collection: GalleryCollectionName, yamlText: string
         throw new Error(`${source}: invalid sidecar\n${z.prettifyError(result.error)}`);
     }
     return result.data;
+}
+
+/**
+ * Parses every sidecar and collects the failure of each bad one, so a single run lists all of them (a placeholder
+ * `alt` from the scaffold included) instead of stopping at the first. `source` is the path the message names.
+ */
+export function parseSidecars(
+    collection: GalleryCollectionName,
+    files: readonly { basename: string; source: string; text: string }[],
+): { sidecars: Map<string, CollectionSidecar>; problems: string[] } {
+    const sidecars = new Map<string, CollectionSidecar>();
+    const problems: string[] = [];
+    for (const { basename, source, text } of files) {
+        try {
+            sidecars.set(basename, parseSidecar(collection, text, source));
+        } catch (error) {
+            problems.push((error as Error).message);
+        }
+    }
+    return { sidecars, problems };
 }
 
 export type SyncAction = 'new' | 'changed' | 'unchanged';

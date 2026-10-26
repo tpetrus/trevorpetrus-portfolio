@@ -16,6 +16,7 @@ is a placeholder, labeled as such on the page.
 | Unit tests (vitest, node environment) | `npm run test` |
 | Unit tests with coverage (fails under 95%) | `npm run test:coverage` |
 | Production build (static output to `dist/`) | `npm run build` |
+| Create starter alt-text sidecars for photos that lack one (`--dry-run` lists only; never overwrites; see "Gallery") | `npm run scaffold:gallery -- photography` |
 | Bundle-size budget (reads the existing build) | `npm run size` |
 | End-to-end tests (Playwright, 3 projects; the build must exist, served via wrangler) | `npm run test:e2e` (first time: `npm run test:e2e:install`) |
 | Smoke tests (Chromium projects only) against `BASE_URL`, default the site URL in `src/config/site.ts` | `npm run test:smoke` |
@@ -60,8 +61,10 @@ src/
   lib/                  pure, unit-tested logic (nav.ts; projects.ts: the project schema and card helpers; projectMeta.ts,
                         projectSource.ts: parsing for the sync script and the page; date.ts: UTC date formatting;
                         gallery.ts: the collection registry (GALLERY_COLLECTIONS) and the entry schema; photography.ts:
-                        the photography caption/sidecar schemas, EXIF mapping and caption formatting; gallerySync.ts:
-                        sync arguments, planning, merging and the wrangler arguments; galleryView.ts: the per-entry view
+                        the photography caption/sidecar schemas and template, EXIF mapping and caption
+                        formatting; sidecarPlaceholder.ts: the TODO alt marker the schema rejects; gallerySync.ts:
+                        sync arguments, planning, merging and the wrangler arguments; gallerySidecars.ts: the scaffold's
+                        arguments and plan; galleryView.ts: the per-entry view
                         model the Gallery renders; imageUrl.ts: original and resized-variant URLs and the fixed width
                         sets; thumbhash.ts: ThumbHash validation and the WebP placeholder; exifLocation.ts: which
                         metadata keys are a location)
@@ -84,6 +87,7 @@ tests/e2e/              Playwright specs (smoke.spec.ts is tagged @smoke); its o
                         the photography data file is empty
 gallery-originals/      gitignored: the source JPEGs for sync-gallery (images never go in git)
 scripts/smoke.ts        runs the @smoke tests against BASE_URL (Chromium projects only)
+scripts/scaffold-gallery.ts  manual: writes starter sidecars (I/O only; logic is in src/lib/gallerySidecars.ts)
 scripts/sync-projects.ts  manual: writes project-meta.json and the screenshots (I/O only; logic is in src/lib)
 scripts/sync-gallery.ts   manual: processes and uploads gallery images and writes src/data/gallery/<collection>.json
 scripts/galleryImage.ts   the image processing the sync uses (sharp and exifr), with the location guards; specs sit
@@ -143,17 +147,27 @@ With no entries the page shows "Photos are on their way." and references no Phot
 
 **Add photos:**
 1. Put the JPEGs in `gallery-originals/photography/` (gitignored; create the folder if it does not exist).
-2. For each one, create `src/content/photography/<basename>.yml` (create the folder the first time) with `alt` (required:
-   EXIF has no alt text) and an optional integer `order` (lowest first, ahead of photos without one). The sync reports
-   every missing sidecar, orphan sidecar, non-JPEG and duplicate name in one run.
-3. Dry run: `npm run sync:gallery -- photography`. It processes in memory and prints what it would do; it touches neither
+2. Scaffold the sidecars: `npm run scaffold:gallery -- photography` (add `--dry-run` to only list what it would do). For
+   every accepted JPEG without one it writes `src/content/photography/<basename>.yml` from the collection's template, and
+   it never overwrites an existing sidecar (exclusive create). The template holds `alt: "TODO: describe this photo"` and a
+   commented-out `# order: 1`.
+3. Replace each `TODO` with real alt text (EXIF has no alt text) and, optionally, set an integer `order` (lowest first,
+   ahead of photos without one). The photography sidecar schema rejects an `alt` that starts with `TODO`
+   (`ALT_PLACEHOLDER_MARKER` in `src/lib/sidecarPlaceholder.ts`, case-insensitive), so the sync fails, dry run included,
+   and lists every such sidecar. It also reports every missing sidecar, orphan sidecar, non-JPEG and duplicate name in one
+   run.
+4. Dry run: `npm run sync:gallery -- photography`. It processes in memory and prints what it would do; it touches neither
    R2 nor the JSON. Check the sizes and captions.
-4. Upload: `npm run sync:gallery -- photography --upload --account <account id>`. The bucket defaults to `portfolio-photos`
-   (override with `--bucket` or `R2_BUCKET`). The account ID is deliberately not in the repo: pass `--account` or set
-   `CLOUDFLARE_ACCOUNT_ID` (the 32-character number in any Cloudflare dashboard URL, `dash.cloudflare.com/<id>/...`). The R2 API token is the user-scope environment variable `CLOUDFLARE_R2_BUCKET_READ_WRITE_API_KEY`. The script
-   hands the token to `wrangler r2 object put` through the child process's environment only and never prints it. The JSON
-   is rewritten only after every upload succeeded.
-5. Commit `src/data/gallery/photography.json` and the sidecars (`src/content/photography/*.yml`), never the JPEGs.
+5. Upload: `npm run sync:gallery -- photography --upload`. The bucket defaults to `portfolio-photos` (override with
+   `--bucket` or `R2_BUCKET`). The account ID is deliberately not in the repo: the script reads the user-scope environment
+   variable `CLOUDFLARE_ACCOUNT_ID` (the 32-character number in any Cloudflare dashboard URL,
+   `dash.cloudflare.com/<id>/...`), and `--account <id>` overrides it when given. Set it once in PowerShell, then open a
+   new terminal (a running one does not see it):
+   `[Environment]::SetEnvironmentVariable('CLOUDFLARE_ACCOUNT_ID', '<account id>', 'User')`. The R2 API token is the
+   user-scope environment variable `CLOUDFLARE_R2_BUCKET_READ_WRITE_API_KEY`. The script hands the token to
+   `wrangler r2 object put` through the child process's environment only and never prints it. The JSON is rewritten only
+   after every upload succeeded.
+6. Commit `src/data/gallery/photography.json` and the sidecars (`src/content/photography/*.yml`), never the JPEGs.
 
 **What the processing does** (`scripts/galleryImage.ts`, run on every changed original): auto-orients, converts to sRGB
 and tags the profile, strips GPS, XMP and IPTC (sharp cannot drop only the GPS tags, so the camera fields are read first

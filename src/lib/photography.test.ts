@@ -6,7 +6,9 @@ import {
     photographyCaptionFromExif,
     photographyCaptionSchema,
     photographyExifBlocks,
+    photographySidecarTemplate,
 } from './photography';
+import { ALT_PLACEHOLDER_MARKER } from './sidecarPlaceholder';
 
 const FULL_RAW = {
     Make: 'Canon',
@@ -201,5 +203,15 @@ describe('photographyExifBlocks', () => {
         expect(photographyExifBlocks({})).toEqual({});
         expect(photographyExifBlocks({ Model: 'X100V' })).toEqual({ IFD0: { Model: 'X100V' } });
         expect(photographyExifBlocks({ ISO: 100 })).toEqual({ IFD2: { ISOSpeedRatings: '100' } });
+    });
+});
+
+describe('photographySidecarTemplate', () => {
+    it('names the photo, explains the fields and holds the placeholder alt and a commented-out order', () => {
+        const template = photographySidecarTemplate('DSC_0001');
+        expect(template).toContain('DSC_0001.jpg');
+        expect(template).toContain(`\nalt: "${ALT_PLACEHOLDER_MARKER}: describe this photo"\n`);
+        expect(template).toContain('\n# order: 1\n');
+        expect(template.endsWith('\n')).toBe(true);
     });
 });
