@@ -70,10 +70,50 @@ function createLightbox(): PhotoSwipeLightbox {
 // the old one is destroyed before its DOM is swapped away.
 let lightbox: PhotoSwipeLightbox | null = null;
 
+// Destroys the lightbox and resolves once an open viewer is gone from the DOM. PhotoSwipe's destroy() only starts to
+// close an open viewer and ignores the call while the viewer is still opening, so the opening animation is waited out
+// first; a viewer that is already closing finishes on its own and is waited for too.
+function destroyLightbox(instance: PhotoSwipeLightbox): Promise<void> {
+    const viewer = instance.pswp;
+    if (viewer === undefined) {
+        instance.destroy();
+        return Promise.resolve();
+    }
+    return new Promise((resolve) => {
+        viewer.on('destroy', () => resolve());
+        if (viewer.opener.isOpening) {
+            viewer.on('openingAnimationEnd', () => instance.destroy());
+        } else {
+            instance.destroy();
+        }
+    });
+}
+
+// Two frames: the first runs before the next paint, the second after it.
+const afterNextPaint = (): Promise<void> =>
+    new Promise((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+
 document.addEventListener('astro:page-load', () => {
     if (document.querySelector('#gallery') !== null) {
         lightbox = createLightbox();
     }
+});
+
+// Navigating away with the viewer open used to swap the page while the viewer was still live, which crashed Playwright's
+// WebKit page process every time. The swap in astro:before-swap is synchronous, so the viewer is closed here instead:
+// Astro awaits the loader before it fetches and swaps the next page, and the paint lets the browser drop the viewer's
+// layers before the old body goes.
+document.addEventListener('astro:before-preparation', (event) => {
+    const fetchNextPage = event.loader;
+    event.loader = async () => {
+        if (lightbox !== null) {
+            await destroyLightbox(lightbox);
+            await afterNextPaint();
+        }
+        await fetchNextPage();
+    };
 });
 
 document.addEventListener('astro:before-swap', () => {

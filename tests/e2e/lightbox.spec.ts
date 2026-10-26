@@ -68,4 +68,27 @@ test.describe('photography lightbox', () => {
 
         await openAndCloseFirstPhoto(page, entries[0], browserName);
     });
+
+    // Regression: leaving the page with the viewer open used to crash the WebKit page process, so the navigation never
+    // finished. The first tile is clicked and the page is left straight away, without closing the viewer.
+    test('closes the viewer when navigating away with it open, and works again on return', async ({
+        page,
+        browserName,
+    }) => {
+        await page.goto('/photography/');
+        await page.locator('#gallery a').first().click();
+        await expect(page.getByRole('dialog')).toBeVisible();
+
+        // The open viewer covers the nav, so a real click would be intercepted; this is what following the link does.
+        await page
+            .getByRole('navigation', { name: 'Primary' })
+            .getByRole('link', { name: 'Projects' })
+            .evaluate((link: HTMLElement) => link.click());
+        await expect(page.getByRole('heading', { level: 1 })).toHaveText('Projects');
+        await expect(page.getByRole('dialog')).toHaveCount(0);
+
+        await page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Photography' }).click();
+        await expect(page.getByRole('heading', { level: 1 })).toHaveText('Photography');
+        await openAndCloseFirstPhoto(page, entries[0], browserName);
+    });
 });
