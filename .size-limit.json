@@ -10,5 +10,12 @@
     "path": "dist/_astro/*.css",
     "gzip": true,
     "limit": "10 kB"
+  },
+  {
+    "name": "Total fonts: every woff2 emitted in _astro/fonts (raw bytes, woff2 is already compressed)",
+    "path": "dist/_astro/fonts/*.woff2",
+    "gzip": false,
+    "brotli": false,
+    "limit": "105 kB"
   }
 ]
