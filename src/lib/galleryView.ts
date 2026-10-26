@@ -1,19 +1,20 @@
 import { GALLERY_COLLECTIONS, type CollectionCaption, type GalleryCollectionName, type GalleryEntry } from './gallery';
+import { aspectRatio, placeTiles, tileSizes, type TilePlacement } from './galleryLayout';
 import { GRID_WIDTHS, imageSrcset, LIGHTBOX_WIDTHS, originalImageUrl, transformedImageUrl } from './imageUrl';
 import { placeholderDataUrl } from './thumbhash';
 
-// How wide a tile is drawn, for the browser's choice among the grid candidates. The page's content column is capped at
-// 5xl (1024 px) minus 1.5 rem of padding on each side, so 976 px; the grid has one column below 640 px, two up to
-// 1024 px and three above, with a 1 rem gap. At 1024 px and wider that makes each tile (976 - 2 x 16) / 3 = 315 px.
-export const GRID_SIZES = '(min-width: 1024px) 315px, (min-width: 640px) calc((100vw - 4rem) / 2), calc(100vw - 3rem)';
+// Every candidate width the site already generates: the grid set plus the lightbox set. A tile can be as wide as the
+// full content column (a panorama), where the grid set alone would be upscaled. These are the same six transformations
+// per photo that the lightbox already requests, so the monthly quota is unchanged.
+const TILE_WIDTHS: readonly number[] = [...GRID_WIDTHS, ...LIGHTBOX_WIDTHS];
 
 /** The width of the variant in the `src` attribute, the fallback for a browser that ignores `srcset`. */
 export const GRID_SRC_WIDTH = 640;
 
-/** How many of the first tiles load eagerly: about a screenful of the three-column grid, so the LCP image is not lazy. */
+/** How many of the first tiles load eagerly: about a screenful of the grid, so the LCP image is not lazy. */
 export const EAGER_TILE_COUNT = 3;
 
-// Grid tiles are small and shown beside many others; Cloudflare's default (85) spends bytes nobody can see there. The
+// Grid tiles are small and shown beside many others, and a page holds dozens; Cloudflare's default (85) spends bytes nobody can see there. The
 // lightbox keeps the default. Quality is not part of the unique-transformation count.
 export const GRID_QUALITY = 70;
 
@@ -32,6 +33,8 @@ export interface GalleryTile {
     src: string;
     srcset: string;
     sizes: string;
+    /** Where the tile sits in the 12-column grid (see galleryLayout.ts). */
+    placement: TilePlacement;
     loading: 'eager' | 'lazy';
     /** Set on the first tile only: it is the likely LCP element. */
     fetchpriority: 'high' | undefined;
@@ -46,6 +49,7 @@ export async function galleryTiles(
 ): Promise<GalleryTile[]> {
     const { formatCaption } = GALLERY_COLLECTIONS[collection];
     const largestLightboxWidth = Math.max(...LIGHTBOX_WIDTHS);
+    const placements = placeTiles(entries.map(({ width, height }) => aspectRatio(width, height)));
     return Promise.all(
         entries.map(async ({ key, alt, width, height, caption, thumbhash }, index) => ({
             key,
@@ -57,8 +61,9 @@ export async function galleryTiles(
             href: transformedImageUrl(key, { width: largestLightboxWidth }),
             lightboxSrcset: imageSrcset(key, LIGHTBOX_WIDTHS),
             src: transformedImageUrl(key, { width: GRID_SRC_WIDTH, quality: GRID_QUALITY }),
-            srcset: imageSrcset(key, GRID_WIDTHS, { quality: GRID_QUALITY }),
-            sizes: GRID_SIZES,
+            srcset: imageSrcset(key, TILE_WIDTHS, { quality: GRID_QUALITY }),
+            sizes: tileSizes(placements[index].span),
+            placement: placements[index],
             loading: index < EAGER_TILE_COUNT ? ('eager' as const) : ('lazy' as const),
             fetchpriority: index === 0 ? ('high' as const) : undefined,
             placeholder: await placeholderDataUrl(thumbhash),

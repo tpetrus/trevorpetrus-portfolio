@@ -1,19 +1,16 @@
 ---
 // The attribution GeoNames' CC BY 4.0 license asks for wherever data derived from it is shown. The page renders this
-// only when a photo's place came from GeoNames (see showsGeonamesPlace in src/lib/location.ts).
+// only when a photo's place came from GeoNames (see showsGeonamesPlace in src/lib/location.ts). It sits on the ink
+// section: muted text, with links in the ink scope's paper color.
 ---
 
-<p class="mt-6 text-sm text-slate-400">
+<p class="mt-2 font-mono text-step-n1 tracking-[0.02em] text-ink-muted-on-ink">
     Place names from{' '}
-    <a href="https://www.geonames.org/" rel="noopener" class="underline underline-offset-4 hover:text-white">
+    <a href="https://www.geonames.org/" rel="noopener" class="link">
         GeoNames
     </a>
     ,{' '}
-    <a
-        href="https://creativecommons.org/licenses/by/4.0/"
-        rel="noopener"
-        class="underline underline-offset-4 hover:text-white"
-    >
+    <a href="https://creativecommons.org/licenses/by/4.0/" rel="noopener" class="link">
         CC BY 4.0
     </a>
     .

@@ -1,0 +1,11 @@
+---
+// The visible line under a photo. It is its own component so the later shared Caption component can replace it without
+// touching the grid; it takes the finished text (place, camera, date: see formatPhotographyCaption) and nothing else.
+interface Props {
+    text: string;
+}
+
+const { text } = Astro.props;
+---
+
+<p class="mt-3 font-mono text-step-n1 tracking-[0.02em] text-ink-muted-on-ink">{text}</p>
