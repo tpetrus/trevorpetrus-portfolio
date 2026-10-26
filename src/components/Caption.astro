@@ -1,0 +1,30 @@
+---
+interface Props {
+    /** The bold caps label above the title (a status for a project, a place or a medium elsewhere). */
+    label?: string | undefined;
+    /** The element that holds the title. A card among cards uses a heading; a photo caption can use `p`. */
+    as?: 'h2' | 'h3' | 'h4' | 'p';
+}
+
+const { label, as: Title = 'h2' } = Astro.props;
+---
+
+{/* A label/title/byline/credit stack. The default slot is the title text (it may be a link); the optional `byline`
+    and `credit` slots hold the regular-weight lines below it. Colors are ink and ink-muted on paper, so a caption on
+    an ink surface must override them. */}
+<div class="flex flex-col gap-1.5">
+    {label && <p class="text-step-n1 font-bold tracking-[0.06em] uppercase">{label}</p>}
+    <Title class="font-display text-step-1 font-bold tracking-[0.02em] break-words uppercase">
+        <slot />
+    </Title>
+    {Astro.slots.has('byline') && (
+        <div class="text-step-n1 text-ink-muted">
+            <slot name="byline" />
+        </div>
+    )}
+    {Astro.slots.has('credit') && (
+        <p class="font-mono text-step-n1 text-ink-muted">
+            <slot name="credit" />
+        </p>
+    )}
+</div>

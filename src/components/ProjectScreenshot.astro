@@ -1,0 +1,29 @@
+---
+import { Picture } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+
+interface Props {
+    src: ImageMetadata | undefined;
+    title: string;
+    widths: number[];
+    sizes: string;
+    priority: boolean;
+}
+
+const { src, title, widths, sizes, priority } = Astro.props;
+---
+
+{src && (
+    <div>
+        <Picture
+            src={src}
+            alt={`Screenshot of ${title}`}
+            formats={['avif']}
+            fallbackFormat="webp"
+            widths={widths}
+            sizes={sizes}
+            priority={priority}
+            class="h-auto w-full"
+        />
+    </div>
+)}

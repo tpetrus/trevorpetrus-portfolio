@@ -2,8 +2,8 @@
 // (the site makes no network calls then); run it when a project changes, review the diff, and commit the outputs.
 //
 // For every project in src/content/projects/*.md it
-//   1. writes the newest default-branch commit date to src/data/project-meta.json (GitHub API, `GITHUB_TOKEN` from the
-//      environment when set, which lifts the unauthenticated rate limit), and
+//   1. writes the newest default-branch commit date and the repo's creation date to src/data/project-meta.json (GitHub
+//      API, `GITHUB_TOKEN` from the environment when set, which lifts the unauthenticated rate limit), and
 //   2. for live projects with a subdomain, screenshots the running site to src/assets/projects/<slug>.avif.
 // Tech tags and copy are curated in the frontmatter and never rewritten. Parsing and validation live in src/lib, so
 // this file only does I/O.
@@ -16,10 +16,12 @@ import sharp from 'sharp';
 import { projectUrl } from '../src/config/site.ts';
 import {
     commitsApiUrl,
+    createdFromRepo,
     mergeProjectMeta,
-    metaFromCommits,
     parseProjectMeta,
+    repoApiUrl,
     serializeProjectMeta,
+    updatedFromCommits,
 } from '../src/lib/projectMeta.ts';
 import { readProjectFrontmatter, type ProjectFrontmatter } from '../src/lib/projectSource.ts';
 import { isScreenshotTarget, thumbnailFile, thumbnailFrontmatter } from '../src/lib/projects.ts';
@@ -67,9 +69,9 @@ function writeIfChanged(path: string, data: Buffer | string): boolean {
     return true;
 }
 
-async function fetchLastUpdated(project: Project): Promise<{ updated: string }> {
+async function fetchGitHub(repo: string, url: string): Promise<unknown> {
     const token = process.env.GITHUB_TOKEN;
-    const response = await fetch(commitsApiUrl(project.repo), {
+    const response = await fetch(url, {
         headers: {
             Accept: 'application/vnd.github+json',
             'User-Agent': 'trevorpetrus-portfolio-sync-projects',
@@ -77,17 +79,18 @@ async function fetchLastUpdated(project: Project): Promise<{ updated: string }> 
         },
     });
     if (!response.ok) {
-        throw new Error(`${project.repo}: GitHub API answered ${response.status} ${response.statusText}`);
+        throw new Error(`${repo}: GitHub API answered ${response.status} ${response.statusText}`);
     }
-    return metaFromCommits(await response.json());
+    return response.json();
 }
 
 async function syncMeta(projects: Project[]): Promise<void> {
     let meta = parseProjectMeta(JSON.parse(readFileSync(META_FILE, 'utf8')));
     for (const project of projects) {
-        const entry = await fetchLastUpdated(project);
-        meta = mergeProjectMeta(meta, project.slug, entry);
-        console.log(`${project.slug}: last commit ${entry.updated}`);
+        const updated = updatedFromCommits(await fetchGitHub(project.repo, commitsApiUrl(project.repo)));
+        const created = createdFromRepo(await fetchGitHub(project.repo, repoApiUrl(project.repo)));
+        meta = mergeProjectMeta(meta, project.slug, { updated, created });
+        console.log(`${project.slug}: created ${created}, last commit ${updated}`);
     }
     const changed = writeIfChanged(META_FILE, serializeProjectMeta(meta));
     console.log(`${META_FILE}: ${changed ? 'updated' : 'unchanged'}`);
