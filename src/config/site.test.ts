@@ -33,8 +33,8 @@ describe('isDnsLabel', () => {
 });
 
 describe('projectUrl', () => {
-    it('puts a workers.dev project under its own subdomain while projects are still on workers.dev', () => {
-        expect(projectUrl('audio-visualizer')).toBe('https://audio-visualizer.mypoke.workers.dev');
+    it('puts a project under its own subdomain of the configured projects domain', () => {
+        expect(projectUrl('audiovisualizer')).toBe('https://audiovisualizer.trevorpetr.us');
     });
 
     it('puts the project name in front of a custom apex domain', () => {
