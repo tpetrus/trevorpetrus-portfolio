@@ -19,9 +19,13 @@ concurrency:
 
 jobs:
   update-snapshots:
-    uses: tpetrus/ci-workflows/.github/workflows/update-snapshots.yml@v0.2.0
+    uses: tpetrus/ci-workflows/.github/workflows/update-snapshots.yml@v0.3.1
     with:
       build-dir: dist
-      # This repo has no visual-regression spec yet, so point the snapshot workflow at the spec that will hold them
-      # (it fails with "no tests found" until one exists; see "Known gaps" in AGENTS.md).
+      # The shared default is e2e/visual.spec.ts; this repo's visual-regression spec lives under tests/.
       snapshot-test-file: tests/e2e/visual.spec.ts
+    # The App secrets let the commit job push as the same GitHub App the version bot uses, so the PR checks start on
+    # the snapshot commit. Without them the shared workflow falls back to GITHUB_TOKEN, whose pushes start no checks.
+    secrets:
+      RELEASE_APP_ID: ${{ secrets.RELEASE_APP_ID }}
+      RELEASE_APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
