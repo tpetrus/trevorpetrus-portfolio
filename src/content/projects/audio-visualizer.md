@@ -1,6 +1,6 @@
 ---
 title: AudioVisualizer
-description: Fun visualizations for the audio coming through your computer. Fork it and use the add-visualizer skill to make your own, or build them by hand.
+description: Fun, customizable visualizations for the audio coming through your computer.  Use it for a DJ set, a party... the options are endless!
 tech:
     - TypeScript
     - React
@@ -9,7 +9,7 @@ tech:
     - Tailwind CSS
 status: live
 repo: https://github.com/tpetrus/AudioVisualizer
-subdomain: audio-visualizer
+subdomain: audiovisualizer
 order: 1
 thumbnail: ../../assets/projects/audio-visualizer.avif
 ---

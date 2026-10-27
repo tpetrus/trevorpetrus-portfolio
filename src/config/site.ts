@@ -1,10 +1,9 @@
 // The ONE place the site's domain is configured. Two adjacent constants, because they are two different settings:
 // SITE_URL is where this site itself lives (astro.config.mjs `site`, canonical URLs), and PROJECTS_DOMAIN is the domain
-// that project subdomains hang off. They differ right now: the site is on its custom domain, but the projects are still
-// served from workers.dev (`<worker>.<account>.workers.dev`; `audio-visualizer.trevorpetr.us` does not resolve yet).
-// When a project gets its custom domain, switch PROJECTS_DOMAIN to 'trevorpetr.us' (a bare host, no protocol).
+// that project subdomains hang off. They are separate settings even though both are on trevorpetr.us today (projects live at
+// `<subdomain>.trevorpetr.us`, e.g. `audiovisualizer.trevorpetr.us`). PROJECTS_DOMAIN is a bare host, no protocol.
 export const SITE_URL = 'https://trevorpetr.us';
-export const PROJECTS_DOMAIN = 'mypoke.workers.dev';
+export const PROJECTS_DOMAIN = 'trevorpetr.us';
 
 // The host that serves gallery images: originals from an R2 bucket and resized variants from Cloudflare Images
 // transformations (`/cdn-cgi/image/...`). It is configured here and nowhere else. Transformations only run on a
