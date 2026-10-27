@@ -7,32 +7,28 @@ interface Props {
     entries: GalleryEntry<CollectionCaption>[];
 }
 
-const figures = await clusterFigures(Astro.props.entries);
+const photos = await clusterFigures(Astro.props.entries);
 ---
 
-{/* Renders nothing without photos, so the page needs no empty state. The captions sit in their own grid row below the
-    images (a subgrid per figure), so they share one baseline however tall each photo is, and they stay off the
-    images, where their contrast would depend on the photo. */}
-{figures.length > 0 && (
+{/* Renders nothing without photos, so the page needs no empty state. The photos deliberately carry no caption: the
+    camera settings and the place live on the Photography page. */}
+{photos.length > 0 && (
     <div class="cluster" data-home-cluster>
-        {figures.map((figure) => (
-            <figure>
-                <img
-                    src={figure.src}
-                    srcset={figure.srcset}
-                    sizes={figure.sizes}
-                    width={figure.width}
-                    height={figure.height}
-                    alt={figure.alt}
-                    loading="lazy"
-                    decoding="async"
-                    style={{
-                        aspectRatio: `${figure.width} / ${figure.height}`,
-                        backgroundImage: `url(${figure.placeholder})`,
-                    }}
-                />
-                {figure.caption && <figcaption>{figure.caption}</figcaption>}
-            </figure>
+        {photos.map((photo) => (
+            <img
+                src={photo.src}
+                srcset={photo.srcset}
+                sizes={photo.sizes}
+                width={photo.width}
+                height={photo.height}
+                alt={photo.alt}
+                loading="lazy"
+                decoding="async"
+                style={{
+                    aspectRatio: `${photo.width} / ${photo.height}`,
+                    backgroundImage: `url(${photo.placeholder})`,
+                }}
+            />
         ))}
     </div>
 )}
@@ -42,13 +38,7 @@ const figures = await clusterFigures(Astro.props.entries);
      * One composition at every width: twelve columns in one row of images, overlapping by a column. The first image spans
      * columns 1-5, the second 5-9, the third 9-12; the second and third are raised by a margin for the offset, and the
      * gap, the offsets and the images all scale with the cluster's width (a `cqi` unit is one percent of it), so a phone
-     * shows the same arrangement as the desktop, smaller. Each figure is a subgrid of four rows: the image in the first,
-     * its caption in the row of its own number after it, so every caption lands in its own row.
-     *
-     * Below 48rem the figures span the full width and the images pick their columns, which leaves the captions the whole
-     * width: a caption beside a 115 px image would wrap to a few letters a line. They stack under the cluster, in DOM
-     * order, and never sit over an image, where their contrast would depend on the photo. From 48rem each figure spans
-     * only its own columns and its caption sits under its own image, skipping the shared columns so none overlap.
+     * shows the same arrangement as the desktop, smaller.
      */
     .cluster {
         container-type: inline-size;
@@ -58,32 +48,8 @@ const figures = await clusterFigures(Astro.props.entries);
         margin-block-start: 3rem;
     }
 
-    figure {
-        display: grid;
-        grid-column: 1 / -1;
-        grid-row: 1 / span 4;
-        grid-template-columns: subgrid;
-        grid-template-rows: subgrid;
-        margin: 0;
-    }
-
-    figure:nth-child(1) {
-        --image-columns: 1 / 6;
-        --caption-row: 2;
-    }
-
-    figure:nth-child(2) {
-        --image-columns: 5 / 10;
-        --caption-row: 3;
-    }
-
-    figure:nth-child(3) {
-        --image-columns: 9 / 13;
-        --caption-row: 4;
-    }
-
     img {
-        grid-column: var(--image-columns);
+        grid-row: 1;
         align-self: end;
         inline-size: 100%;
         block-size: auto;
@@ -93,65 +59,23 @@ const figures = await clusterFigures(Astro.props.entries);
         outline: 0.25rem solid var(--color-paper);
     }
 
-    figure:nth-child(2) img {
+    img:nth-child(1) {
+        grid-column: 1 / 6;
+    }
+
+    img:nth-child(2) {
+        grid-column: 5 / 10;
         margin-block-end: 4.9cqi;
     }
 
-    figure:nth-child(3) img {
+    img:nth-child(3) {
+        grid-column: 9 / 13;
         margin-block-end: 2.45cqi;
-    }
-
-    figcaption {
-        grid-column: 1 / -1;
-        grid-row: var(--caption-row);
-        padding-block-start: 0.5rem;
-        font-family: var(--font-mono);
-        font-size: var(--text-step-n1);
-        line-height: 1.4;
-        color: var(--color-ink-muted);
     }
 
     @media (min-width: 48rem) {
         .cluster {
             column-gap: var(--spacing-gutter);
-        }
-
-        figure:nth-child(1) {
-            --columns: 1 / 6;
-        }
-
-        figure:nth-child(2) {
-            --columns: 5 / 10;
-        }
-
-        figure:nth-child(3) {
-            --columns: 9 / 13;
-        }
-
-        figure {
-            grid-column: var(--columns);
-            grid-row: 1 / span 2;
-            grid-template-rows: subgrid;
-        }
-
-        img {
-            grid-column: 1 / -1;
-        }
-
-        figcaption {
-            grid-row: 2;
-        }
-
-        figure:nth-child(1) figcaption {
-            grid-column: 1 / -2;
-        }
-
-        figure:nth-child(2) figcaption {
-            grid-column: 2 / -2;
-        }
-
-        figure:nth-child(3) figcaption {
-            grid-column: 2 / -1;
         }
     }
 </style>

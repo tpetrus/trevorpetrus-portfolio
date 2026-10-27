@@ -152,11 +152,9 @@ again (`tests/e2e/home.spec.ts` checks each line fills 90% to 101% of the box).
 `GRID_WIDTHS` only (the cluster adds no new transformations), and renders nothing while the data file is empty. It is one
 composition at every width: twelve columns, the images spanning 1-5, 5-9 and 9-12 so each overlaps the next by a column,
 the second and third raised by margins. The column gap and the margins scale with the cluster (`cqi`, an inline-size
-container), so a 320 px phone shows the desktop arrangement smaller, with no horizontal overflow. Each figure is a
-subgrid. From 48rem a caption sits under its own image, on one baseline with the others. Below 48rem the figures span the
-full width and the captions stack under the cluster in DOM order, one row each (a caption beside a 115 px image would wrap
-to a few letters a line); a photo without a caption leaves its row empty. Captions are never over an image, and every
-photo keeps its `figcaption`. The images carry an explicit `aspect-ratio`, so the cluster never shifts the page.
+container), so a 320 px phone shows the desktop arrangement smaller, with no horizontal overflow. The cluster deliberately
+shows the photos without captions (plain `img` elements, no `figure`; each keeps its alt text from the data as its
+accessible name): the camera settings and the place live on the Photography page and its lightbox. The images carry an explicit `aspect-ratio`, so the cluster never shifts the page.
 
 On phones the widest images are about 36% to 38% of the viewport (`phoneImageWidth` in `src/lib/homeCluster.ts`; the third,
 four columns wide as on desktop, is about 29%), and `CLUSTER_SIZES` gives the browser the matching `38vw` hint. They are

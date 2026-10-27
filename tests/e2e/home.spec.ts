@@ -116,27 +116,13 @@ test.describe('home page', () => {
             }
         });
 
-        test('keeps every caption below all the images and, from 48rem up, on one baseline', async ({
-            page,
-            viewport,
-        }) => {
-            test.skip(CLUSTER_COUNT < 3, 'The overlap needs three photos.');
+        test('shows the photos without any caption or text', async ({ page }) => {
             await page.goto('/');
 
-            const figures = page.locator('[data-home-cluster] figure');
-            const imageBottoms = await figures
-                .locator('img')
-                .evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().bottom));
-            const captionTops = await figures
-                .locator('figcaption')
-                .evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().top));
-
-            for (const top of captionTops) {
-                expect(top).toBeGreaterThanOrEqual(Math.max(...imageBottoms));
-            }
-            if ((viewport?.width ?? 0) >= 768) {
-                expect(new Set(captionTops.map(Math.round)).size).toBeLessThanOrEqual(1);
-            }
+            const cluster = page.locator('[data-home-cluster]');
+            await expect(cluster.locator('figcaption, figure')).toHaveCount(0);
+            expect(await cluster.innerText()).toBe('');
+            expect((await cluster.textContent())?.trim()).toBe('');
         });
 
         for (const width of [320, 390, 1280]) {

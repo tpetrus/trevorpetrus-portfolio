@@ -57,7 +57,6 @@ describe('clusterFigures', () => {
             alt: 'Alt for harbor',
             width: 3000,
             height: 2000,
-            caption: 'Canon EOS R5 · ISO 400',
             src: transformedImageUrl('photography/harbor.jpg', { width: CLUSTER_SRC_WIDTH, quality: GRID_QUALITY }),
             srcset: imageSrcset('photography/harbor.jpg', GRID_WIDTHS, { quality: GRID_QUALITY }),
             sizes: CLUSTER_SIZES,
@@ -66,11 +65,10 @@ describe('clusterFigures', () => {
         expect(figure.placeholder).toMatch(/^data:image\/webp;base64,/);
     });
 
-    it('stops at three figures and has an empty caption for a photo without one', async () => {
+    it('stops at three figures', async () => {
         const figures = await clusterFigures(['a', 'b', 'c', 'd'].map((name) => entry(name)));
 
         expect(figures.map(({ key }) => key)).toEqual(['photography/a.jpg', 'photography/b.jpg', 'photography/c.jpg']);
-        expect(figures.map(({ caption }) => caption)).toEqual(['', '', '']);
     });
 });
 

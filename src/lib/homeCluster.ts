@@ -1,4 +1,4 @@
-import { GALLERY_COLLECTIONS, type CollectionCaption, type GalleryEntry } from './gallery';
+import type { CollectionCaption, GalleryEntry } from './gallery';
 import { GRID_QUALITY } from './galleryView';
 import { GRID_WIDTHS, imageSrcset, transformedImageUrl } from './imageUrl';
 import { placeholderDataUrl } from './thumbhash';
@@ -39,8 +39,6 @@ export interface ClusterFigure {
     alt: string;
     width: number;
     height: number;
-    /** The caption as one line, or an empty string. */
-    caption: string;
     src: string;
     srcset: string;
     sizes: string;
@@ -55,14 +53,12 @@ export function clusterEntries<Entry>(entries: readonly Entry[]): Entry[] {
 
 /** Everything the cluster template needs for each photo. Decoding the placeholders is why it is async. */
 export async function clusterFigures(entries: readonly GalleryEntry<CollectionCaption>[]): Promise<ClusterFigure[]> {
-    const { formatCaption } = GALLERY_COLLECTIONS.photography;
     return Promise.all(
-        clusterEntries(entries).map(async ({ key, alt, width, height, caption, thumbhash }) => ({
+        clusterEntries(entries).map(async ({ key, alt, width, height, thumbhash }) => ({
             key,
             alt,
             width,
             height,
-            caption: formatCaption(caption),
             src: transformedImageUrl(key, { width: CLUSTER_SRC_WIDTH, quality: GRID_QUALITY }),
             srcset: imageSrcset(key, GRID_WIDTHS, { quality: GRID_QUALITY }),
             sizes: CLUSTER_SIZES,
