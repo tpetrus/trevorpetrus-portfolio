@@ -66,7 +66,7 @@ describe('repoPath', () => {
 
 describe('projectHref', () => {
     it('links to the subdomain when there is one', () => {
-        expect(projectHref(valid)).toBe('https://audio-visualizer.mypoke.workers.dev');
+        expect(projectHref(valid)).toBe('https://audio-visualizer.trevorpetr.us');
     });
 
     it('falls back to the repo', () => {
