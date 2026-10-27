@@ -149,12 +149,21 @@ at line-height 0.85), so the font swap shifts nothing. Change the face, weight o
 again (`tests/e2e/home.spec.ts` checks each line fills 90% to 101% of the box).
 
 `HomeCluster.astro` shows the first three photography entries in the gallery's order, through `imageUrl.ts` and
-`GRID_WIDTHS` only (the cluster adds no new transformations), and renders nothing while the data file is empty. From
-48rem the figures overlap by a column on a 12-column grid and their captions share one row (a subgrid per figure);
-below it they stack, offset. Captions sit below the images, never over them. The images are lazy and carry an explicit
-`aspect-ratio`, so the cluster never shifts the page.
+`GRID_WIDTHS` only (the cluster adds no new transformations), and renders nothing while the data file is empty. It is one
+composition at every width: twelve columns, the images spanning 1-5, 5-9 and 9-12 so each overlaps the next by a column,
+the second and third raised by margins. The column gap and the margins scale with the cluster (`cqi`, an inline-size
+container), so a 320 px phone shows the desktop arrangement smaller, with no horizontal overflow. The cluster deliberately
+shows the photos without captions (plain `img` elements, no `figure`; each keeps its alt text from the data as its
+accessible name): the camera settings and the place live on the Photography page and its lightbox. The images carry an explicit `aspect-ratio`, so the cluster never shifts the page.
 
-On phones each cluster image is half the width of its figure (the `max-width: 47.99rem` rule in `HomeCluster.astro`; `CLUSTER_SIZES` in `src/lib/homeCluster.ts` gives the browser the matching `40vw` hint), so the wordmark `h1`, not a photo, is the largest element and the LCP. That is why every cluster image can stay lazy with no `fetchpriority="high"`. PR #16 measured mobile LCP at about 2.0 s with the wordmark as LCP against about 2.4 s when a cluster photo was. If the first three photos change (for example a wide landscape moves first), re-check the LCP element with `npm run lighthouse` before merging.
+On phones the widest images are about 36% to 38% of the viewport (`phoneImageWidth` in `src/lib/homeCluster.ts`; the third,
+four columns wide as on desktop, is about 29%), and `CLUSTER_SIZES` gives the browser the matching `38vw` hint. They are
+smaller than the wordmark `h1`, so the wordmark stays the largest contentful paint and every cluster image can stay lazy
+with no `fetchpriority="high"`. Measured on this layout (mobile Lighthouse, 3 runs on `/`, with the three real photos):
+LCP element `h1.name` in every run, performance 0.99, LCP 2.0 s, CLS 0. PR #16 measured about 2.4 s (performance about 0.97)
+when a cluster photo was the LCP element and eager with `fetchpriority="high"`. If the first three photos or the layout
+change, re-check the LCP element with `npm run lighthouse` before merging: if a photo is the LCP, make that one image
+eager with `fetchpriority="high"` and keep the rest lazy.
 
 ## Projects
 The Projects page is built from the `projects` content collection (`src/content/projects/*.md`, schema in

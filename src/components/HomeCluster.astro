@@ -7,76 +7,49 @@ interface Props {
     entries: GalleryEntry<CollectionCaption>[];
 }
 
-const figures = await clusterFigures(Astro.props.entries);
+const photos = await clusterFigures(Astro.props.entries);
 ---
 
-{/* Renders nothing without photos, so the page needs no empty state. The captions sit in their own grid row below the
-    images (a subgrid per figure), so they share one baseline however tall each photo is, and they stay off the
-    images, where their contrast would depend on the photo. */}
-{figures.length > 0 && (
+{/* Renders nothing without photos, so the page needs no empty state. The photos deliberately carry no caption: the
+    camera settings and the place live on the Photography page. */}
+{photos.length > 0 && (
     <div class="cluster" data-home-cluster>
-        {figures.map((figure) => (
-            <figure>
-                <img
-                    src={figure.src}
-                    srcset={figure.srcset}
-                    sizes={figure.sizes}
-                    width={figure.width}
-                    height={figure.height}
-                    alt={figure.alt}
-                    loading="lazy"
-                    decoding="async"
-                    style={{
-                        aspectRatio: `${figure.width} / ${figure.height}`,
-                        backgroundImage: `url(${figure.placeholder})`,
-                    }}
-                />
-                {figure.caption && <figcaption>{figure.caption}</figcaption>}
-            </figure>
+        {photos.map((photo) => (
+            <img
+                src={photo.src}
+                srcset={photo.srcset}
+                sizes={photo.sizes}
+                width={photo.width}
+                height={photo.height}
+                alt={photo.alt}
+                loading="lazy"
+                decoding="async"
+                style={{
+                    aspectRatio: `${photo.width} / ${photo.height}`,
+                    backgroundImage: `url(${photo.placeholder})`,
+                }}
+            />
         ))}
     </div>
 )}
 
 <style>
     /*
-     * Below 48rem the figures stack, each offset to one side. From 48rem they share one row of twelve columns and
-     * overlap by a column: the first spans 1-5, the second 5-9, the third 9-12. A figure is a subgrid of two rows,
-     * image over caption, so every caption lands in the same row. The images are bottom-aligned, and the second and
-     * third are raised by a margin, which gives the offset. The captions skip the shared columns, so none overlap.
+     * One composition at every width: twelve columns in one row of images, overlapping by a column. The first image spans
+     * columns 1-5, the second 5-9, the third 9-12; the second and third are raised by a margin for the offset, and the
+     * gap, the offsets and the images all scale with the cluster's width (a `cqi` unit is one percent of it), so a phone
+     * shows the same arrangement as the desktop, smaller.
      */
     .cluster {
+        container-type: inline-size;
         display: grid;
         grid-template-columns: repeat(12, minmax(0, 1fr));
-        column-gap: var(--spacing-gutter);
-        row-gap: 0.5rem;
+        column-gap: 0.5rem;
         margin-block-start: 3rem;
     }
 
-    figure {
-        display: grid;
-        grid-column: var(--columns);
-        grid-row: span 2;
-        grid-template-columns: subgrid;
-        grid-template-rows: subgrid;
-        margin: 0;
-    }
-
-    figure:nth-child(1) {
-        --columns: 1 / 10;
-    }
-
-    figure:nth-child(2) {
-        --columns: 4 / 13;
-        margin-top: 1.5rem;
-    }
-
-    figure:nth-child(3) {
-        --columns: 1 / 9;
-        margin-top: 1.5rem;
-    }
-
     img {
-        grid-column: 1 / -1;
+        grid-row: 1;
         align-self: end;
         inline-size: 100%;
         block-size: auto;
@@ -86,68 +59,23 @@ const figures = await clusterFigures(Astro.props.entries);
         outline: 0.25rem solid var(--color-paper);
     }
 
-    figcaption {
-        grid-column: 1 / -1;
-        padding-block-start: 0.5rem;
-        font-family: var(--font-mono);
-        font-size: var(--text-step-n1);
-        line-height: 1.4;
-        color: var(--color-ink-muted);
+    img:nth-child(1) {
+        grid-column: 1 / 6;
     }
 
-    /*
-     * On a phone the images are half the width of their figure, so each is smaller than the wordmark's text block and the
-     * name, not a photo, is the largest contentful paint. That keeps every image lazy: Lighthouse flags a lazy LCP image,
-     * and an eager one measured slower. The second image sits on the opposite side for the offset.
-     */
-    @media (max-width: 47.99rem) {
-        img {
-            inline-size: 50%;
-            justify-self: start;
-        }
-        figure:nth-child(2) img {
-            justify-self: end;
-        }
+    img:nth-child(2) {
+        grid-column: 5 / 10;
+        margin-block-end: 4.9cqi;
+    }
+
+    img:nth-child(3) {
+        grid-column: 9 / 13;
+        margin-block-end: 2.45cqi;
     }
 
     @media (min-width: 48rem) {
-        figure {
-            grid-row: 1 / span 2;
-        }
-
-        figure:nth-child(1) {
-            --columns: 1 / 6;
-            margin-top: 0;
-        }
-
-        figure:nth-child(2) {
-            --columns: 5 / 10;
-            margin-top: 0;
-        }
-
-        figure:nth-child(3) {
-            --columns: 9 / 13;
-            margin-top: 0;
-        }
-
-        figure:nth-child(2) img {
-            margin-block-end: 3rem;
-        }
-
-        figure:nth-child(3) img {
-            margin-block-end: 1.5rem;
-        }
-
-        figure:nth-child(1) figcaption {
-            grid-column: 1 / -2;
-        }
-
-        figure:nth-child(2) figcaption {
-            grid-column: 2 / -2;
-        }
-
-        figure:nth-child(3) figcaption {
-            grid-column: 2 / -1;
+        .cluster {
+            column-gap: var(--spacing-gutter);
         }
     }
 </style>

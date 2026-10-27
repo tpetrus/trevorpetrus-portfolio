@@ -59,13 +59,12 @@ describe('HomeCluster', () => {
 
         const empty = await container.renderToString(HomeCluster, { props: { entries: [] } });
 
-        expect(tagsOf(empty, 'figure')).toEqual([]);
         expect(tagsOf(empty, 'img')).toEqual([]);
         expect(empty).not.toContain('data-home-cluster');
     });
 
-    it('shows the first three photos as figures, never a fourth', () => {
-        expect(tagsOf(html, 'figure')).toHaveLength(3);
+    it('shows the first three photos, never a fourth', () => {
+        expect(images).toHaveLength(3);
         expect(images.map((image) => image.alt)).toEqual([
             'Alt text of harbor',
             'Alt text of dunes',
@@ -105,8 +104,8 @@ describe('HomeCluster', () => {
         }
     });
 
-    it('puts the caption of a photo below its image, as text, and leaves it out when there is none', () => {
-        expect(html).toMatch(/<figcaption[^>]*>Canon EOS R5 · ISO 400<\/figcaption>/);
-        expect(tagsOf(html, 'figcaption')).toHaveLength(1);
+    it('shows no caption, even for a photo that has one', () => {
+        expect(tagsOf(html, 'figcaption')).toEqual([]);
+        expect(html).not.toContain('Canon EOS R5');
     });
 });
