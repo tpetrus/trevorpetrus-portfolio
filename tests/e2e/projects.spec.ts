@@ -4,7 +4,7 @@ import { expect, test } from '@playwright/test';
 // depends on the project's own site being up (the links are only read, never followed).
 const PROJECT = {
     title: 'AudioVisualizer',
-    href: 'https://audio-visualizer.mypoke.workers.dev',
+    href: 'https://audiovisualizer.trevorpetr.us',
     repo: 'https://github.com/tpetrus/AudioVisualizer',
 };
 

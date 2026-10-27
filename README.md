@@ -276,7 +276,8 @@ baselines in `tests/e2e/visual.spec.ts-snapshots/`. The baselines are Linux-only
 regenerates them, not your machine. Regenerate them after any deliberate visual change, including a change to the photos.
 
 1. Push your branch and open the PR. Wait for the version bot's commit (`chore: set version to X.Y.Z`) to land on the
-   branch, and pull it. Dispatching before that makes the snapshot push get rejected.
+   branch, and pull it. If the branch moves while the workflow runs, its commit job fails cleanly without force-pushing,
+   so just run it again.
 2. Run the "Update visual snapshots" workflow on the branch, either from the Actions tab (choose the branch) or:
 
    ```sh
@@ -288,9 +289,7 @@ regenerates them, not your machine. Regenerate them after any deliberate visual 
 
 3. Pull the branch, then open the PR's Files changed tab and review the images. A regenerated baseline is an accepted
    change, so look at each one.
-4. **Known caveat, as of today:** the snapshot commit does not start the PR checks. Push one more commit afterwards (an
-   empty one is fine: `git commit --allow-empty -m "chore: re-run checks"`) so they run. A fix in `tpetrus/ci-workflows`
-   is pending.
+4. The snapshot commit is pushed as the GitHub App, so the PR checks start on it by themselves. Nothing more to push.
 
 ## Releases and versions
 
