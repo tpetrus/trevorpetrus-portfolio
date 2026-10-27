@@ -29,6 +29,68 @@ function entry(
 
 const FIVE = ['a', 'b', 'c', 'd', 'e'].map((name) => entry(name));
 
+describe('galleryTiles numbering', () => {
+    const numbersOf = async (entries: GalleryEntry<PhotographyCaption>[]) =>
+        (await galleryTiles('photography', entries)).map(({ key, number }) => [key.slice(12, -4), number]);
+
+    it('numbers by capture date, oldest first, and keeps the display order of the entries', async () => {
+        const entries = [
+            entry('newest', { taken: '2026-03-02' }),
+            entry('middle', { taken: '2025-07-19' }),
+            entry('oldest', { taken: '2024-01-05' }),
+        ];
+
+        expect(await numbersOf(entries)).toEqual([
+            ['newest', '03'],
+            ['middle', '02'],
+            ['oldest', '01'],
+        ]);
+    });
+
+    it('numbers a pinned order the same as a date order: the number never follows position', async () => {
+        const dated = [entry('a', { taken: '2024-01-05' }), entry('b', { taken: '2025-07-19' })];
+
+        expect(await numbersOf(dated)).toEqual([
+            ['a', '01'],
+            ['b', '02'],
+        ]);
+        expect(await numbersOf([...dated].reverse())).toEqual([
+            ['b', '02'],
+            ['a', '01'],
+        ]);
+    });
+
+    it('puts photos without a capture date after the dated ones, by key, and keeps every number unique', async () => {
+        const entries = [
+            entry('zeta'),
+            entry('dated', { taken: '2026-03-02' }),
+            entry('alpha', { location: { city: 'Lisbon', country: 'Portugal', source: 'sidecar' } }),
+            entry('same-day-b', { taken: '2024-01-05' }),
+            entry('same-day-a', { taken: '2024-01-05' }),
+        ];
+
+        const numbers = await numbersOf(entries);
+
+        expect(Object.fromEntries(numbers)).toEqual({
+            'same-day-a': '01',
+            'same-day-b': '02',
+            dated: '03',
+            alpha: '04',
+            zeta: '05',
+        });
+        expect(new Set(numbers.map(([, number]) => number)).size).toBe(entries.length);
+    });
+
+    it('pads to two digits and grows to three past 99', async () => {
+        const entries = Array.from({ length: 100 }, (_, index) => entry(`p${String(index).padStart(3, '0')}`));
+
+        const numbers = (await numbersOf(entries)).map(([, number]) => number);
+
+        expect(numbers[0]).toBe('01');
+        expect(numbers[99]).toBe('100');
+    });
+});
+
 describe('galleryTiles', () => {
     it('is empty for no entries', async () => {
         expect(await galleryTiles('photography', [])).toEqual([]);

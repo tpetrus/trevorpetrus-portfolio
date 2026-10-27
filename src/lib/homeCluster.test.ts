@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import type { GalleryEntry } from './gallery';
-import { CLUSTER_SIZE, CLUSTER_SIZES, CLUSTER_SRC_WIDTH, clusterEntries, clusterFigures } from './homeCluster';
+import {
+    CLUSTER_SIZE,
+    CLUSTER_SIZES,
+    CLUSTER_SRC_WIDTH,
+    clusterEntries,
+    clusterFigures,
+    phoneImageWidth,
+} from './homeCluster';
 import { GRID_QUALITY } from './galleryView';
 import { GRID_WIDTHS, imageSrcset, transformedImageUrl } from './imageUrl';
 import type { PhotographyCaption } from './photography';
@@ -57,7 +64,6 @@ describe('clusterFigures', () => {
             alt: 'Alt for harbor',
             width: 3000,
             height: 2000,
-            caption: 'Canon EOS R5 · ISO 400',
             src: transformedImageUrl('photography/harbor.jpg', { width: CLUSTER_SRC_WIDTH, quality: GRID_QUALITY }),
             srcset: imageSrcset('photography/harbor.jpg', GRID_WIDTHS, { quality: GRID_QUALITY }),
             sizes: CLUSTER_SIZES,
@@ -66,10 +72,30 @@ describe('clusterFigures', () => {
         expect(figure.placeholder).toMatch(/^data:image\/webp;base64,/);
     });
 
-    it('stops at three figures and has an empty caption for a photo without one', async () => {
+    it('stops at three figures', async () => {
         const figures = await clusterFigures(['a', 'b', 'c', 'd'].map((name) => entry(name)));
 
         expect(figures.map(({ key }) => key)).toEqual(['photography/a.jpg', 'photography/b.jpg', 'photography/c.jpg']);
-        expect(figures.map(({ caption }) => caption)).toEqual(['', '', '']);
+    });
+});
+
+describe('phoneImageWidth', () => {
+    it('measures the widest image at the two widths the phone layout is checked at', () => {
+        // 320: edge 16, content 288, column (288 - 88) / 12. 390: edge 15.6 is under the 16 px floor.
+        expect(phoneImageWidth(320)).toBeCloseTo(115.33, 1);
+        expect(phoneImageWidth(390)).toBeCloseTo(144.5, 1);
+    });
+
+    it('grows the edge with the viewport once 4vw passes 16 px', () => {
+        expect(phoneImageWidth(700)).toBeCloseTo(((700 * 0.92 - 88) / 12) * 5 + 32, 5);
+    });
+
+    it('stays within the phone `sizes` hint and above 35% of the viewport, at every phone width', () => {
+        const hint = Number(/(\d+)vw$/.exec(CLUSTER_SIZES)?.[1]) / 100;
+        for (let width = 320; width < 768; width += 8) {
+            const fraction = phoneImageWidth(width) / width;
+            expect(fraction).toBeLessThanOrEqual(hint);
+            expect(fraction).toBeGreaterThan(0.35);
+        }
     });
 });

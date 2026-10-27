@@ -53,4 +53,18 @@ test.describe('photography page @smoke', () => {
         }
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     });
+
+    // The index is a label by capture date, not by position, so it is unique and at least two digits wherever it sits.
+    test('labels every tile caption with a unique index of at least two digits', async ({ page }) => {
+        test.skip(entries.length === 0, 'There are no photos yet (src/data/gallery/photography.json is empty).');
+
+        await stubRemotePhotos(page);
+        await page.reload();
+        const labels = await page.locator('#gallery li > div > p:first-child').allTextContents();
+        expect(labels).toHaveLength(entries.length);
+        for (const label of labels) {
+            expect(label).toMatch(/^\d{2,}$/);
+        }
+        expect(new Set(labels).size).toBe(entries.length);
+    });
 });

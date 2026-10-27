@@ -116,29 +116,54 @@ test.describe('home page', () => {
             }
         });
 
-        test('keeps the captions below the images and, from 48rem up, on one baseline with overlapping images', async ({
-            page,
-            viewport,
-        }) => {
-            test.skip(CLUSTER_COUNT < 3, 'The overlap needs three photos.');
-            test.skip((viewport?.width ?? 0) < 768, 'The figures stack below 48rem.');
+        test('shows the photos without any caption or text', async ({ page }) => {
             await page.goto('/');
 
-            const figures = page.locator('[data-home-cluster] figure');
-            const images = await figures.locator('img').evaluateAll((nodes) =>
-                nodes.map((node) => {
-                    const { left, right } = node.getBoundingClientRect();
-                    return { left, right };
-                }),
-            );
-            const captionTops = await figures
-                .locator('figcaption')
-                .evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().top));
-
-            expect(images[1].left).toBeLessThan(images[0].right);
-            expect(images[2].left).toBeLessThan(images[1].right);
-            expect(new Set(captionTops.map(Math.round)).size).toBeLessThanOrEqual(1);
+            const cluster = page.locator('[data-home-cluster]');
+            await expect(cluster.locator('figcaption, figure')).toHaveCount(0);
+            expect(await cluster.innerText()).toBe('');
+            expect((await cluster.textContent())?.trim()).toBe('');
         });
+
+        for (const width of [320, 390, 1280]) {
+            test(`composes the three images as one overlapping cluster at ${width}px, without scrolling sideways`, async ({
+                page,
+            }) => {
+                test.skip(CLUSTER_COUNT < 3, 'The overlap needs three photos.');
+                await page.setViewportSize({ width, height: 900 });
+                await page.goto('/');
+
+                const [first, second, third] = await page.locator('[data-home-cluster] img').evaluateAll((nodes) =>
+                    nodes.map((node) => {
+                        const { left, right, top, bottom } = node.getBoundingClientRect();
+                        return { left, right, top, bottom };
+                    }),
+                );
+                type Box = typeof first;
+                const intersects = (a: Box, b: Box) =>
+                    a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+
+                // As designed: each image overlaps the next, and the first and the third stay apart.
+                expect(intersects(first, second)).toBe(true);
+                expect(intersects(second, third)).toBe(true);
+                expect(intersects(first, third)).toBe(false);
+                // The second is raised above the first and the third (the tops follow each photo's shape, the bottoms
+                // follow the offsets).
+                expect(second.top).toBeLessThan(first.top);
+                expect(second.top).toBeLessThan(third.top);
+
+                if (width < 768) {
+                    // The first two span five of the twelve columns, the third four (as on desktop), so it is narrower.
+                    expect(first.right - first.left).toBeGreaterThanOrEqual(width * 0.35);
+                    expect(second.right - second.left).toBeGreaterThanOrEqual(width * 0.35);
+                    expect(third.right - third.left).toBeGreaterThanOrEqual(width * 0.28);
+                }
+                const overflow = await page.evaluate(
+                    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+                );
+                expect(overflow).toBe(0);
+            });
+        }
 
         test('never scrolls sideways', async ({ page }) => {
             await page.goto('/');
