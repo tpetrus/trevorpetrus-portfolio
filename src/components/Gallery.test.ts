@@ -152,8 +152,8 @@ describe('Gallery', () => {
         }
     });
 
-    it('loads the first three eagerly, only the first with high priority, and the rest lazily', () => {
-        expect(images.map((image) => image.loading)).toEqual(['eager', 'eager', 'eager', 'lazy', 'lazy']);
+    it('loads only the first eagerly, with high priority, and the rest lazily', () => {
+        expect(images.map((image) => image.loading)).toEqual(['eager', 'lazy', 'lazy', 'lazy', 'lazy']);
         expect(images.map((image) => image.fetchpriority)).toEqual([
             'high',
             undefined,

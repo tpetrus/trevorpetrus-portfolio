@@ -12,8 +12,8 @@ const TILE_WIDTHS: readonly number[] = [...GRID_WIDTHS, ...LIGHTBOX_WIDTHS];
 /** The width of the variant in the `src` attribute, the fallback for a browser that ignores `srcset`. */
 export const GRID_SRC_WIDTH = 640;
 
-/** How many of the first tiles load eagerly: about a screenful of the grid, so the LCP image is not lazy. */
-export const EAGER_TILE_COUNT = 3;
+/** How many of the first tiles load eagerly: only the LCP image, so the other photos do not compete with it on mobile. */
+export const EAGER_TILE_COUNT = 1;
 
 // Grid tiles are small and shown beside many others, and a page holds dozens; Cloudflare's default (85) spends bytes nobody can see there. The
 // lightbox keeps the default. Quality is not part of the unique-transformation count.
