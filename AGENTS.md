@@ -269,8 +269,10 @@ plan), and every distinct width of every image counts (`format` and `quality` do
 width sets in `src/lib/imageUrl.ts` (`GRID_WIDTHS` 320/640/960 and `LIGHTBOX_WIDTHS` 1280/1920/2560, six per photo).
 Do not add widths casually. `format=auto` serves AVIF only up to 1,200 px.
 
-**Loading.** The first three tiles load eagerly and only the first has `fetchpriority="high"` (the likely LCP image); the
-rest are lazy. Nothing is cropped: each tile is drawn at its photo's own aspect ratio, and the space is reserved by the
+**Loading.** Only the first tile loads eagerly, with `fetchpriority="high"` (the LCP image, `EAGER_TILE_COUNT` in `src/lib/galleryView.ts`); the
+rest are lazy. Eager tiles 2 and 3 competed with the LCP image for the mobile connection: loading just the first lifted the mobile
+Lighthouse score of `/photography` from 0.90 to 0.95 (LCP about 3.5 s to 2.9 s). A `preconnect` to `PHOTOS_ORIGIN` made no
+difference to the score (Lighthouse simulates the network), so it is not added. Nothing is cropped: each tile is drawn at its photo's own aspect ratio, and the space is reserved by the
 img's `width` and `height` (so there is no layout shift; keep the link `width: 100%`, or a lazy image collapses). There is no
 `data-cropped`; the lightbox reads only the `data-pswp-*`, `data-original` and `data-caption` attributes.
 
