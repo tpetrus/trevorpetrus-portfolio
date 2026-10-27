@@ -16,7 +16,7 @@ is real but pre-hero: the giant name, a short statement and, once photos exist, 
 | Unit tests (vitest, node environment) | `npm run test` |
 | Unit tests with coverage (fails under 95%) | `npm run test:coverage` |
 | Production build (static output to `dist/`) | `npm run build` |
-| Create starter alt-text sidecars for photos that lack one (`--dry-run` lists only; never overwrites; see "Gallery") | `npm run scaffold:gallery -- photography` |
+| Create starter alt-text sidecars for photos that lack one (`--dry-run` lists only; never overwrites, rejects hidden files; see "Gallery") | `npm run scaffold:gallery -- photography` |
 | Bundle-size budget (reads the existing build) | `npm run size` |
 | End-to-end tests (Playwright, 3 projects; the build must exist, served via wrangler) | `npm run test:e2e` (first time: `npm run test:e2e:install`) |
 | Smoke tests (Chromium projects only) against `BASE_URL`, default the site URL in `src/config/site.ts` | `npm run test:smoke` |
@@ -68,7 +68,7 @@ Cloudflare Workers Builds (see "CI and deploys").
   "One-time setup"). GitHub Actions only checks; it never deploys.
 - **Tooling:** Node 24 (`.nvmrc`), Prettier (4-space code, 2-space JSON/YAML), ESLint 9, Vitest, Playwright (Chromium and
   WebKit), size-limit, Lighthouse CI. `.github/workflows/` holds thin caller workflows; the actual CI/CD logic lives in
-  [`tpetrus/ci-workflows`](https://github.com/tpetrus/ci-workflows) (referenced by exact release tag, currently `@v0.2.0`).
+  [`tpetrus/ci-workflows`](https://github.com/tpetrus/ci-workflows) (referenced by exact release tag, currently `@v0.3.1`).
 
 ## Where things live
 ```
@@ -278,8 +278,10 @@ plan), and every distinct width of every image counts (`format` and `quality` do
 width sets in `src/lib/imageUrl.ts` (`GRID_WIDTHS` 320/640/960 and `LIGHTBOX_WIDTHS` 1280/1920/2560, six per photo).
 Do not add widths casually. `format=auto` serves AVIF only up to 1,200 px.
 
-**Loading.** The first three tiles load eagerly and only the first has `fetchpriority="high"` (the likely LCP image); the
-rest are lazy. Nothing is cropped: each tile is drawn at its photo's own aspect ratio, and the space is reserved by the
+**Loading.** Only the first tile loads eagerly, with `fetchpriority="high"` (the LCP image, `EAGER_TILE_COUNT` in `src/lib/galleryView.ts`); the
+rest are lazy. Eager tiles 2 and 3 competed with the LCP image for the mobile connection: loading just the first lifted the mobile
+Lighthouse score of `/photography` from 0.90 to 0.95 (LCP about 3.5 s to 2.9 s). A `preconnect` to `PHOTOS_ORIGIN` made no
+difference to the score (Lighthouse simulates the network), so it is not added. Nothing is cropped: each tile is drawn at its photo's own aspect ratio, and the space is reserved by the
 img's `width` and `height` (so there is no layout shift; keep the link `width: 100%`, or a lazy image collapses). There is no
 `data-cropped`; the lightbox reads only the `data-pswp-*`, `data-original` and `data-caption` attributes.
 
@@ -337,11 +339,16 @@ is empty.
   `*-win32.png` and `*-darwin.png` files are git-ignored. A deliberate visual change fails this spec until you
   regenerate the baselines: run the "Update visual snapshots" workflow on the branch (Actions tab, or
   `gh workflow run update-snapshots.yml --ref <branch>`), which builds and runs the spec with `--update-snapshots` in the
-  Playwright container image and commits the images to the branch. Review them in the PR diff. Adding photos to
+  Playwright container image and commits the images to the branch as the GitHub App, so the PR checks run on that commit by
+  themselves. Wait until the version bot's commit has landed before dispatching: if the branch moves during the run, the
+  commit job fails cleanly without force-pushing, so just re-run it. Review the images in the PR diff. Adding photos to
   `src/data/gallery/photography.json` also changes the Photography baseline.
 - `npm run size` and `npm run lighthouse` pass after a build (Lighthouse needs Chrome; Playwright's Chromium works).
 - Deploy-affecting changes: `npm run preview`, then load each page by URL; the PR's Cloudflare preview URL is the same
   check against the real host.
+- Test environment variables (read in `playwright.config.ts` and `tests/e2e/visual.spec.ts`): `E2E_PORT` is the port
+  `wrangler dev` uses for `test:e2e` (default 8787). `CI`, when set, makes Playwright retry twice, forbid `test.only` and
+  never reuse a running server. `VISUAL_LOCAL=1` forces the visual spec to run on Windows or macOS.
 
 ## CI and deploys
 Every pull request runs these checks. All of the actual CI/CD logic runs in the shared

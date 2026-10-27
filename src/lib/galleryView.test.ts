@@ -92,7 +92,7 @@ describe('galleryTiles', () => {
         expect(tiles.map((tile) => tile.loading)).toEqual(
             FIVE.map((_, index) => (index < EAGER_TILE_COUNT ? 'eager' : 'lazy')),
         );
-        expect(EAGER_TILE_COUNT).toBe(3);
+        expect(EAGER_TILE_COUNT).toBe(1);
     });
 
     it('gives only the first tile a high fetch priority', async () => {
