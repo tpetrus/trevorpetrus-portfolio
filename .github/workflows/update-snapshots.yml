@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   update-snapshots:
-    uses: tpetrus/ci-workflows/.github/workflows/update-snapshots.yml@v0.3.0
+    uses: tpetrus/ci-workflows/.github/workflows/update-snapshots.yml@fix/update-snapshots-bash
     with:
       build-dir: dist
       # The shared default is e2e/visual.spec.ts; this repo's visual-regression spec lives under tests/.
