@@ -131,11 +131,19 @@ describe('Gallery', () => {
         ]);
     });
 
-    it('shows the caption under the photo only for a tile that has one', () => {
-        const captions = html.match(/<p class="[^"]*font-mono[^"]*"[^>]*>([^<]*)<\/p>/g) ?? [];
+    it('labels each tile with a unique index by capture date, the undated ones after the dated one, in display order', () => {
+        const labels = [...html.matchAll(/<p class="[^"]*uppercase[^"]*"[^>]*>(\d+)<\/p>/g)].map(([, label]) => label);
 
-        expect(captions).toHaveLength(1);
-        expect(captions[0]).toContain('Canon EOS R5 · ISO 400 · 2026-10-01');
+        // harbor is the only dated entry, so it is 01; the rest follow by key (cliff, dunes, ridge-Pano, tile).
+        expect(labels).toEqual(['01', '03', '04', '05', '02']);
+        expect(new Set(labels).size).toBe(ENTRIES.length);
+    });
+
+    it('shows the text line under a number only for a tile that has a caption', () => {
+        const lines = html.match(/<p class="mt-1[^"]*"[^>]*>([^<]*)<\/p>/g) ?? [];
+
+        expect(lines).toHaveLength(1);
+        expect(lines[0]).toContain('Canon EOS R5 · ISO 400 · 2026-10-01');
     });
 
     it('paints the ThumbHash preview behind each image', () => {

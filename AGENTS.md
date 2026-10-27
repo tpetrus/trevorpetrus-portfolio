@@ -294,7 +294,12 @@ without subgrid support each caption sits under its photo. `tileSizes` derives `
 the grid and the lightbox widths together (the same six transformations per photo, so the quota is unchanged), because a
 full-width tile is wider than 960 px. Every tile candidate uses `quality=70` (`GRID_QUALITY` in `src/lib/galleryView.ts`, the one constant; quality is not counted in the quota; the lightbox keeps the default) and the
 phone `sizes` is 88vw, slightly under the real column, so a 1.75x phone takes the 640 px variant: both keep `/photography` above 0.9 mobile
-Lighthouse with real photos. The caption markup is `PhotoCaption.astro`.
+Lighthouse with real photos. The caption markup is `PhotoCaption.astro` (not the shared `Caption.astro`, whose title is the
+loud display-caps line and whose colors are for paper).
+
+**Numbering.** Each caption starts with a stable index ("01"). `galleryTiles` numbers the entries with `numberItems`
+(`src/lib/numbering.ts`) by `caption.taken`, oldest first, ties by key; photos with no capture date come after all dated ones, by key. The number comes from the data alone, so it
+does not follow the display order (sidecar `order`, then newest first) and adding a newer photo never renumbers an older one. A photo that gains a date moves to its dated place, shifting only the undated numbers. The lightbox caption has no number.
 
 **Off-screen photos.** `.photo` (the link around each image) has `content-visibility: auto`, so photos far from the viewport are
 not rendered and their images are not all requested up front. It is on the photo and not on the tile on purpose: containment

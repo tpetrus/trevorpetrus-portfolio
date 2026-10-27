@@ -42,7 +42,7 @@ const tiles = await galleryTiles(collection, entries);
                     class="block h-auto w-full bg-cover transition-opacity hover:opacity-90"
                 />
             </a>
-            {tile.caption !== '' && <PhotoCaption text={tile.caption} />}
+            <PhotoCaption number={tile.number} text={tile.caption} />
         </li>
     ))}
 </ul>
