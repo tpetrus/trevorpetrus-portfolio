@@ -126,11 +126,11 @@ scripts/geonames.ts       downloads and caches GeoNames `cities1000` (I/O only; 
 ## The domain: change it in one place
 `SITE_URL`, `PROJECTS_DOMAIN` and `PHOTOS_ORIGIN` in `src/config/site.ts` are the only places a domain is written.
 `astro.config.mjs` reads `SITE_URL` for Astro's `site` (canonical URLs), and `projectUrl(name)` derives
-`https://<name>.<PROJECTS_DOMAIN>` for project subdomain links. They are separate settings, and today they differ: the
-site is on its custom domain (`SITE_URL` is `https://trevorpetr.us`, the Worker `trevorpetrus-portfolio` still being its
-origin), but the projects are still served from workers.dev, so `PROJECTS_DOMAIN` stays `mypoke.workers.dev` and a project
-link is `https://audio-visualizer.mypoke.workers.dev` (`audio-visualizer.trevorpetr.us` does not resolve yet). When a
-project gets its custom domain, `PROJECTS_DOMAIN` becomes `trevorpetr.us`, which is an edit of that one constant.
+`https://<name>.<PROJECTS_DOMAIN>` for project subdomain links. They are separate settings, even though both are now
+`trevorpetr.us`: the site is on its custom domain (`SITE_URL` is `https://trevorpetr.us`, the Worker
+`trevorpetrus-portfolio` still being its origin), and the projects are on subdomains of `PROJECTS_DOMAIN`
+(`trevorpetr.us`), so the AudioVisualizer link is `https://audiovisualizer.trevorpetr.us`. A project that is still only on
+workers.dev would need `PROJECTS_DOMAIN` set back to that host, which affects every project link: it is one constant.
 `PHOTOS_ORIGIN` is `https://photos.trevorpetr.us`, the custom domain of the R2 bucket `portfolio-photos`. There is
 deliberately no environment-variable override: a second source of truth is what this setup avoids.
 
@@ -193,8 +193,9 @@ are curated by hand in the frontmatter; the sync script never rewrites them.
 
 **The sync is manual and its outputs are committed.** The build makes no network calls. Re-run the script when a project
 changes and commit the diff (the screenshot is written only if its bytes changed; it fails above 500 kB). The
-AudioVisualizer screenshot shows its mandatory "Audio source" dialog because the app cannot be shown without choosing an
-audio source. **Nothing checks external links**: CI's lychee runs `--offline` against `dist/`, so subdomain and github.com
+AudioVisualizer screenshot shows the landing view with its visualizer previews (v0.3.0 no longer opens the "Audio source"
+dialog that v0.2.7 showed). The capture can race the app's first render and come out almost blank (about 6 kB); look at the
+file and re-run the sync if so. **Nothing checks external links**: CI's lychee runs `--offline` against `dist/`, so subdomain and github.com
 links are verified only by the smoke tests reading the `href`, never by following them.
 
 ## Gallery
