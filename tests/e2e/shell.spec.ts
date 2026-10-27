@@ -79,6 +79,34 @@ test.describe('site shell', () => {
         expect(head!.x + head!.width).toBeLessThanOrEqual(main!.x);
     });
 
+    // The header row, the page content and the footer row share one `column` (src/styles/global.css), 75vw wide and
+    // centered from 1024px, so every page lines up on the same edges.
+    for (const width of [1440, 1920]) {
+        for (const path of ['/', '/photography/', '/projects/']) {
+            test(`${path} lines the header, content and footer up on one 75vw column at ${width}px wide`, async ({
+                page,
+            }) => {
+                await page.setViewportSize({ width, height: 900 });
+                await page.goto(path);
+
+                const columns = page.locator('header .column, main.column, main .column, footer .column');
+                await expect(columns).toHaveCount(3);
+                const boxes = await columns.evaluateAll((elements) =>
+                    elements.map((element) => {
+                        const { left, right, width } = element.getBoundingClientRect();
+                        return { left, right, width };
+                    }),
+                );
+
+                for (const box of boxes) {
+                    expect(Math.abs(box.left - boxes[0].left)).toBeLessThanOrEqual(1);
+                    expect(Math.abs(box.right - boxes[0].right)).toBeLessThanOrEqual(1);
+                    expect(Math.abs(box.width - width * 0.75)).toBeLessThanOrEqual(1);
+                }
+            });
+        }
+    }
+
     test('exactly one header nav link is current on each page', async ({ page }) => {
         for (const [path, name] of [
             ['/', 'Home'],

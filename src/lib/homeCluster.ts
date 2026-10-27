@@ -10,8 +10,8 @@ export const CLUSTER_SIZE = 3;
 // cluster adds no Cloudflare transformations beyond the ones the Photography page already uses). Below 768 px a figure
 // is about 40% of the viewport (half of a figure that spans three quarters of the column; see HomeCluster.astro), which
 // keeps every image smaller than the wordmark's text block, so the name stays the largest contentful paint and the images can all be lazy; from 768 px up the figures
-// share a row, each about five of twelve columns of the 976 px content column (the column is capped at 5xl).
-export const CLUSTER_SIZES = '(min-width: 1024px) 400px, (min-width: 768px) 42vw, 40vw';
+// share a row, each about five of twelve columns of the content column, which is 75vw from 1024 px (5/12 of 75vw, gutters ignored).
+export const CLUSTER_SIZES = '(min-width: 1024px) 31.25vw, (min-width: 768px) 42vw, 40vw';
 
 /** The width of the variant in the `src` attribute, the fallback for a browser that ignores `srcset`. */
 export const CLUSTER_SRC_WIDTH = 640;

@@ -23,10 +23,10 @@ interface Props {
 const { project, updated, featured = false, number, priority = false } = Astro.props;
 const { title, description, tech, status, repo, thumbnail } = project;
 
-// The cover spans the 5xl content column; a row image sits in an 18rem column from `md:` and is full width below it.
+// The cover spans the content column (75vw from 1024px); a row image sits in an 18rem column from `md:` and is full width below it.
 // The width lists are what the browser may pick from, so a 288px slot gets a 576 or 640px file, never a 1280px one.
 const sizes = featured
-    ? '(min-width: 1024px) 904px, calc(100vw - 2rem)'
+    ? '(min-width: 1024px) 75vw, calc(100vw - 2rem)'
     : '(min-width: 768px) 288px, calc(100vw - 2rem)';
 const widths = featured ? [480, 640, 960, 1280] : [320, 480, 640];
 // Reading order follows the DOM (WCAG 1.3.2), so the cover places the screenshot before the text and a row after it in
