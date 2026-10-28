@@ -50,7 +50,9 @@ const { text, video } = Astro.props;
                     hidden
                 >
                     <span class="icon" aria-hidden="true"></span>
-                    <span aria-hidden="true">Video</span>
+                    <span class="label" aria-hidden="true">
+                        Video
+                    </span>
                 </button>
             </div>
         )}
@@ -146,6 +148,22 @@ const { text, video } = Astro.props;
 
     .toggle[hidden] {
         display: none;
+    }
+
+    /*
+     * On a phone the video is only about 115 px wide, and the worded chip would cover half of it: below 48rem the toggle
+     * is the icon alone, still a 24 px target (WCAG 2.5.8), named by its aria-label.
+     */
+    @media (max-width: 47.99rem) {
+        .toggle {
+            justify-content: center;
+            min-inline-size: 1.5rem;
+            padding: 0;
+        }
+
+        .toggle .label {
+            display: none;
+        }
     }
 
     /* Two bars while playing (press to pause), a triangle while paused (press to play). */
