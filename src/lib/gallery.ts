@@ -2,6 +2,7 @@ import { z } from 'astro/zod';
 
 import {
     formatPhotographyCaption,
+    formatPhotographyTileCaption,
     PHOTOGRAPHY_CATEGORIES,
     photographyCaptionSchema,
     photographySidecarSchema,
@@ -84,6 +85,8 @@ interface GalleryCollection<Caption extends z.ZodType, Sidecar extends z.ZodType
     categories: readonly GalleryCategory[];
     // A method, not a property, so each collection can take its own caption type (parameters are checked bivariantly).
     formatCaption(caption: z.output<Caption>): string;
+    /** The short line under a tile in the grid; the full `formatCaption` line is shown in the lightbox. */
+    formatTileCaption(caption: z.output<Caption>): string;
 }
 
 /** Everything that differs between collections. `art` is added here, with its own caption and sidecar, later. */
@@ -95,6 +98,7 @@ export const GALLERY_COLLECTIONS = {
         keepsCameraExif: true,
         categories: PHOTOGRAPHY_CATEGORIES,
         formatCaption: formatPhotographyCaption,
+        formatTileCaption: formatPhotographyTileCaption,
     },
 } satisfies Record<string, GalleryCollection<z.ZodType, z.ZodType>>;
 

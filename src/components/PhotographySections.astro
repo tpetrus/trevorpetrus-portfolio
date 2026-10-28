@@ -1,0 +1,23 @@
+---
+// STUB (contract placeholder): the Photography page's gallery body. Task T2 replaces this with the category sections.
+import type { CollectionCaption, GalleryEntry } from '../lib/gallery';
+import { showsGeonamesPlace } from '../lib/location';
+import Gallery from './Gallery.astro';
+import GeonamesCredit from './GeonamesCredit.astro';
+
+interface Props {
+    /** Every photography entry, in the data file's order. */
+    entries: GalleryEntry<CollectionCaption>[];
+}
+
+const { entries } = Astro.props;
+---
+
+{entries.length > 0 ? (
+    <div class="mt-10 md:mt-14">
+        <Gallery collection="photography" entries={entries} />
+        {showsGeonamesPlace(entries) && <GeonamesCredit />}
+    </div>
+) : (
+    <p class="mt-8 max-w-measure text-ink-muted-on-ink">Photos are on their way.</p>
+)}

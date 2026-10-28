@@ -86,6 +86,13 @@ describe('GALLERY_COLLECTIONS', () => {
         expect(GALLERY_COLLECTIONS.photography.keepsCameraExif).toBe(true);
     });
 
+    it('shows only the place under a photography tile', () => {
+        const { formatTileCaption } = GALLERY_COLLECTIONS.photography;
+        const location = { city: 'Lisbon', country: 'Portugal', source: 'sidecar' } as const;
+        expect(formatTileCaption({ location, camera: 'X100V', iso: 200 })).toBe('Lisbon, Portugal');
+        expect(formatTileCaption({ camera: 'X100V' })).toBe('');
+    });
+
     it('formats a photography caption', () => {
         expect(GALLERY_COLLECTIONS.photography.formatCaption({ camera: 'X100V', iso: 200 })).toBe('X100V · ISO 200');
     });

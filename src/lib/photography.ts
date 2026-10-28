@@ -189,6 +189,14 @@ export function formatPhotographyCaption(caption: PhotographyCaption): string {
     return parts.filter((part) => part !== undefined).join(' · ');
 }
 
+/**
+ * The short caption under a tile on the Photography page: only the place, or an empty string. The full line
+ * (formatPhotographyCaption) is in the lightbox.
+ */
+export function formatPhotographyTileCaption(caption: PhotographyCaption): string {
+    return caption.location === undefined ? '' : formatLocation(caption.location);
+}
+
 // EXIF rationals are written as "numerator/denominator" strings, which is what sharp's withExif accepts.
 function rational(value: number, denominator: number): string {
     return `${Math.round(value * denominator)}/${denominator}`;
