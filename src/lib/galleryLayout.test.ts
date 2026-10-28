@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { GRID_BREAKPOINT_PX, GRID_COLUMNS, aspectRatio, placeTiles, tileSizes } from './galleryLayout';
+import {
+    GRID_BREAKPOINT_PX,
+    GRID_COLUMNS,
+    WIDE_COLUMN_BREAKPOINT_PX,
+    aspectRatio,
+    placeTiles,
+    tileSizes,
+} from './galleryLayout';
 
 const LANDSCAPE = 1.5;
 const PORTRAIT = 2 / 3;
@@ -89,18 +96,15 @@ describe('placeTiles', () => {
 });
 
 describe('tileSizes', () => {
-    it('is a fixed width at the widest layout, the span share of the viewport below it and the column below the breakpoint', () => {
+    it('is the span share of the 75 vw column from 1024 px, of the 92 vw column below it and the column below the grid breakpoint', () => {
         expect(tileSizes(6)).toBe(
-            `(min-width: 1280px) 579px, (min-width: ${GRID_BREAKPOINT_PX}px) calc(92vw * 0.5), 88vw`,
+            `(min-width: ${WIDE_COLUMN_BREAKPOINT_PX}px) calc(75vw * 0.5), (min-width: ${GRID_BREAKPOINT_PX}px) calc(92vw * 0.5), 88vw`,
         );
-        expect(tileSizes(4)).toContain('calc(92vw * 0.3333)');
-        expect(tileSizes(12)).toMatch(/^\(min-width: 1280px\) 1178px,/);
+        expect(tileSizes(4)).toContain('calc(75vw * 0.3333)');
+        expect(tileSizes(12)).toMatch(/^\(min-width: 1024px\) calc\(75vw \* 1\),/);
     });
 
-    it('grows with the span', () => {
-        const widest = (span: number): number => Number(/(\d+)px,/.exec(tileSizes(span))?.[1]);
-
-        expect(widest(4)).toBeLessThan(widest(8));
-        expect(widest(8)).toBeLessThan(widest(12));
+    it('never names a pixel width, so the hint follows the column at every viewport', () => {
+        expect(tileSizes(8)).not.toMatch(/\) \d+px/);
     });
 });

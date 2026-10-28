@@ -79,25 +79,27 @@ export function placeTiles(ratios: readonly number[]): TilePlacement[] {
 /** The viewport width where the grid goes from one column to twelve; the template's stylesheet uses the same value. */
 export const GRID_BREAKPOINT_PX = 768;
 
-/** The widest the gallery's content is drawn: 80 rem minus the 4 vw page edge (51.2 px) on each side at that width. */
-const MAX_CONTENT_PX = 1280 - 2 * 51.2;
+/** The viewport width where the page column becomes 75 vw wide; the `column` utility in global.css uses the same value. */
+export const WIDE_COLUMN_BREAKPOINT_PX = 1024;
 
-/** The widest column gap, reached at 1000 px and up (2 vw, at most 1.25 rem). */
-const MAX_GUTTER_PX = 20;
+/** The wide column's share of the viewport; keep it equal to --container-column in global.css. */
+const WIDE_COLUMN_VW = 75;
 
-// How wide a tile of this span is drawn, for the browser's choice among the srcset candidates. It is an upper bound:
-// above the widest layout, a fixed width; between the breakpoint and that, the span's share of the viewport minus the
-// 4 vw page edge on each side (the gutters are ignored, which only ever rounds the width up); below the breakpoint
-// every tile is the full column. That column is 92 vw, but the phone value is 88 vw on purpose: a 412 px phone at the
+/** The column's share of the viewport between the grid breakpoint and the wide column: 100 vw minus 4 vw of edge each side. */
+const NARROW_COLUMN_VW = 92;
+
+// How wide a tile of this span is drawn, for the browser's choice among the srcset candidates. It is an upper bound: the
+// span's share of the column, where the column is 75 vw from 1024 px (no maximum), 92 vw (the viewport minus the 4 vw
+// page edge on each side) down to the grid breakpoint, and below that every tile is the full column. The gutters are
+// ignored, which only ever rounds the width up. The phone value is 88 vw instead of 92 on purpose: a 412 px phone at the
 // 1.75x of Lighthouse's mobile profile needs 663 px, which would take the 960 px variant (about twice the bytes of the
 // 640 px one) for a difference of 3.5 percent. The first screen's images are the LCP, so the bytes matter more.
 export function tileSizes(span: number): string {
-    const columnPx = (MAX_CONTENT_PX - (GRID_COLUMNS - 1) * MAX_GUTTER_PX) / GRID_COLUMNS;
-    const widestPx = Math.ceil(columnPx * span + (span - 1) * MAX_GUTTER_PX);
     const share = span / GRID_COLUMNS;
+    const vw = (columnVw: number): string => `calc(${columnVw}vw * ${Number(share.toFixed(4))})`;
     return [
-        `(min-width: 1280px) ${widestPx}px`,
-        `(min-width: ${GRID_BREAKPOINT_PX}px) calc(92vw * ${Number(share.toFixed(4))})`,
+        `(min-width: ${WIDE_COLUMN_BREAKPOINT_PX}px) ${vw(WIDE_COLUMN_VW)}`,
+        `(min-width: ${GRID_BREAKPOINT_PX}px) ${vw(NARROW_COLUMN_VW)}`,
         '88vw',
     ].join(', ');
 }

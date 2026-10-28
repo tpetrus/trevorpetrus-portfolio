@@ -44,6 +44,13 @@ describe('clusterEntries', () => {
     });
 });
 
+describe('CLUSTER_SIZES', () => {
+    it('sizes a figure at the wide breakpoint as five twelfths of the 75 vw column, with no pixel cap', () => {
+        expect(CLUSTER_SIZES).toMatch(/^\(min-width: 1024px\) 31\.25vw,/);
+        expect(CLUSTER_SIZES).not.toMatch(/\) \d+px/);
+    });
+});
+
 describe('clusterFigures', () => {
     it('is empty for no entries', async () => {
         expect(await clusterFigures([])).toEqual([]);

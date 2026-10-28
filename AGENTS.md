@@ -58,6 +58,14 @@ Cloudflare Workers Builds (see "CI and deploys").
 - **Shell:** `.surface-ink` (in `global.css`) is the reusable ink surface: ink background, paper text, `.link` in paper and the
   `:focus-visible` ring in `accent`; the footer is its first user and the D4 photography section reuses it. On paper,
   `.link` is `accent-deep` plus an underline. No JavaScript is involved in the focus or selection styles.
+- **Page column:** the `column` utility in `global.css` (width token `--container-column: 75vw` in `@theme`) is the one
+  content column. The header row, `main` (or, on the bleed Photography page, the inner wrapper of the ink section), the
+  footer row and the Photography grid all use it, so every page lines up. Below 1024px it is full width minus the `px-edge`
+  padding; from 1024px (`lg`) it is 75vw wide, centered, with no maximum and the padding dropped (so the two never add up;
+  the side space is 12.5vw each). Running text keeps `max-w-measure` inside it. Image `sizes` follow it in `vw` from 1024px
+  (`tileSizes`, `CLUSTER_SIZES`, the featured project cover); an `e2e` check in `shell.spec.ts` asserts the three rows share
+  their edges at 1440 and 1920. The vertical running head sits in the left margin from `xl` (1280px); at that width the
+  margin is 160px and the head ends about 71px from the left, clear of the content.
 - **Design tokens:** `@theme` in `src/styles/global.css` holds the palette (light "paper" theme only), the fluid type
   scale (`text-step-n1` to `text-step-6`) and `px-edge`, `gap-gutter`, `max-w-measure`. `src/lib/designTokens.test.ts`
   reads the CSS and asserts the WCAG contrast of every pair in use; a new color pair goes into that spec in the same
@@ -141,7 +149,7 @@ repository settings).
 
 ## Home
 `Wordmark.astro` is the page's one `h1`: real text ("Trevor" and "Petrus" as two block lines, capitals by CSS), in an
-`inline-size` query container and sized in `cqi`, so it fills the content column at every width with no JavaScript. A
+`inline-size` query container and sized in `cqi`, so it fills the content column (75vw from 1024px) at every width with no JavaScript. A
 size is only right for one `wdth` (a wider setting makes one em of "TREVOR" wider), so there are three container-query
 steps, each a measured `cqi` and `wdth` pair for Archivo at weight 800 with -0.04em tracking: 37cqi at `wdth` 62 below
 30rem, 29.4cqi at 80 from 30rem and 23.9cqi at 100 from 46rem. The height is reserved from the same number (two lines
@@ -285,12 +293,12 @@ difference to the score (Lighthouse simulates the network), so it is not added. 
 img's `width` and `height` (so there is no layout shift; keep the link `width: 100%`, or a lazy image collapses). There is no
 `data-cropped`; the lightbox reads only the `data-pswp-*`, `data-original` and `data-caption` attributes.
 
-**Layout.** The page is a full-bleed ink section (`BaseLayout`'s optional `bleed` prop drops the padded 5xl column; the
+**Layout.** The page is a full-bleed ink section (`BaseLayout`'s optional `bleed` prop drops the padded `column` from `main`, and the section's inner wrapper uses `column` itself; the
 section uses `.surface-ink`) holding a 12-column grid from 768 px up and one column below. `placeTiles` in
 `src/lib/galleryLayout.ts` decides each tile's row, column and span from the aspect ratios, in the data's order: a
 panorama (ratio 2 or more) takes a row, other rows alternate two and three photos, a pair gives 8 to the wider photo (6/6 for two portraits, alike
 photos take turns) and three get 4 each. Each tile spans two grid rows (photo, caption) as a subgrid, so the captions of a row line up;
-without subgrid support each caption sits under its photo. `tileSizes` derives `sizes` from the span. The tile `srcset` offers
+without subgrid support each caption sits under its photo. `tileSizes` derives `sizes` from the span as a share of the column: `calc(75vw * span/12)` from 1024 px (no pixel cap, since the column has no maximum), 92vw from 768 px, 88vw below. The tile `srcset` offers
 the grid and the lightbox widths together (the same six transformations per photo, so the quota is unchanged), because a
 full-width tile is wider than 960 px. Every tile candidate uses `quality=70` (`GRID_QUALITY` in `src/lib/galleryView.ts`, the one constant; quality is not counted in the quota; the lightbox keeps the default) and the
 phone `sizes` is 88vw, slightly under the real column, so a 1.75x phone takes the 640 px variant: both keep `/photography` above 0.9 mobile

@@ -56,6 +56,25 @@
     --spacing-edge: clamp(1rem, 4vw, 3.75rem);
     --spacing-gutter: clamp(0.75rem, 2vw, 1.25rem);
     --container-measure: 38rem;
+    /* The page column from 1024px up (the `column` utility below): 75vw, with no maximum. */
+    --container-column: 75vw;
+}
+
+/*
+ * The one content column the header row, main, footer row, the Photography grid and the home page all share, so every
+ * page lines up. Below 1024px it is the full width minus the page edge on each side. From 1024px it is --container-column
+ * wide and centered, and the edge padding drops to zero, so the two never add up: the side space is the rest of the
+ * viewport (12.5vw each side). Running text keeps its own max-w-measure inside it.
+ */
+@utility column {
+    margin-inline: auto;
+    width: 100%;
+    padding-inline: var(--spacing-edge);
+
+    @media (min-width: 64rem) {
+        width: var(--container-column);
+        padding-inline: 0;
+    }
 }
 
 @layer base {

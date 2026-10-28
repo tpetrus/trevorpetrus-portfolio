@@ -28,8 +28,8 @@ export function phoneImageWidth(viewportWidth: number): number {
 // How wide a figure is drawn, for the browser's choice among the grid candidates (the fixed GRID_WIDTHS only, so the
 // cluster adds no Cloudflare transformations beyond the ones the Photography page already uses). Below 768 px the
 // widest image is 36% to 38% of the viewport (`phoneImageWidth`), so 38vw; from 768 px up the figures share a row, each
-// about five of twelve columns of the 976 px content column (the column is capped at 5xl).
-export const CLUSTER_SIZES = '(min-width: 1024px) 400px, (min-width: 768px) 42vw, 38vw';
+// about five of twelve columns of the content column, which is 75vw from 1024 px (5/12 of 75vw, gutters ignored).
+export const CLUSTER_SIZES = '(min-width: 1024px) 31.25vw, (min-width: 768px) 42vw, 38vw';
 
 /** The width of the variant in the `src` attribute, the fallback for a browser that ignores `srcset`. */
 export const CLUSTER_SRC_WIDTH = 640;
