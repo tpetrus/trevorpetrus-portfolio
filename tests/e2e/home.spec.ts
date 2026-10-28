@@ -45,8 +45,11 @@ test.describe('home page', () => {
         await page.goto('/');
 
         const main = page.getByRole('main');
-        await expect(main.getByRole('link', { name: 'photographs' })).toHaveAttribute('href', '/photography/');
-        await expect(main.getByRole('link', { name: 'projects' })).toHaveAttribute('href', '/projects/');
+        await expect(main.getByRole('link', { name: 'photography', exact: true })).toHaveAttribute(
+            'href',
+            '/photography/',
+        );
+        await expect(main.getByRole('link', { name: 'coding projects' })).toHaveAttribute('href', '/projects/');
     });
 
     test('sets each line of the name to fill the width of its container, without scrolling sideways', async ({
