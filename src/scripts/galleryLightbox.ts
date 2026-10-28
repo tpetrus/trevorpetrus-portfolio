@@ -63,6 +63,14 @@ function createLightbox(): PhotoSwipeLightbox {
         });
     });
 
+    // A deep link's fragment would reopen the viewer on reload or Back after it closes, so it is dropped on close.
+    // history.state is kept because Astro's ClientRouter stores its navigation state there.
+    lightbox.on('close', () => {
+        if (photoIdFromHash(location.hash) !== undefined) {
+            history.replaceState(history.state, '', location.pathname + location.search);
+        }
+    });
+
     lightbox.init();
     return lightbox;
 }
@@ -114,6 +122,11 @@ document.addEventListener('astro:page-load', () => {
         lightbox = createLightbox();
         openFromHash(lightbox);
     }
+});
+
+// Setting the fragment on the page (or following an in-page link) does not reload it, so it opens the photo too.
+window.addEventListener('hashchange', () => {
+    if (lightbox !== null) openFromHash(lightbox);
 });
 
 // Navigating away with the viewer open used to swap the page while the viewer was still live, which crashed Playwright's
