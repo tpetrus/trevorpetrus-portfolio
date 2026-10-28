@@ -153,4 +153,23 @@ test.describe('page titles', () => {
         await expect.poll(() => video(page).evaluate((el: HTMLVideoElement) => el.paused)).toBe(false);
         await expect(toggle(page)).toHaveAttribute('aria-pressed', 'true');
     });
+
+    test('pauses the video off-screen and resumes it on return, unless the visitor paused it', async ({ page }) => {
+        await page.setViewportSize({ width: 1440, height: 600 });
+        await open(page, '/photography/');
+        const isPaused = () => video(page).evaluate((el: HTMLVideoElement) => el.paused);
+        await expect.poll(isPaused).toBe(false);
+
+        await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+        await expect.poll(isPaused).toBe(true);
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await expect.poll(isPaused).toBe(false);
+
+        await toggle(page).click();
+        await expect.poll(isPaused).toBe(true);
+        await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.waitForTimeout(500);
+        expect(await isPaused()).toBe(true);
+    });
 });
