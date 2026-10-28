@@ -21,9 +21,18 @@ const { text, video } = Astro.props;
     >
         <h1 class="title">{text}</h1>
         {video && (
-            <div class="media">
-                {/* Decorative and silent. There is no `autoplay`: titleVideo.ts starts it unless the visitor prefers
-                    reduced motion, and the toggle below can always stop it. */}
+            /* The framed video is its own play/pause control: a click (or Enter/Space, it is a real button) pauses or
+               resumes it, so motion can always be stopped (WCAG 2.2.2) without a visible chip over the clip. It stays
+               disabled until titleVideo.ts runs, because without JavaScript it would do nothing. */
+            <button
+                type="button"
+                class="media"
+                data-title-video-toggle
+                aria-label="Pause background video"
+                data-state="playing"
+                disabled
+            >
+                {/* Decorative and silent, so it is hidden from assistive technology; the button carries the name. */}
                 <video
                     data-title-video
                     muted
@@ -39,22 +48,7 @@ const { text, video } = Astro.props;
                     <source src={video.webm} type='video/webm; codecs="av01.0.00M.08"' />
                     <source src={video.mp4} type="video/mp4" />
                 </video>
-                {/* Hidden until the script runs: without JavaScript the video never plays, so there is nothing to
-                    pause. */}
-                <button
-                    type="button"
-                    class="toggle"
-                    data-title-video-toggle
-                    aria-label="Play background video"
-                    data-state="paused"
-                    hidden
-                >
-                    <span class="icon" aria-hidden="true"></span>
-                    <span class="label" aria-hidden="true">
-                        Video
-                    </span>
-                </button>
-            </div>
+            </button>
         )}
     </div>
 </div>
@@ -125,61 +119,23 @@ const { text, video } = Astro.props;
         aspect-ratio: calc(var(--vw) / var(--vh));
     }
 
-    /* Discreet mono caption, on an ink chip so it reads over any frame of the clip. The ring comes from global.css. */
-    .toggle {
-        position: absolute;
-        inset-inline-end: 0.25rem;
-        inset-block-end: 0.25rem;
-        z-index: 2;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4em;
-        min-block-size: 1.5rem;
-        padding: 0 0.5rem;
-        border: 1px solid var(--color-ink-muted-on-ink);
+    /*
+     * The paper frame sits inside the box (border-box), so the reserved space above stays exact. The pointer says it
+     * can be clicked; the keyboard focus ring comes from global.css.
+     */
+    .media {
+        padding: 0;
+        border: 0.25rem solid var(--color-paper);
         background-color: var(--color-ink);
-        color: var(--color-paper);
-        font-family: var(--font-mono);
-        font-size: var(--text-step-n1);
-        line-height: 1;
-        text-transform: uppercase;
         cursor: pointer;
     }
 
-    .toggle[hidden] {
-        display: none;
-    }
-
-    /*
-     * On a phone the video is only about 115 px wide, and the worded chip would cover half of it: below 48rem the toggle
-     * is the icon alone, still a 24 px target (WCAG 2.5.8), named by its aria-label.
-     */
-    @media (max-width: 47.99rem) {
-        .toggle {
-            justify-content: center;
-            min-inline-size: 1.5rem;
-            padding: 0;
-        }
-
-        .toggle .label {
-            display: none;
-        }
-    }
-
-    /* Two bars while playing (press to pause), a triangle while paused (press to play). */
-    .icon {
-        inline-size: 0.6em;
-        block-size: 0.7em;
-        background: linear-gradient(to right, currentColor 35%, transparent 35% 65%, currentColor 65%);
-    }
-
-    .toggle[data-state='paused'] .icon {
-        background: currentColor;
-        clip-path: polygon(0 0, 100% 50%, 0 100%);
+    .media:disabled {
+        cursor: default;
     }
 
     @media (forced-colors: active) {
-        .toggle {
+        .media {
             border-color: ButtonText;
         }
     }

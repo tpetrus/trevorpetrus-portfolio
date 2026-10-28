@@ -104,9 +104,25 @@ test.describe('page titles', () => {
             await expect(video(page)).toHaveAttribute('aria-hidden', 'true');
             await expect(video(page)).not.toHaveAttribute('autoplay', /.*/);
             await expect(video(page)).toHaveAttribute('tabindex', '-1');
+            // The framed video is the play/pause button itself, with no separate control drawn over it.
+            await expect(toggle(page).locator('[data-title-video]')).toHaveCount(1);
+            await expect(toggle(page)).toHaveAccessibleName(/background video/);
+            const frame = await toggle(page).evaluate((el) => {
+                const style = getComputedStyle(el);
+                const paper = getComputedStyle(document.documentElement).getPropertyValue('--color-paper').trim();
+                const probe = document.createElement('div');
+                probe.style.color = paper;
+                document.body.append(probe);
+                const paperRgb = getComputedStyle(probe).color;
+                probe.remove();
+                return { width: style.borderTopWidth, color: style.borderTopColor, paperRgb };
+            });
+            expect(parseFloat(frame.width)).toBeGreaterThan(0);
+            expect(frame.color).toBe(frame.paperRgb);
 
             const boxes = await page.evaluate(() => {
-                const media = document.querySelector('[data-title-video]')!.getBoundingClientRect();
+                // The framed box (the toggle button) is what is placed and sized; the video fills it inside the frame.
+                const media = document.querySelector('[data-title-video-toggle]')!.getBoundingClientRect();
                 // The component's own module script sits right after the title and has no box, so it is skipped.
                 let next = document.querySelector('.page-title')!.nextElementSibling;
                 while (next && next.tagName === 'SCRIPT') next = next.nextElementSibling;

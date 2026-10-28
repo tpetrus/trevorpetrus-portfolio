@@ -67,10 +67,12 @@ Cloudflare Workers Builds (see "CI and deploys").
   wide, behind the right part of the letters and hanging below them, inside reserved space. The files are in
   `public/video/` (`photography-loop.webm` AV1 and `.mp4` H.264, 480x270, 24 fps, silent, under 1 MB each, plus a WebP
   poster), encoded from the original with ffmpeg (`-an -vf scale=480:-2,fps=24`; `libsvtav1 -crf 50` for the WebM,
-  `libx264 -crf 32 -movflags +faststart` for the MP4). The video has `preload="none"` and no `autoplay`:
-  `src/scripts/titleVideo.ts` plays it once the window has loaded (so it never competes with the LCP image), never for
-  a visitor who prefers reduced motion or has Save-Data on, and pauses it while it is off-screen. A toggle in its corner,
-  named by its action ("Pause/Play background video"), pauses it (WCAG 2.2.2; icon only below 48rem). Without JavaScript only the poster shows.
+  `libx264 -crf 32 -movflags +faststart` for the MP4). The video autoplays: `src/scripts/titleVideo.ts`
+  starts it on `astro:page-load` (not through an `autoplay` attribute, so a visitor who prefers reduced motion never sees
+  it move) and pauses it while it is off-screen. It has a 0.25rem paper frame, and the framed video is itself the
+  play/pause button: a click pauses or resumes it, and as a real button it works from the keyboard too (WCAG 2.2.2),
+  named by its action ("Pause/Play background video"), with no control drawn over the clip. The button is disabled
+  until the script runs. Without JavaScript only the poster shows.
 - **Sticky header:** the header is sticky on every page (`z-20`, under the `z-30` skip link). On the home page the
   header name is hidden while the giant wordmark is on screen: CSS `body:has([data-wordmark]) [data-header-name]` hides it
   with opacity and a translate, and `src/scripts/headerName.ts` toggles `data-docked` through an IntersectionObserver once

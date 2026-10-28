@@ -2,24 +2,17 @@
 // is exercised by tests/e2e/pageTitle.spec.ts. Imported from components/PageTitle.astro, so it only ships on pages
 // that render one.
 //
-// The video has no `autoplay` attribute on purpose: playback is decided here, so a visitor who prefers reduced motion
-// never gets motion, and the toggle (WCAG 2.2.2 Pause, Stop, Hide) can always stop it.
+// The video autoplays: it starts as soon as the page is ready. It is started here rather than by an `autoplay`
+// attribute so that a visitor who prefers reduced motion never sees it move, not even for the moment before a script
+// could pause it. The framed video is itself a button that pauses and resumes it (WCAG 2.2.2 Pause, Stop, Hide).
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
-// Videos the visitor paused by hand stay paused when the media query changes.
+// Videos the visitor paused by hand stay paused when the media query changes or the video scrolls back into view.
 const pausedByUser = new WeakSet<HTMLVideoElement>();
-let cleanup: (() => void) | null = null;
-
-// The Network Information API is not in lib.dom, so type just the one field this file reads.
-interface ConnectionLike {
-    saveData?: boolean;
-}
-const saveData = (): boolean =>
-    (navigator as Navigator & { connection?: ConnectionLike }).connection?.saveData === true;
-
 // Videos paused only because they scrolled out of view; they resume on return, unlike a pause by hand.
 const pausedOffscreen = new WeakSet<HTMLVideoElement>();
+let cleanup: (() => void) | null = null;
 
 function play(video: HTMLVideoElement): void {
     // play() rejects when the browser blocks it or the source fails; the poster is a fine resting state.
@@ -27,13 +20,12 @@ function play(video: HTMLVideoElement): void {
 }
 
 function bind(video: HTMLVideoElement): () => void {
-    const toggle = video.parentElement?.querySelector<HTMLButtonElement>('[data-title-video-toggle]') ?? null;
+    const toggle = video.closest<HTMLButtonElement>('[data-title-video-toggle]');
 
+    // Named by its action, so the label never has to be read together with a pressed state.
     const syncToggle = (): void => {
         const playing = !video.paused;
         toggle?.setAttribute('data-state', playing ? 'playing' : 'paused');
-        // Named by its action, so the label never has to be read together with a pressed state. Both labels contain
-        // the visible text "Video" (WCAG 2.5.3).
         toggle?.setAttribute('aria-label', playing ? 'Pause background video' : 'Play background video');
     };
     const onToggle = (): void => {
@@ -49,22 +41,9 @@ function bind(video: HTMLVideoElement): () => void {
     video.addEventListener('play', syncToggle);
     video.addEventListener('pause', syncToggle);
     toggle?.addEventListener('click', onToggle);
-    if (toggle) toggle.hidden = false;
+    if (toggle) toggle.disabled = false;
+    if (!reducedMotion.matches) play(video);
     syncToggle();
-
-    // The ~0.8 MB video must never compete with the LCP image, so autoplay waits for the window load event. Reduced
-    // motion and Save-Data visitors get no autoplay; the toggle can still start it.
-    let onLoad: (() => void) | null = null;
-    if (!reducedMotion.matches && !saveData()) {
-        if (document.readyState === 'complete') play(video);
-        else {
-            onLoad = () => {
-                onLoad = null;
-                if (!reducedMotion.matches && !pausedByUser.has(video)) play(video);
-            };
-            window.addEventListener('load', onLoad, { once: true });
-        }
-    }
 
     // Off-screen playback only burns battery and bandwidth. The first callback reports "visible" and resumes nothing,
     // because pausedOffscreen is empty until the video has actually left the viewport while playing.
@@ -84,7 +63,6 @@ function bind(video: HTMLVideoElement): () => void {
 
     return () => {
         observer.disconnect();
-        if (onLoad) window.removeEventListener('load', onLoad);
         video.removeEventListener('play', syncToggle);
         video.removeEventListener('pause', syncToggle);
         toggle?.removeEventListener('click', onToggle);
