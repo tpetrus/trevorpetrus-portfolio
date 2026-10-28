@@ -92,7 +92,10 @@ Cloudflare Workers Builds (see "CI and deploys").
   scale (`text-step-n1` to `text-step-6`) and `px-edge`, `gap-gutter`, `max-w-measure`. `src/lib/designTokens.test.ts`
   reads the CSS and asserts the WCAG contrast of every pair in use; a new color pair goes into that spec in the same
   change. The accent `#ff4d1f` is only a fill behind ink text or text on ink, never text, a border or a focus ring on
-  paper (2.94:1): use `accent-deep` there.
+  paper (2.94:1): use `accent-deep` there. A purely decorative accent fill is allowed next to an ink or accent-deep cue:
+  the 4 px band above the footer and the home statement, the project status square, the offset of the project hover box.
+  Links (`.link`) turn into an accent highlighter with ink text on hover (on ink they turn accent instead); the header
+  nav underlines the current and hovered page in `accent-deep`.
 - **Deploy:** Cloudflare Workers static assets: `wrangler.jsonc` (Worker name `trevorpetrus-portfolio`) serves `dist/`. Cloudflare
   Workers Builds is connected: it deploys `main` to production and PR branches to preview URLs (see
   "One-time setup"). GitHub Actions only checks; it never deploys.
@@ -135,7 +138,8 @@ src/
                         `credit`), SectionIndex.astro (numbered `role="list"` rows with 1px ink rules, one named slot per
                         row id), GitHubIcon.astro, Gallery.astro (generic over the collection),
                         PhotographySections.astro (the Photography page body: the category jump links, one section
-                        and Gallery per category, the credit), PhotoCaption.astro (the place under a tile),
+                        and Gallery per category with a back-to-top link in its heading row, the credit),
+                        SectionLegend.astro (the floating section legend; its rules are in lib/sectionNav.ts), PhotoCaption.astro (the place under a tile),
                         PageTitle.astro (the giant subpage `h1`, optionally with the loop video),
                         GeonamesCredit.astro (the CC BY 4.0 credit line),
                         RunningHead.astro (the decorative vertical site/page name, `aria-hidden`, shown from `xl` up),
@@ -144,6 +148,8 @@ src/
   scripts/galleryLightbox.ts  (src/scripts/) browser glue for the PhotoSwipe lightbox (DOM only, outside unit-test coverage)
   scripts/headerName.ts  (src/scripts/) DOM glue for the header-name handoff, imported by Wordmark.astro (outside unit coverage)
   scripts/galleryReveal.ts  (src/scripts/) DOM glue for the gallery's reveal-on-scroll, imported by Gallery.astro
+  scripts/sectionNav.ts  (src/scripts/) DOM glue for the Photography back-to-top links and section legend, imported by
+                        SectionLegend.astro
   scripts/titleVideo.ts  (src/scripts/) DOM glue that plays and pauses the page-title video, imported by PageTitle.astro
 public/                 static files served from / (favicon.svg; video/: the Photography title loop and its poster;
                         lychee.toml: makes the CI link check resolve /photography/#photo-* inside index.html)
@@ -209,15 +215,19 @@ eager with `fetchpriority="high"` and keep the rest lazy.
 
 ## Projects
 The Projects page is built from the `projects` content collection (`src/content/projects/*.md`, schema in
-`src/lib/projects.ts`; a bad frontmatter file fails the build). The lowest `order` renders as the cover (large image,
-giant numeral, caption); the rest are a numbered index (`SectionIndex`: a 1px rule, the number, then the caption stack
-with the image on the right from `md:`), newest first. Each card is a `Caption`: a bold caps status label (plain text, no
-chip), a bold caps title, and a byline with the tech list and "Updated <date>". **Numbers** come from `numberItems` in
+`src/lib/projects.ts`; a bad frontmatter file fails the build). The lowest `order` renders as the cover (the image,
+then the giant numeral and the caption, left-aligned; from `lg:` the image takes 3/5 of the column and the numeral and
+caption sit beside it); the rest are a numbered index (`SectionIndex`: a 1px rule, then the card, which draws its own
+number so the hover box encloses it, the caption stack, and the image on the right from `md:`), newest first. Each card
+is a `Caption`: a bold caps status label in `accent-deep` after a decorative square (plain text, no chip), a bold caps
+title, and a byline with the tech chips (`paper-2`) and "Updated <date>". Numbers are `accent-deep`. **Numbers** come from `numberItems` in
 `src/lib/numbering.ts`: ascending by the repo's creation date (`created` in `project-meta.json`), so the oldest is 01, the
 newest has the highest number, and adding a project never renumbers another; ties on the same date go by slug, and a
 project with no recorded `created` is numbered after every dated one (by slug), so it still renders; run the sync to
 give it its place. The page shows them highest first. A card's main link is `projectUrl(subdomain)` when `subdomain` is set, otherwise the repo;
-every card also has a GitHub icon link, and a card draws a 1px ink outline on hover and keyboard focus. Screenshots are
+every card also has a GitHub icon link, and both open in a new tab (`target="_blank"`, announced by an sr-only note
+and the icon's label). On hover and keyboard focus a card draws a box-shadow that takes no space: a 1px `accent-deep`
+ring plus a 5 px `accent` offset to the bottom right, so it reads slightly 3D. Screenshots are
 captured at 2x (CSS viewport 1280x800, a 2560x1600 image) and the cover offers widths up to 2560. The status is `live`, `in-progress` or `archived`. Tech tags and the description
 are curated by hand in the frontmatter; the sync script never rewrites them.
 
@@ -250,6 +260,15 @@ Each tile's `li` has the id `photoAnchorId(key)`; a `#photo-<name>` fragment mak
 `galleryReveal.ts` fades photos in and raises them 14 px as they scroll into view. Photos already on screen are shown at
 once, and nothing is hidden without JavaScript or under reduced motion. Only the `.photo` link moves, never the subgrid
 tile.
+
+**Section navigation** (`src/scripts/sectionNav.ts`, decisions in `src/lib/sectionNav.ts`). Each section's heading row has
+a "Back to top" link (`#main`); with JavaScript it is hidden while the page is at the very top and, when clicked, scrolls
+to the top (smooth unless reduced motion) and focuses `main`. A floating legend (`nav` "Jump to a section",
+`SectionLegend.astro`) lists the sections: a box in the right margin from `lg`, a pill at the bottom below it. It pops up
+only while the visitor scrolls after the inline category links have left the viewport, fades `LEGEND_IDLE_MS` (1.5 s)
+after the last scroll unless a mouse is over it or focus is inside it, and is `inert` while hidden. The link of the
+section crossing 40% of the viewport (the last one at the page end) carries `aria-current="true"`. Without JavaScript
+the back-to-top links show and the legend does not.
 
 The Photography page renders `src/data/gallery/photography.json` through `components/Gallery.astro`, which takes a
 `collection` name and the parsed entries, so a later `art` collection reuses it (each collection registers its caption
