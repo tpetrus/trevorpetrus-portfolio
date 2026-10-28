@@ -143,7 +143,8 @@ src/
   scripts/headerName.ts  (src/scripts/) DOM glue for the header-name handoff, imported by Wordmark.astro (outside unit coverage)
   scripts/galleryReveal.ts  (src/scripts/) DOM glue for the gallery's reveal-on-scroll, imported by Gallery.astro
   scripts/titleVideo.ts  (src/scripts/) DOM glue that plays and pauses the page-title video, imported by PageTitle.astro
-public/                 static files served from / (favicon.svg; video/: the Photography title loop and its poster)
+public/                 static files served from / (favicon.svg; video/: the Photography title loop and its poster;
+                        lychee.toml: makes the CI link check resolve /photography/#photo-* inside index.html)
 tests/e2e/              Playwright specs (smoke.spec.ts is tagged @smoke); its own tsconfig; lightbox.spec.ts skips while
                         the photography data file is empty
 gallery-originals/      gitignored: the source JPEGs for sync-gallery (images never go in git)

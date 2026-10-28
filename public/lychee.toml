@@ -1,0 +1,5 @@
+# Read by the CI link check (lychee --offline, which runs inside dist/, where this file is copied from public/).
+# A link such as /photography/#photo-<name> points at a directory; with index_files lychee looks inside that
+# directory's index.html, so the fragment is checked against the real page instead of failing as unresolvable.
+# Remove this file once tpetrus/ci-workflows passes --index-files itself.
+index_files = ["index.html"]
