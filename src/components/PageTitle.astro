@@ -1,0 +1,168 @@
+---
+import type { TitleVideo } from '../lib/pageTitle';
+
+interface Props {
+    /** The h1 text in the reader's case ("Photography"); the capitals are CSS. */
+    text: string;
+    /** An optional decorative loop that sits behind the right part of the letters. */
+    video?: TitleVideo;
+}
+
+const { text, video } = Astro.props;
+---
+
+{/* A giant subpage title, set like the home wordmark (Wordmark.astro) but on one line. It deliberately has no
+    `data-wordmark`: the sticky header keeps showing the site name on these pages. */}
+<div class="page-title">
+    <div
+        class="stage"
+        data-has-video={video ? '' : undefined}
+        style={video ? `--vw:${video.width};--vh:${video.height}` : undefined}
+    >
+        <h1 class="title">{text}</h1>
+        {video && (
+            <div class="media">
+                {/* Decorative and silent. There is no `autoplay`: titleVideo.ts starts it unless the visitor prefers
+                    reduced motion, and the toggle below can always stop it. */}
+                <video
+                    data-title-video
+                    muted
+                    loop
+                    playsinline
+                    preload="none"
+                    poster={video.poster}
+                    width={video.width}
+                    height={video.height}
+                    aria-hidden="true"
+                    tabindex="-1"
+                >
+                    <source src={video.webm} type='video/webm; codecs="av01.0.00M.08"' />
+                    <source src={video.mp4} type="video/mp4" />
+                </video>
+                {/* Hidden until the script runs: without JavaScript the video never plays, so there is nothing to
+                    pause. */}
+                <button
+                    type="button"
+                    class="toggle"
+                    data-title-video-toggle
+                    aria-label="Background video"
+                    aria-pressed="false"
+                    hidden
+                >
+                    <span class="icon" aria-hidden="true"></span>
+                    <span aria-hidden="true">Video</span>
+                </button>
+            </div>
+        )}
+    </div>
+</div>
+
+{video && <script>
+    import '../scripts/titleVideo.ts';
+</script>}
+
+<style>
+    /*
+     * One size for every title and every width, in `cqi` of the content column: "PHOTOGRAPHY" at the narrowest
+     * `wdth` (62) spans about 70% of it, and a shorter title such as "PROJECTS" simply fills less, so the titles
+     * match in scale. Like the wordmark, the height is reserved from the number (the line height times the size), not
+     * from the glyphs, so the font swap shifts nothing; `overflow-x: clip` and `nowrap` keep the fallback face, a
+     * little wider until Archivo arrives, from scrolling the page or wrapping.
+     */
+    .page-title {
+        container-type: inline-size;
+    }
+
+    .stage {
+        --size: 14cqi;
+        --line-height: 0.85;
+        position: relative;
+    }
+
+    .title {
+        position: relative;
+        /* Above the video, so the letters stay readable and keep the text selectable. */
+        z-index: 1;
+        font-family: var(--font-display);
+        font-size: var(--size);
+        font-variation-settings: 'wdth' 62;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        line-height: var(--line-height);
+        block-size: calc(var(--size) * var(--line-height));
+        overflow-x: clip;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    /*
+     * The video is a third of the column, pushed right so it sits behind the right part of the letters and dropped so
+     * it overlaps their lower half and hangs below them. The stage reserves the room it needs, so it never covers what
+     * follows. All of it is in `cqi`, so it scales with the title.
+     */
+    .stage[data-has-video] {
+        --media-width: 33.333cqi;
+        --media-top: 6cqi;
+        --media-height: calc(var(--media-width) * var(--vh) / var(--vw));
+        block-size: calc(var(--media-top) + var(--media-height));
+    }
+
+    .media {
+        position: absolute;
+        inset-inline-start: 50cqi;
+        inset-block-start: var(--media-top);
+        inline-size: var(--media-width);
+        block-size: var(--media-height);
+    }
+
+    video {
+        display: block;
+        inline-size: 100%;
+        block-size: 100%;
+        object-fit: cover;
+        aspect-ratio: calc(var(--vw) / var(--vh));
+    }
+
+    /* Discreet mono caption, on an ink chip so it reads over any frame of the clip. The ring comes from global.css. */
+    .toggle {
+        position: absolute;
+        inset-inline-end: 0.25rem;
+        inset-block-end: 0.25rem;
+        z-index: 2;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4em;
+        min-block-size: 1.5rem;
+        padding: 0 0.5rem;
+        border: 1px solid var(--color-ink-muted-on-ink);
+        background-color: var(--color-ink);
+        color: var(--color-paper);
+        font-family: var(--font-mono);
+        font-size: var(--text-step-n1);
+        line-height: 1;
+        text-transform: uppercase;
+        cursor: pointer;
+    }
+
+    .toggle[hidden] {
+        display: none;
+    }
+
+    /* Two bars while playing (press to pause), a triangle while paused (press to play). */
+    .icon {
+        inline-size: 0.6em;
+        block-size: 0.7em;
+        background: linear-gradient(to right, currentColor 35%, transparent 35% 65%, currentColor 65%);
+    }
+
+    .toggle[aria-pressed='false'] .icon {
+        background: currentColor;
+        clip-path: polygon(0 0, 100% 50%, 0 100%);
+    }
+
+    @media (forced-colors: active) {
+        .toggle {
+            border-color: ButtonText;
+        }
+    }
+</style>
