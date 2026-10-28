@@ -9,19 +9,28 @@ const PROJECT = {
 };
 
 const OTHER_PROJECTS = [
+    { title: 'claude-code-workflows', repo: 'https://github.com/tpetrus/claude-code-workflows' },
     { title: 'trevorpetrus-portfolio', repo: 'https://github.com/tpetrus/trevorpetrus-portfolio' },
     { title: 'ci-workflows', repo: 'https://github.com/tpetrus/ci-workflows' },
 ];
+
+// The hover box's two colors as the browser reports them (accent and accent-deep in global.css).
+const ACCENT = 'rgb(255, 77, 31)';
+const ACCENT_DEEP = 'rgb(184, 46, 0)';
+
+const escape = (text: string) => text.replace(/[()]/g, '\\$&');
+// A hovered or focused card's shadow lists the accent-deep ring and the accent offset.
+const hasBothAccents = new RegExp(`(?=.*${escape(ACCENT)})(?=.*${escape(ACCENT_DEEP)})`);
 
 test.describe('projects page @smoke', () => {
     test.beforeEach(async ({ page }) => {
         await page.goto('/projects/');
     });
 
-    test('renders the cover and two index rows, the new ones linking to their repos', async ({ page }) => {
+    test('renders the cover and three index rows, the new ones linking to their repos', async ({ page }) => {
         const cards = page.getByRole('article');
 
-        await expect(cards).toHaveCount(3);
+        await expect(cards).toHaveCount(4);
         await expect(cards.first().getByRole('heading', { level: 2, name: PROJECT.title })).toBeVisible();
         for (const { title, repo } of OTHER_PROJECTS) {
             const card = cards.filter({ has: page.getByRole('heading', { level: 2, name: title }) });
@@ -32,16 +41,18 @@ test.describe('projects page @smoke', () => {
         }
     });
 
-    test('hovering a card draws an ink box without moving anything', async ({ page }) => {
+    test('hovering a card draws an accent box without moving anything', async ({ page }) => {
         const hoverCapable = await page.evaluate(() => matchMedia('(hover: hover)').matches);
         test.skip(!hoverCapable, 'Touch devices have no hover.');
         const cards = page.getByRole('article');
 
-        for (let index = 0; index < 3; index++) {
+        for (let index = 0; index < 4; index++) {
             const card = cards.nth(index);
             await card.scrollIntoViewIfNeeded();
             await page.mouse.move(0, 0);
-            await expect(card).toHaveCSS('outline-color', 'rgba(0, 0, 0, 0)');
+            // At rest both shadows are transparent: no accent color anywhere in the value.
+            await expect(card).not.toHaveCSS('box-shadow', new RegExp(`${escape(ACCENT)}|${escape(ACCENT_DEEP)}`));
+            await expect(card).not.toHaveCSS('box-shadow', 'none');
             // Page coordinates, not the viewport's: under the sticky header, hover() may scroll the title into view
             // first, which moves the viewport box without anything shifting.
             const pageBox = () =>
@@ -53,18 +64,7 @@ test.describe('projects page @smoke', () => {
 
             // Hover the title area, which the stretched link makes part of the card.
             await card.getByRole('heading', { level: 2 }).hover();
-            await expect(card).not.toHaveCSS('outline-color', 'rgba(0, 0, 0, 0)');
-            await expect(card).toHaveCSS('outline-style', 'solid');
-            await expect(card).toHaveCSS('outline-width', '1px');
-            const inkColor = await page.evaluate(() => {
-                const probe = document.createElement('i');
-                probe.className = 'text-ink';
-                document.body.append(probe);
-                const { color } = getComputedStyle(probe);
-                probe.remove();
-                return color;
-            });
-            await expect(card).toHaveCSS('outline-color', inkColor);
+            await expect(card).toHaveCSS('box-shadow', hasBothAccents);
             expect(await pageBox()).toEqual(before);
         }
     });
@@ -84,9 +84,55 @@ test.describe('projects page @smoke', () => {
 
         await page.keyboard.press('Tab');
         await expect(card.getByRole('heading', { level: 2 }).getByRole('link')).toBeFocused();
-        await expect(card).toHaveCSS('outline-style', 'solid');
-        await expect(card).not.toHaveCSS('outline-color', 'rgba(0, 0, 0, 0)');
+        await expect(card).toHaveCSS('box-shadow', hasBothAccents);
         expect(await documentBox()).toEqual(before);
+    });
+
+    test('each index row box encloses its number', async ({ page }) => {
+        const rows = page.getByRole('list', { name: 'More projects' }).getByRole('article');
+
+        await expect(rows).toHaveCount(3);
+        for (let index = 0; index < 3; index++) {
+            const row = rows.nth(index);
+            const card = await row.boundingBox();
+            const number = await row.locator('[data-index]').boundingBox();
+            if (!card || !number) throw new Error('The row or its number has no layout box.');
+            expect(number.x).toBeGreaterThanOrEqual(card.x);
+            expect(number.y).toBeGreaterThanOrEqual(card.y);
+            expect(number.x + number.width).toBeLessThanOrEqual(card.x + card.width);
+            expect(number.y + number.height).toBeLessThanOrEqual(card.y + card.height);
+        }
+    });
+
+    test('the title and GitHub links open in a new tab without leaking the opener', async ({ page }) => {
+        const cards = page.getByRole('article');
+
+        for (let index = 0; index < 4; index++) {
+            const card = cards.nth(index);
+            const links = [
+                card.getByRole('heading', { level: 2 }).getByRole('link'),
+                card.getByRole('link', { name: /on GitHub \(opens in a new tab\)$/ }),
+            ];
+            for (const link of links) {
+                await expect(link).toHaveAttribute('target', '_blank');
+                await expect(link).toHaveAttribute('rel', /noopener/);
+            }
+        }
+    });
+
+    test('on a wide desktop the cover is a smaller screenshot and the numeral lines up with the title', async ({
+        page,
+    }) => {
+        test.skip((page.viewportSize()?.width ?? 0) < 1280, 'The two-column cover is measured on desktop widths.');
+        const card = page.getByRole('article').first();
+        const articleBox = await card.boundingBox();
+        const imageBox = await card.locator('picture').boundingBox();
+        const numeralBox = await card.locator('[data-index]').boundingBox();
+        const titleBox = await card.getByRole('heading', { level: 2 }).boundingBox();
+        if (!articleBox || !imageBox || !numeralBox || !titleBox) throw new Error('A cover element has no layout box.');
+
+        expect(imageBox.width).toBeLessThanOrEqual(articleBox.width * 0.65);
+        expect(Math.abs(numeralBox.x - titleBox.x)).toBeLessThanOrEqual(1);
     });
 
     test('shows the project card with its description, tech tags and status', async ({ page }) => {
@@ -150,6 +196,7 @@ test.describe('projects page @smoke', () => {
         };
 
         expect(await hrefAt(await centerOf(card.locator('picture')))).toBe(`${PROJECT.href}/`);
+        // The cover's last paragraph is the description.
         expect(await hrefAt(await centerOf(card.locator('p').last()))).toBe(`${PROJECT.href}/`);
         expect(await hrefAt(await centerOf(githubLink))).toBe(PROJECT.repo);
     });

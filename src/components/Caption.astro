@@ -10,10 +10,16 @@ const { label, as: Title = 'h2' } = Astro.props;
 ---
 
 {/* A label/title/byline/credit stack. The default slot is the title text (it may be a link); the optional `byline`
-    and `credit` slots hold the regular-weight lines below it. Colors are ink and ink-muted on paper, so a caption on
-    an ink surface must override them. */}
+    and `credit` slots hold the regular-weight lines below it. The optional `label-marker` slot holds a decorative mark
+    drawn before the label text. The label is accent-deep, which passes on paper and paper-2; a caption on an ink surface
+    must override the colors. */}
 <div class="flex flex-col gap-1.5">
-    {label && <p class="text-step-n1 font-bold tracking-[0.06em] uppercase">{label}</p>}
+    {label && (
+        <p class="flex items-center gap-2 text-step-n1 font-bold tracking-[0.06em] text-accent-deep uppercase">
+            <slot name="label-marker" />
+            {label}
+        </p>
+    )}
     <Title class="font-display text-step-1 font-bold tracking-[0.02em] break-words uppercase">
         <slot />
     </Title>

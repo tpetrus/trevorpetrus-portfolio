@@ -34,10 +34,14 @@ const rows = numbered.filter(({ id }) => id !== coverId);
                 priority
             />
             {rows.length > 0 && (
-                <SectionIndex label="More projects" rows={rows}>
+                <SectionIndex label="More projects" rows={rows.map(({ id }) => ({ id }))}>
                     {rows.map((project) => (
                         <Fragment slot={project.id}>
-                            <ProjectCard project={project} updated={lastUpdatedFor(meta, project.id)} />
+                            <ProjectCard
+                                project={project}
+                                number={project.number}
+                                updated={lastUpdatedFor(meta, project.id)}
+                            />
                         </Fragment>
                     ))}
                 </SectionIndex>
