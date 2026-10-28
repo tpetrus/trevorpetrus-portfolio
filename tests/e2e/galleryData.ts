@@ -1,5 +1,10 @@
 import { readFileSync } from 'node:fs';
 
+import { PHOTOGRAPHY_CATEGORIES } from '../../src/lib/photography';
+
+// Re-exported so the specs read the one category list the site renders from.
+export { PHOTOGRAPHY_CATEGORIES };
+
 export interface GalleryDataEntry {
     key: string;
     alt: string;
@@ -8,13 +13,6 @@ export interface GalleryDataEntry {
     category: string;
     caption: { location?: { city: string; country: string } };
 }
-
-/** The Photography page's categories in render order (GALLERY_COLLECTIONS.photography.categories). */
-export const PHOTOGRAPHY_CATEGORIES = [
-    { id: 'landscape', label: 'Landscape' },
-    { id: 'portrait', label: 'Portrait' },
-    { id: 'car', label: 'Car' },
-] as const;
 
 /** The committed `src/data/gallery/<collection>.json`, read at the time the spec file loads (cwd is the repo root). */
 export function readGalleryEntries(collection: string): GalleryDataEntry[] {

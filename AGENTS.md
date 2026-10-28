@@ -37,7 +37,7 @@ Cloudflare Workers Builds (see "CI and deploys").
   page (not only the first load) belong in an `astro:page-load` listener.
 - **PhotoSwipe 5** (`photoswipe`) is the gallery lightbox. Its glue is `src/scripts/galleryLightbox.ts`, imported by
   `Gallery.astro`, so its JS and CSS load only on a page that renders a gallery (not on the Photography page while it is
-  empty). Astro runs a module script once, so the glue creates a lightbox on each `astro:page-load` that has `#gallery`
+  empty). Astro runs a module script once, so the glue creates a lightbox on each `astro:page-load` that has a `[data-gallery]`
   and destroys it on `astro:before-swap` (PhotoSwipe binds to the elements present at `init()`, and `destroy()` is final).
 - **React 19 via `@astrojs/react`**, only for future interactive islands (the 3D hero). No page uses it yet, so the
   island runtime (`dist/_astro/client.*.js`) is emitted but never loaded; the JS budget excludes it for that reason.

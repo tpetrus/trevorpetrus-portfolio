@@ -91,7 +91,7 @@ const tiles = await galleryTiles(collection, entries, { eager });
      * captions of a row stay aligned. The hiding rule needs the attribute galleryReveal.ts adds, so without JavaScript
      * (or under reduced motion, where the script adds nothing) every photo is simply visible.
      */
-    @media (prefers-reduced-motion: no-preference) {
+    @media screen and (prefers-reduced-motion: no-preference) {
         /*
          * The transition is on the revealed state only. On the hidden state it would run when the script adds
          * data-reveal, fading every photo out first.
