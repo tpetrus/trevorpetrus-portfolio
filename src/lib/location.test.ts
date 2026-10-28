@@ -129,6 +129,7 @@ describe('the data file schema', () => {
         sourceSha256: 'f'.repeat(64),
         processingVersion: 1,
         alt: 'A test image',
+        category: 'landscape',
     };
 
     it('keeps a location in the caption', () => {

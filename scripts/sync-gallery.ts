@@ -198,7 +198,12 @@ async function syncPhoto({
         // The alt text and the place are not part of the uploaded file, so a change to either needs no re-upload.
         current.push({
             entry: withPin(
-                { ...existing, alt: sidecar.alt, caption: captionWithLocation(existing.caption, location) },
+                {
+                    ...existing,
+                    alt: sidecar.alt,
+                    category: sidecar.category,
+                    caption: captionWithLocation(existing.caption, location),
+                },
                 sidecar.pin,
             ),
             order: sidecar.order,
@@ -221,6 +226,7 @@ async function syncPhoto({
         sourceSha256,
         processingVersion: PROCESSING_VERSION,
         alt: sidecar.alt,
+        category: sidecar.category,
         caption: captionWithLocation(processed.caption ?? {}, location),
     };
     current.push({ entry: withPin(entry, sidecar.pin), order: sidecar.order });

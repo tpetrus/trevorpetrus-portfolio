@@ -70,6 +70,7 @@ describe('checkGalleryFile', () => {
         sourceSha256: 'f'.repeat(64),
         processingVersion: 1,
         alt: 'A test image',
+        category: 'landscape',
         caption: {},
     };
     const path = '../data/gallery/photography.json';

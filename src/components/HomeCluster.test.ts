@@ -21,6 +21,7 @@ function entry(name: string, overrides: Partial<Entry> = {}): Entry {
         sourceSha256: 'a'.repeat(64),
         processingVersion: 1,
         alt: `Alt text of ${name}`,
+        category: 'landscape',
         caption: {},
         ...overrides,
     };

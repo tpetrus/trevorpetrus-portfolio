@@ -23,6 +23,7 @@ function entry(
         sourceSha256: 'a'.repeat(64),
         processingVersion: 1,
         alt: `Alt for ${name}`,
+        category: 'landscape',
         caption,
     };
 }

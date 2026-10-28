@@ -233,9 +233,11 @@ describe('photographySidecarTemplate', () => {
         expect(template).toContain('\n# location:\n#   city: Lisbon\n#   country: Portugal\n');
         const uncommented = template
             .replace(/^# (location:| {2}city:| {2}country:)/gm, '$1')
-            .replace(/^alt: .*$/m, 'alt: A harbor');
+            .replace(/^alt: .*$/m, 'alt: A harbor')
+            .replace(/^category: .*$/m, 'category: landscape');
         expect(photographySidecarSchema.parse(parse(uncommented))).toEqual({
             alt: 'A harbor',
+            category: 'landscape',
             location: { city: 'Lisbon', country: 'Portugal' },
         });
     });

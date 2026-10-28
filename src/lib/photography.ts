@@ -22,6 +22,22 @@ export const photographyCaptionSchema = z.strictObject({
 });
 export type PhotographyCaption = z.output<typeof photographyCaptionSchema>;
 
+/**
+ * The photography page's sections, in the order they render. `id` is what a sidecar's `category` holds and the anchor
+ * of the section; `label` is its heading. Every photo is in exactly one.
+ */
+export const PHOTOGRAPHY_CATEGORIES = [
+    { id: 'landscape', label: 'Landscape' },
+    { id: 'portrait', label: 'Portrait' },
+    { id: 'car', label: 'Car' },
+] as const;
+export type PhotographyCategory = (typeof PHOTOGRAPHY_CATEGORIES)[number]['id'];
+
+const PHOTOGRAPHY_CATEGORY_IDS = PHOTOGRAPHY_CATEGORIES.map(({ id }) => id) as [
+    PhotographyCategory,
+    ...PhotographyCategory[],
+];
+
 // The hand-written `src/content/photography/<image basename>.yml`: EXIF has no alt text, so every photo needs one.
 export const photographySidecarSchema = z.object({
     // The scaffold's placeholder is rejected so that a photo without real alt text cannot be synced.
@@ -29,6 +45,8 @@ export const photographySidecarSchema = z.object({
         .string()
         .min(1)
         .refine((alt) => !isPlaceholderAlt(alt), PLACEHOLDER_ALT_MESSAGE),
+    /** Which section of the page the photo is in. Required, so a new photo cannot land in a section by accident. */
+    category: z.enum(PHOTOGRAPHY_CATEGORY_IDS),
     /** Fixes the photo's position: lowest first, ahead of every photo without an order. */
     order: z.int().optional(),
     /** Shows the photo in the home page's collage (the first eight pinned photos, in the gallery's order). */
@@ -43,9 +61,12 @@ export function photographySidecarTemplate(basename: string): string {
     return `# Sidecar for ${basename}.jpg: the text the site cannot read from the photo.
 # alt (required): one plain sentence saying what is in the photo, for people who cannot see it.
 #   Replace the whole line below. The sync refuses any alt that starts with ${ALT_PLACEHOLDER_MARKER}.
+# category (required): the section of the Photography page, one of ${PHOTOGRAPHY_CATEGORY_IDS.join(', ')}.
+#   The sync refuses the placeholder below until it is replaced.
 # order (optional): a whole number that fixes this photo's position, lowest first, ahead of photos without one.
 # pin (optional): true shows this photo in the home page's collage (at most eight, in the gallery's order).
 alt: "${ALT_PLACEHOLDER_MARKER}: describe this photo"
+category: "${ALT_PLACEHOLDER_MARKER}: ${PHOTOGRAPHY_CATEGORY_IDS.join(', ')}"
 # order: 1
 # pin: true
 # location (optional): the place the caption starts with. By default the sync derives a city and a country from the

@@ -32,6 +32,7 @@ function entry(name: string, extra: { pin?: true } = {}): GalleryEntry<Photograp
         sourceSha256: 'a'.repeat(64),
         processingVersion: 1,
         alt: `Alt for ${name}`,
+        category: 'landscape',
         caption: {},
         ...extra,
     };

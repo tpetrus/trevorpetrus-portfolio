@@ -7,7 +7,8 @@
     "sourceSha256": "1f9f2eb23bbac214b8d9071e962d5e830c65d423b1eeb725be72211c3696e354",
     "processingVersion": 1,
     "alt": "A building painted half blue and half pink is framed by another building to the left and right",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_0171.jpg",
@@ -23,7 +24,8 @@
         "country": "United States",
         "source": "sidecar"
       }
-    }
+    },
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_9676.jpg",
@@ -39,7 +41,8 @@
         "country": "Scotland",
         "source": "sidecar"
       }
-    }
+    },
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_5047.jpg",
@@ -57,7 +60,8 @@
       "exposure": 0.008,
       "iso": 100,
       "taken": "2025-07-22"
-    }
+    },
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_5051.jpg",
@@ -75,7 +79,8 @@
       "exposure": 0.005,
       "iso": 100,
       "taken": "2025-07-22"
-    }
+    },
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_1158-Edit (2).jpg",
@@ -87,7 +92,8 @@
     "alt": "A skyscraper and monument are shown at the end of a road flanked by city buildings",
     "caption": {
       "taken": "2021-05-22"
-    }
+    },
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_9783-Crop.jpg",
@@ -105,7 +111,8 @@
       "exposure": 0.001,
       "iso": 100,
       "taken": "2018-10-21"
-    }
+    },
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_9660.jpg",
@@ -123,7 +130,8 @@
       "exposure": 0.0025,
       "iso": 200,
       "taken": "2018-10-14"
-    }
+    },
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_9685.jpg",
@@ -141,7 +149,8 @@
       "exposure": 0.0025,
       "iso": 200,
       "taken": "2018-10-14"
-    }
+    },
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_9699.jpg",
@@ -159,7 +168,8 @@
       "exposure": 0.0025,
       "iso": 200,
       "taken": "2018-10-14"
-    }
+    },
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_9707.jpg",
@@ -177,7 +187,8 @@
       "exposure": 0.0025,
       "iso": 200,
       "taken": "2018-10-14"
-    }
+    },
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_9725.jpg",
@@ -195,7 +206,8 @@
       "exposure": 0.002,
       "iso": 200,
       "taken": "2018-10-14"
-    }
+    },
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_9735.jpg",
@@ -213,7 +225,8 @@
       "exposure": 0.002,
       "iso": 200,
       "taken": "2018-10-14"
-    }
+    },
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_9619.jpg",
@@ -231,7 +244,8 @@
       "exposure": 0.005,
       "iso": 400,
       "taken": "2018-10-10"
-    }
+    },
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_9441.jpg",
@@ -249,7 +263,8 @@
       "exposure": 0.00025,
       "iso": 100,
       "taken": "2018-09-29"
-    }
+    },
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_8027.jpg",
@@ -267,7 +282,8 @@
       "exposure": 0.005,
       "iso": 100,
       "taken": "2018-08-30"
-    }
+    },
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_2638-1.jpg",
@@ -285,7 +301,8 @@
       "exposure": 0.0015625,
       "iso": 100,
       "taken": "2018-03-14"
-    }
+    },
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_1883-12.jpg",
@@ -303,7 +320,8 @@
       "exposure": 0.005,
       "iso": 100,
       "taken": "2018-03-11"
-    }
+    },
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_0093.jpg",
@@ -313,7 +331,8 @@
     "sourceSha256": "5ae58a63d37cc6115ff3cb96b6b350d5dbbfed3b1256f65e5e05777920c40633",
     "processingVersion": 1,
     "alt": "A woman holds a protest sign that says Black Lives Matter in a crowd of others protesting with her",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_0096.jpg",
@@ -323,7 +342,8 @@
     "sourceSha256": "cf4e6eb046e2ec34976dd9ff3292361ef6965ba02eae91137e62199fff11fc6b",
     "processingVersion": 1,
     "alt": "A lady is just about to cut a strand of white balloons tied to a railing with the Pittsburgh skyline in the background",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_0098.jpg",
@@ -333,7 +353,8 @@
     "sourceSha256": "a1b0a211708f8030998022009d3effe5a1d073cdda0df4e64974aa903f613fd5",
     "processingVersion": 1,
     "alt": "A man is holding a sign that says Defend Black Lives along with a group of others also holding protest signs",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_0129.jpg",
@@ -343,7 +364,8 @@
     "sourceSha256": "e3941d9a8824ace55ac5373bdca6251c1f76779fc3f129c542963ea0f6498894",
     "processingVersion": 1,
     "alt": "A group of Black Lives Matter protestors crowd a city street",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_0147.jpg",
@@ -353,7 +375,8 @@
     "sourceSha256": "3e3e6a31a56a1dfac81df52a40f1e5428894f4b21104ec23879372c888eaa298",
     "processingVersion": 1,
     "alt": "Someone holds a Black Lives Matter sign in the middle of a protest",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_0172.jpg",
@@ -363,7 +386,8 @@
     "sourceSha256": "96b1f76ac6e0711ed9789c1f22fb0eee24413423666d39a2e05ee028eaf57d27",
     "processingVersion": 1,
     "alt": "Someone holds a protest sign that says 'Breonna Taylor, say her name' during a Pittsburgh Black Lives Matter protest",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_0354-Edit.jpg",
@@ -373,7 +397,8 @@
     "sourceSha256": "da6b3718696d13efa47914ab114b32df203c12c45d071784d101207b177f3351",
     "processingVersion": 1,
     "alt": "Electrical infrastructure lines are shown scaling down a mountain with snow covered alps in the background",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_0413-Edit.jpg",
@@ -383,7 +408,8 @@
     "sourceSha256": "bfb41aa9746b2a44ee3f9ba7290f79bbb4b721fd8a37aac7ec7e731800b63d42",
     "processingVersion": 1,
     "alt": "Dozens of mountains are shown intersecting as you look further and further",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_0426.jpg",
@@ -393,7 +419,8 @@
     "sourceSha256": "cc6b8ed92dc0234ad7c498e84bac6294ab1b1f9b5c748591bbc7b44dfbac5934",
     "processingVersion": 1,
     "alt": "A gandola is shown descending a snow-covered mountain above a large body of clouds and mountain tops",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_0814.jpg",
@@ -403,7 +430,8 @@
     "sourceSha256": "02bacce309c71d69f1b9b148274ba0f204bfe8575466787800c12613e0396cbe",
     "processingVersion": 1,
     "alt": "A lake is shown at the end of a concrete tunnel that has a 'No Trespassing' sign at the end",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_0868.jpg",
@@ -413,7 +441,8 @@
     "sourceSha256": "553ad450e571a18097fd23c310dc482adbe8fee304d590a67ce14069cd26e93f",
     "processingVersion": 1,
     "alt": "A large waterfall is shown going over a mountain cliff that sits an observation station",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_0883.jpg",
@@ -423,7 +452,8 @@
     "sourceSha256": "93bcc3a742a26b8919cac5854077591b077f8ea1140ffe3b2ab43ace38bce6d5",
     "processingVersion": 1,
     "alt": "swirling water is shown crashing along a rock bed",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_1026-Edit.jpg",
@@ -433,7 +463,8 @@
     "sourceSha256": "44d7b8abbe72ee151b137ccbd1339b1dd7ee6c77494aa18c72b2ad1ef14c1bcd",
     "processingVersion": 1,
     "alt": "A pontoon boat is shown traversing a lake at sunset",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_1059-Edit.jpg",
@@ -443,7 +474,8 @@
     "sourceSha256": "16886e3888c71dbff180402b5195a10b326ce5ea61745fa2c3522f1b3ee3de79",
     "processingVersion": 1,
     "alt": "Three skyscrapers under a sky of stars, with a canadian flag in the foreground",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_1289-Edit.jpg",
@@ -453,7 +485,8 @@
     "sourceSha256": "9bc7f894cd7ac1a7e3a5fb1ca0170eba7679e4197ae08c5b3f70cc90173e72f1",
     "processingVersion": 1,
     "alt": "A building is shown behind a lake.  The perspective shows this building framed by two pine trees",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_1597.jpg",
@@ -463,7 +496,8 @@
     "sourceSha256": "eb715b8c633f332c80d5feb349ed59eb534a3761e3b585e9495e212803aef5ee",
     "processingVersion": 1,
     "alt": "A marquee sign that says 'Sheas Buffalo' is shown from directly below it looking up",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_1785-Edit.jpg",
@@ -473,7 +507,8 @@
     "sourceSha256": "764d4d2208bc54abbdf698c09d4a5b9ef5e708da9cfcfa1b500f78f599b99a22",
     "processingVersion": 1,
     "alt": "Three skyscrapers are shown looking straight up with a blue cloudy sky in the background",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_1809-Edit.jpg",
@@ -483,7 +518,8 @@
     "sourceSha256": "0a4ae4bc5b6946b30c632fd827bc033a15b1cd1cf0b68df20dfbb4e643c0523d",
     "processingVersion": 1,
     "alt": "A skyscraper with pointed, geometric windows is shown against a blue cloudy sky",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_1924-Edit.jpg",
@@ -493,7 +529,8 @@
     "sourceSha256": "4b915af9e4aa273ae00d3cbcc4394e9d0f3d8b4fed1c0dff2792b810bb11c9fa",
     "processingVersion": 1,
     "alt": "A wooden pedestrian bridge goes over a small river or canal",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_1950-Pano.jpg",
@@ -503,7 +540,8 @@
     "sourceSha256": "06c870fddb78415dd9cd966f069f770c56e906f088acae5fabe67626c3b6a185",
     "processingVersion": 1,
     "alt": "An old abandoned factory building is shown against a blue cloudy sky",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_2059-Edit.jpg",
@@ -513,7 +551,8 @@
     "sourceSha256": "c6d255fda48595905889a325ada97d15c23e3aaa4dc209573d232b498f27b574",
     "processingVersion": 1,
     "alt": "A bakery is shown with a sign saying 'Lucibello Pastries'",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_2109-Edit.jpg",
@@ -523,7 +562,8 @@
     "sourceSha256": "b00d6af0da37d347f01eec3e704b09b226a78e3ceea831e0777eca37b31e7479",
     "processingVersion": 1,
     "alt": "Top up shot of a brick building in Manhattan",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_2219-Edit.jpg",
@@ -533,7 +573,8 @@
     "sourceSha256": "ff7ff17e9aca593922567c86a86580f65dfd35a34e3290cd125984302766c009",
     "processingVersion": 1,
     "alt": "An observatory is shown deep in the foreground over cascading hills",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_3620-Edit.jpg",
@@ -543,7 +584,8 @@
     "sourceSha256": "9c4bcb0d5dfe574a7b0cd8877c367e132f3853f362ebf46e896f1443f0bdcc32",
     "processingVersion": 1,
     "alt": "A gold-plated elevator entrance is open with a sign that says 'This car up'",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_3699-Edit.jpg",
@@ -553,7 +595,8 @@
     "sourceSha256": "e8955a75991bf7390dea8a1e40fa07f8ebe4283257afab9c1912556ebb44cbea",
     "processingVersion": 1,
     "alt": "A skyscraper is viewed through a curved gold railing",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_8062.jpg",
@@ -563,7 +606,8 @@
     "sourceSha256": "f6aa70e97a423d4295e520d8e781a19401cc0cab8b173165033d4ce1208fe766",
     "processingVersion": 1,
     "alt": "A bright red telephone booth is shown centered with a park behind it",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_9119.jpg",
@@ -573,7 +617,8 @@
     "sourceSha256": "59d52a8c701aaf525a7fb5f890871c22707e4da65be0350eefdebf8554e23ba1",
     "processingVersion": 1,
     "alt": "A red castle with a Swedish flag is centered on a large stone outcropping on a body of water",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_9127.jpg",
@@ -583,7 +628,8 @@
     "sourceSha256": "0d75d6d0412bca112207492a45c8f0cb9a60559074dbca6b21fd5b33d44a9b97",
     "processingVersion": 1,
     "alt": "A cup of hot coffee is sitting on a table with steam rising from the top",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_9740.jpg",
@@ -593,7 +639,8 @@
     "sourceSha256": "b828be47cd7da701badf6da47bec371cd802d6b2a0d2850fc98b8cef9f3e347f",
     "processingVersion": 1,
     "alt": "A mountain goat peers over a field of grass",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/DSC_9788.jpg",
@@ -603,7 +650,8 @@
     "sourceSha256": "ef3479daf7176f7675c8c3c1f71be9a162bfe19e95079600867bfee19b22beb0",
     "processingVersion": 1,
     "alt": "A sight-seeing boat glides along a canal flanked by side-by-side old apartment buildings",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   },
   {
     "key": "photography/MiamiV1.jpg",
@@ -613,6 +661,7 @@
     "sourceSha256": "b64aec9761a92ac003dc960a1b2f564494e2cb382e1a3247a7bcb4101533238c",
     "processingVersion": 1,
     "alt": "two palm trees are surrounded by many roofs",
-    "caption": {}
+    "caption": {},
+    "category": "landscape"
   }
 ]
