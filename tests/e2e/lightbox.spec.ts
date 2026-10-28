@@ -1,10 +1,11 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import { originalImageUrl } from '../../src/lib/imageUrl';
-import { readGalleryEntries } from './galleryData';
+import { entriesInPageOrder, readGalleryEntries } from './galleryData';
+import { photoAnchorId } from '../../src/lib/photoLink';
 import { stubRemotePhotos } from './stubPhotos';
 
-const entries = readGalleryEntries('photography');
+const entries = entriesInPageOrder(readGalleryEntries('photography'));
 
 // Opens the first photo, checks the dialog and its "View original" link, closes it with Escape and checks that focus
 // went back to the thumbnail. Used before and after a View Transitions round trip: PhotoSwipe binds to the elements
@@ -14,7 +15,7 @@ async function openAndCloseFirstPhoto(
     first: (typeof entries)[number],
     browserName: string,
 ): Promise<Locator> {
-    const thumbnail = page.locator('#gallery a').first();
+    const thumbnail = page.locator('[data-gallery] a').first();
     await thumbnail.click();
 
     const dialog = page.getByRole('dialog');
@@ -59,11 +60,11 @@ test.describe('photography lightbox', () => {
         test.setTimeout(300_000);
         await stubRemotePhotos(page);
         await page.goto('/photography/');
-        await expect(page.locator('#gallery [data-cropped]')).toHaveCount(0);
+        await expect(page.locator('[data-gallery] [data-cropped]')).toHaveCount(0);
 
         for (const [index, { key }] of entries.entries()) {
-            await page.locator('#gallery a').nth(index).scrollIntoViewIfNeeded();
-            await page.locator('#gallery a').nth(index).click();
+            await page.locator('[data-gallery] a').nth(index).scrollIntoViewIfNeeded();
+            await page.locator('[data-gallery] a').nth(index).click();
             const dialog = page.getByRole('dialog');
             await expect(dialog).toBeVisible();
             await expect(dialog.getByRole('link', { name: 'View original' })).toHaveAttribute(
@@ -75,6 +76,52 @@ test.describe('photography lightbox', () => {
                 await expect(dialog).toBeHidden({ timeout: 1000 });
             }).toPass();
         }
+    });
+
+    // The grid shows only the place (see photography.spec.ts); the lightbox line is the full data-caption.
+    test('shows the full caption line in the lightbox', async ({ page }) => {
+        const located = entries.find(({ caption }) => caption.location !== undefined);
+        test.skip(located === undefined, 'No photo has a place to check the caption against.');
+        await stubRemotePhotos(page);
+        await page.goto(`/photography/#${photoAnchorId(located!.key)}`);
+
+        const caption = page.getByRole('dialog').locator('.pswp__gallery-caption');
+        await expect(caption).toBeVisible();
+        const { city, country } = located!.caption.location!;
+        await expect(caption).toContainText(`${city}, ${country}`);
+        const tileCaption = await page.locator(`#${photoAnchorId(located!.key)} a`).getAttribute('data-caption');
+        await expect(caption).toHaveText(tileCaption ?? '');
+    });
+
+    test('opens the photo a deep link names, with its own original-image link', async ({ page }) => {
+        await stubRemotePhotos(page);
+        await page.goto(`/photography/#${photoAnchorId(entries[0].key)}`);
+
+        const dialog = page.getByRole('dialog');
+        await expect(dialog).toBeVisible();
+        await expect(dialog.getByRole('link', { name: 'View original' })).toHaveAttribute(
+            'href',
+            originalImageUrl(entries[0].key),
+        );
+    });
+
+    test('opens a deep-linked photo from the middle of the page at the right index', async ({ page }) => {
+        const middle = Math.floor(entries.length / 2);
+        await stubRemotePhotos(page);
+        await page.goto(`/photography/#${photoAnchorId(entries[middle].key)}`);
+
+        const dialog = page.getByRole('dialog');
+        await expect(dialog).toBeVisible();
+        await expect(dialog.getByRole('link', { name: 'View original' })).toHaveAttribute(
+            'href',
+            originalImageUrl(entries[middle].key),
+        );
+    });
+
+    test('ignores a fragment that names no photo', async ({ page }) => {
+        await page.goto('/photography/#photo-does-not-exist');
+
+        await expect(page.getByRole('dialog')).toHaveCount(0);
     });
 
     test('still works after navigating away and back with View Transitions', async ({ page, browserName }) => {
@@ -100,7 +147,7 @@ test.describe('photography lightbox', () => {
         browserName,
     }) => {
         await page.goto('/photography/');
-        await page.locator('#gallery a').first().click();
+        await page.locator('[data-gallery] a').first().click();
         await expect(page.getByRole('dialog')).toBeVisible();
 
         // The open viewer covers the nav, so a real click would be intercepted; this is what following the link does.

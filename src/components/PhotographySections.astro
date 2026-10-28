@@ -1,6 +1,8 @@
 ---
-// STUB (contract placeholder): the Photography page's gallery body. Task T2 replaces this with the category sections.
+// The Photography page's gallery body: a jump nav, then one section per category (a gallery, or a short line while the
+// category has no photos), then the GeoNames credit. Grouping lives in gallerySections (src/lib/galleryView.ts).
 import type { CollectionCaption, GalleryEntry } from '../lib/gallery';
+import { gallerySections } from '../lib/galleryView';
 import { showsGeonamesPlace } from '../lib/location';
 import Gallery from './Gallery.astro';
 import GeonamesCredit from './GeonamesCredit.astro';
@@ -11,11 +13,36 @@ interface Props {
 }
 
 const { entries } = Astro.props;
+const sections = gallerySections('photography', entries);
+// Only the page's first photo can be the LCP image, so only the first section that has photos loads eagerly.
+const firstFilledId = sections.find((section) => section.entries.length > 0)?.id;
 ---
 
 {entries.length > 0 ? (
     <div class="mt-10 md:mt-14">
-        <Gallery collection="photography" entries={entries} />
+        <nav aria-label="Photo categories">
+            <ul role="list" class="flex flex-wrap gap-x-6 gap-y-2 font-mono text-step-n1 tracking-[0.06em] uppercase">
+                {sections.map((section) => (
+                    <li>
+                        <a href={`#${section.id}`} class="link">
+                            {section.label}
+                        </a>
+                    </li>
+                ))}
+            </ul>
+        </nav>
+        {sections.map((section) => (
+            <section id={section.id} aria-labelledby={`${section.id}-heading`} class="mt-12 md:mt-16">
+                <h2 id={`${section.id}-heading`} class="mb-6 font-display text-step-2 font-bold md:mb-8">
+                    {section.label}
+                </h2>
+                {section.entries.length > 0 ? (
+                    <Gallery collection="photography" entries={section.entries} eager={section.id === firstFilledId} />
+                ) : (
+                    <p class="max-w-measure text-ink-muted-on-ink">{section.label} photos are on their way.</p>
+                )}
+            </section>
+        ))}
         {showsGeonamesPlace(entries) && <GeonamesCredit />}
     </div>
 ) : (

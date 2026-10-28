@@ -4,6 +4,7 @@
 import PhotoSwipeLightbox from 'photoswipe/lightbox';
 import 'photoswipe/style.css';
 
+import { photoIdFromHash } from '../lib/photoLink';
 import '../styles/lightbox.css';
 
 // An arrow leaving a box: "open the original in a new tab". It reuses PhotoSwipe's own button markup, so it gets the
@@ -16,7 +17,8 @@ const VIEW_ORIGINAL_ICON = {
 
 function createLightbox(): PhotoSwipeLightbox {
     const lightbox = new PhotoSwipeLightbox({
-        gallery: '#gallery',
+        // One lightbox for every gallery on the page (one per category); each gallery navigates within itself.
+        gallery: '[data-gallery]',
         children: 'a',
         // PhotoSwipe's core is loaded on the first click, not with the page.
         pswpModule: () => import('photoswipe'),
@@ -95,9 +97,22 @@ const afterNextPaint = (): Promise<void> =>
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
     });
 
+// Opens the photo a "/photography#photo-<name>" link names (the home collage links this way). The index must be
+// among the links of its own gallery, because that is the list PhotoSwipe navigates.
+function openFromHash(instance: PhotoSwipeLightbox): void {
+    const id = photoIdFromHash(location.hash);
+    if (id === undefined) return;
+    const photo = document.getElementById(id)?.querySelector<HTMLAnchorElement>('a.photo');
+    const gallery = photo?.closest<HTMLElement>('[data-gallery]');
+    if (photo == null || gallery == null) return;
+    const index = Array.from(gallery.querySelectorAll('a')).indexOf(photo);
+    if (index >= 0) instance.loadAndOpen(index, { gallery });
+}
+
 document.addEventListener('astro:page-load', () => {
-    if (document.querySelector('#gallery') !== null) {
+    if (document.querySelector('[data-gallery]') !== null) {
         lightbox = createLightbox();
+        openFromHash(lightbox);
     }
 });
 

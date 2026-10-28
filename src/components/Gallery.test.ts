@@ -30,7 +30,16 @@ function entry(
 
 // Landscape, portrait, square and a very wide panorama, then a pair that follows it.
 const ENTRIES = [
-    entry('harbor', { width: 4000, height: 3000, caption: { camera: 'Canon EOS R5', iso: 400, taken: '2026-10-01' } }),
+    entry('harbor', {
+        width: 4000,
+        height: 3000,
+        caption: {
+            camera: 'Canon EOS R5',
+            iso: 400,
+            taken: '2026-10-01',
+            location: { city: 'Lisbon', country: 'Portugal', source: 'sidecar' },
+        },
+    }),
     entry('dunes', { width: 2000, height: 3000 }),
     entry('ridge-Pano', { width: 9000, height: 2000 }),
     entry('tile', { width: 2400, height: 2400 }),
@@ -59,13 +68,25 @@ describe('Gallery', () => {
         images = tagsOf(html, 'img').map(attributesOf);
     });
 
-    it('is one list with the id the lightbox binds to, an explicit role and a tile per entry', () => {
-        expect(tagsOf(html, 'ul').map(attributesOf)).toEqual([
-            expect.objectContaining({ id: 'gallery', role: 'list' }),
-        ]);
+    it('is one list the lightbox binds to by attribute (a page has several), an explicit role and a tile per entry', () => {
+        const [list] = tagsOf(html, 'ul');
+        expect(tagsOf(html, 'ul')).toHaveLength(1);
+        expect(attributesOf(list).role).toBe('list');
+        expect(list).toMatch(/ data-gallery[ >]/);
+        expect(attributesOf(list).id).toBeUndefined();
         expect(tagsOf(html, 'li')).toHaveLength(ENTRIES.length);
         expect(links).toHaveLength(ENTRIES.length);
         expect(images).toHaveLength(ENTRIES.length);
+    });
+
+    it('gives each tile an anchor id from its key', () => {
+        expect(tagsOf(html, 'li').map((tag) => attributesOf(tag).id)).toEqual([
+            'photo-harbor',
+            'photo-dunes',
+            'photo-ridge-Pano',
+            'photo-tile',
+            'photo-cliff',
+        ]);
     });
 
     it('places each tile in the 12-column grid and hands it its dimensions for its off-screen stand-in height', () => {
@@ -90,7 +111,7 @@ describe('Gallery', () => {
         expect(harbor['data-pswp-height']).toBe('3000');
         expect(harbor['data-pswp-srcset']).toBe(imageSrcset('photography/harbor.jpg', LIGHTBOX_WIDTHS));
         expect(harbor['data-original']).toBe(originalImageUrl('photography/harbor.jpg'));
-        expect(harbor['data-caption']).toBe('Canon EOS R5 · ISO 400 · 2026-10-01');
+        expect(harbor['data-caption']).toBe('Lisbon, Portugal · Canon EOS R5 · ISO 400 · 2026-10-01');
     });
 
     it("uses each entry's own dimensions and an empty caption when there is none", () => {
@@ -132,19 +153,13 @@ describe('Gallery', () => {
         ]);
     });
 
-    it('labels each tile with a unique index by capture date, the undated ones after the dated one, in display order', () => {
-        const labels = [...html.matchAll(/<p class="[^"]*uppercase[^"]*"[^>]*>(\d+)<\/p>/g)].map(([, label]) => label);
-
-        // harbor is the only dated entry, so it is 01; the rest follow by key (cliff, dunes, ridge-Pano, tile).
-        expect(labels).toEqual(['01', '03', '04', '05', '02']);
-        expect(new Set(labels).size).toBe(ENTRIES.length);
-    });
-
-    it('shows the text line under a number only for a tile that has a caption', () => {
-        const lines = html.match(/<p class="mt-1[^"]*"[^>]*>([^<]*)<\/p>/g) ?? [];
+    it('shows no photo numbers, and under a tile only the place, for a tile that has one', () => {
+        const lines = html.match(/<p class="mt-3[^"]*"[^>]*>([^<]*)<\/p>/g) ?? [];
 
         expect(lines).toHaveLength(1);
-        expect(lines[0]).toContain('Canon EOS R5 · ISO 400 · 2026-10-01');
+        expect(lines[0]).toContain('>Lisbon, Portugal<');
+        expect(html).not.toContain('Canon EOS R5 · ISO 400 · 2026-10-01</p>');
+        expect(html).not.toMatch(/uppercase[^>]*>\d+</);
     });
 
     it('paints the ThumbHash preview behind each image', () => {
@@ -162,6 +177,17 @@ describe('Gallery', () => {
             undefined,
             undefined,
         ]);
+    });
+
+    it('loads nothing eagerly when eager is false', async () => {
+        const container = await AstroContainer.create();
+
+        const later = await container.renderToString(Gallery, {
+            props: { collection: 'photography', entries: ENTRIES, eager: false },
+        });
+
+        expect(tagsOf(later, 'img').map((tag) => attributesOf(tag).loading)).toEqual(Array(5).fill('lazy'));
+        expect(later).not.toContain('fetchpriority');
     });
 
     it('renders an empty list for no entries', async () => {

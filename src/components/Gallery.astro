@@ -7,15 +7,18 @@ interface Props {
     /** Which collection the entries belong to; it decides how their captions read. */
     collection: GalleryCollectionName;
     entries: GalleryEntry<CollectionCaption>[];
+    /** Whether the first photo loads eagerly (the page's LCP image). Only the page's first gallery passes true. */
+    eager?: boolean;
 }
 
-const { collection, entries } = Astro.props;
-const tiles = await galleryTiles(collection, entries);
+const { collection, entries, eager = true } = Astro.props;
+const tiles = await galleryTiles(collection, entries, { eager });
 ---
 
-<ul role="list" id="gallery" class="gallery">
+<ul role="list" data-gallery class="gallery">
     {tiles.map((tile) => (
         <li
+            id={tile.anchorId}
             class="tile"
             style={`--row: ${tile.placement.row}; --column: ${tile.placement.column}; --span: ${tile.placement.span}; --w: ${tile.width}; --h: ${tile.height}`}
         >
@@ -42,7 +45,7 @@ const tiles = await galleryTiles(collection, entries);
                     class="block h-auto w-full bg-cover transition-opacity hover:opacity-90"
                 />
             </a>
-            <PhotoCaption number={tile.number} text={tile.caption} />
+            <PhotoCaption text={tile.tileCaption} />
         </li>
     ))}
 </ul>
@@ -83,6 +86,28 @@ const tiles = await galleryTiles(collection, entries);
         contain-intrinsic-block-size: auto calc(var(--tile-width) * var(--h) / var(--w));
     }
 
+    /*
+     * The reveal. Only the photo link moves, never the subgrid tile, and a transform does not change layout, so the
+     * captions of a row stay aligned. The hiding rule needs the attribute galleryReveal.ts adds, so without JavaScript
+     * (or under reduced motion, where the script adds nothing) every photo is simply visible.
+     */
+    @media (prefers-reduced-motion: no-preference) {
+        /*
+         * The transition is on the revealed state only. On the hidden state it would run when the script adds
+         * data-reveal, fading every photo out first.
+         */
+        [data-gallery][data-reveal] .photo[data-revealed] {
+            transition:
+                opacity 0.6s ease-out,
+                transform 0.6s ease-out;
+        }
+
+        [data-gallery][data-reveal] .photo:not([data-revealed]) {
+            opacity: 0;
+            transform: translateY(14px);
+        }
+    }
+
     @media (min-width: 48rem) {
         .gallery {
             grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -121,4 +146,5 @@ const tiles = await galleryTiles(collection, entries);
 
 <script>
     import '../scripts/galleryLightbox';
+    import '../scripts/galleryReveal';
 </script>

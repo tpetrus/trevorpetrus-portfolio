@@ -1,19 +1,14 @@
 ---
-// The visible caption under a photo: its stable index number as a small mono label, then the finished text (place,
-// camera, date: see formatPhotographyCaption), which may be empty. It stays its own component rather than the shared
-// Caption because Caption's title is the loud display-caps line and its colors are for paper; a long EXIF line is not
-// a title, and the numbered label here is all the structure a photo needs.
+// The visible caption under a photo: the short tile line (for photography, only the place), as a small mono label.
+// It renders nothing at all for an empty line, so a photo without a place has no empty paragraph. It stays its own
+// component rather than the shared Caption because Caption's title is the loud display-caps line and its colors are for
+// paper; a place name is not a title. The full camera line lives in the lightbox.
 // It sits on the ink section, so its colors are the on-ink tokens.
 interface Props {
-    /** The formatted index ("01"). */
-    number: string;
     text: string;
 }
 
-const { number, text } = Astro.props;
+const { text } = Astro.props;
 ---
 
-<div class="mt-3 font-mono text-step-n1 text-ink-muted-on-ink">
-    <p class="font-bold tracking-[0.06em] text-paper uppercase">{number}</p>
-    {text !== '' && <p class="mt-1 tracking-[0.02em]">{text}</p>}
-</div>
+{text !== '' && <p class="mt-3 font-mono text-step-n1 tracking-[0.02em] text-ink-muted-on-ink">{text}</p>}

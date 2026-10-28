@@ -1,7 +1,7 @@
 import { GALLERY_COLLECTIONS, type CollectionCaption, type GalleryCollectionName, type GalleryEntry } from './gallery';
 import { aspectRatio, placeTiles, tileSizes, type TilePlacement } from './galleryLayout';
 import { GRID_WIDTHS, imageSrcset, LIGHTBOX_WIDTHS, originalImageUrl, transformedImageUrl } from './imageUrl';
-import { formatNumber, numberItems } from './numbering';
+import { photoAnchorId } from './photoLink';
 import { placeholderDataUrl } from './thumbhash';
 
 // Every candidate width the site already generates: the grid set plus the lightbox set. A tile can be as wide as the
@@ -21,13 +21,15 @@ export const GRID_QUALITY = 70;
 
 export interface GalleryTile {
     key: string;
-    /** The photo's stable index as shown ("01"): by capture date, not by position, so it survives reordering. */
-    number: string;
+    /** The tile's `id` on the page, so a link such as `/photography#photo-<name>` can open the photo (see photoLink.ts). */
+    anchorId: string;
     alt: string;
     width: number;
     height: number;
-    /** The caption as one line, or an empty string. */
+    /** The full caption as one line, or an empty string: what the lightbox shows. */
     caption: string;
+    /** The short line under the tile in the grid (for photography, only the place), or an empty string. */
+    tileCaption: string;
     /** The URL of the untouched original in the bucket. */
     original: string;
     /** The largest lightbox variant: where the link goes without JavaScript. */
@@ -45,34 +47,55 @@ export interface GalleryTile {
     placeholder: string;
 }
 
-// The capture date as a UTC midnight, or undefined for a photo whose EXIF had no usable date (numberItems puts those last).
-function capturedAt({ taken }: CollectionCaption): Date | undefined {
-    return taken === undefined ? undefined : new Date(`${taken}T00:00:00Z`);
+export interface GalleryTilesOptions {
+    /**
+     * Whether the first tile loads eagerly with a high fetch priority. The Photography page holds several galleries, and
+     * only the first photo on the page is the likely LCP element, so every later gallery passes false.
+     */
+    eager?: boolean;
 }
 
-/** Each entry's formatted number by key. Numbers come from the data alone, never from the order the tiles display in. */
-function numbersByKey(entries: readonly GalleryEntry<CollectionCaption>[]): Map<string, string> {
-    const numbered = numberItems(entries.map(({ key, caption }) => ({ key, date: capturedAt(caption) })));
-    return new Map(numbered.map(({ key, number }) => [key, formatNumber(number)]));
+/** One section of a collection's page: a category and the entries in it, in the data's order. */
+export interface GallerySection {
+    id: string;
+    label: string;
+    entries: GalleryEntry<CollectionCaption>[];
+}
+
+/**
+ * The collection's categories in their render order, each with its entries in the order given. A category with no
+ * entries is kept (the page shows a short "on their way" line for it); an entry in no known category is dropped, which
+ * the entry schema already rules out.
+ */
+export function gallerySections(
+    collection: GalleryCollectionName,
+    entries: readonly GalleryEntry<CollectionCaption>[],
+): GallerySection[] {
+    return GALLERY_COLLECTIONS[collection].categories.map(({ id, label }) => ({
+        id,
+        label,
+        entries: entries.filter((entry) => entry.category === id),
+    }));
 }
 
 /** Everything the gallery template needs for each entry, in order. Decoding the placeholders is why it is async. */
 export async function galleryTiles(
     collection: GalleryCollectionName,
     entries: readonly GalleryEntry<CollectionCaption>[],
+    { eager = true }: GalleryTilesOptions = {},
 ): Promise<GalleryTile[]> {
-    const { formatCaption } = GALLERY_COLLECTIONS[collection];
+    const { formatCaption, formatTileCaption } = GALLERY_COLLECTIONS[collection];
     const largestLightboxWidth = Math.max(...LIGHTBOX_WIDTHS);
-    const numbers = numbersByKey(entries);
     const placements = placeTiles(entries.map(({ width, height }) => aspectRatio(width, height)));
     return Promise.all(
         entries.map(async ({ key, alt, width, height, caption, thumbhash }, index) => ({
             key,
-            number: numbers.get(key)!,
+            anchorId: photoAnchorId(key),
             alt,
             width,
             height,
             caption: formatCaption(caption),
+            tileCaption: formatTileCaption(caption),
             original: originalImageUrl(key),
             href: transformedImageUrl(key, { width: largestLightboxWidth }),
             lightboxSrcset: imageSrcset(key, LIGHTBOX_WIDTHS),
@@ -80,8 +103,8 @@ export async function galleryTiles(
             srcset: imageSrcset(key, TILE_WIDTHS, { quality: GRID_QUALITY }),
             sizes: tileSizes(placements[index].span),
             placement: placements[index],
-            loading: index < EAGER_TILE_COUNT ? ('eager' as const) : ('lazy' as const),
-            fetchpriority: index === 0 ? ('high' as const) : undefined,
+            loading: eager && index < EAGER_TILE_COUNT ? ('eager' as const) : ('lazy' as const),
+            fetchpriority: eager && index === 0 ? ('high' as const) : undefined,
             placeholder: await placeholderDataUrl(thumbhash),
         })),
     );
