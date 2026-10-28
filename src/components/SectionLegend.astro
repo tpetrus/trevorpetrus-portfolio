@@ -1,6 +1,6 @@
 ---
-// A floating list of the page's sections that pops up once the inline category nav has scrolled out of view and marks
-// the section being read. Hidden and inert until src/scripts/sectionNav.ts shows it, so without JavaScript only the
+// A floating list of the page's sections that pops up while the visitor scrolls past the inline category nav, fades out
+// once scrolling stops (unless a mouse is over it or focus is inside it), and marks the section being read. Hidden and inert until src/scripts/sectionNav.ts shows it, so without JavaScript only the
 // inline nav and the back-to-top links exist. The script marks the current link with aria-current and toggles
 // `data-shown`; the states below are CSS only.
 interface Props {

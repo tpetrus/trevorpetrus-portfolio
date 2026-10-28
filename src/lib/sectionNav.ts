@@ -52,9 +52,33 @@ export function showsBackToTop(scrollY: number): boolean {
 }
 
 /**
- * The floating legend appears once the inline category nav has left the viewport upward (scrolled past), not when it is
- * merely below the viewport, and goes away again when the nav is back in view.
+ * Whether the inline category nav has left the viewport upward (scrolled past), not merely sits below it. The floating
+ * legend is only ever offered then: while the inline nav is in view it would be a duplicate.
  */
-export function showsLegend(navIntersecting: boolean, navTop: number): boolean {
+export function isNavPassed(navIntersecting: boolean, navTop: number): boolean {
     return !navIntersecting && navTop < 0;
+}
+
+/** How long the legend stays up after the last scroll, in milliseconds, before it fades away. */
+export const LEGEND_IDLE_MS = 1500;
+
+/** What the legend's visibility depends on. */
+export interface LegendState {
+    /** The inline category nav has scrolled out above the viewport. */
+    navPassed: boolean;
+    /** The page scrolled within the last `LEGEND_IDLE_MS`. */
+    recentlyScrolled: boolean;
+    /** A mouse pointer is over the legend. */
+    hovered: boolean;
+    /** Keyboard focus is inside the legend. */
+    focused: boolean;
+}
+
+/**
+ * The legend pops up while the visitor scrolls past the inline nav and fades once scrolling stops, so it does not sit on
+ * top of the photos. It stays while a mouse is over it or focus is inside it, so it cannot vanish mid-click or under the
+ * keyboard.
+ */
+export function showsLegend({ navPassed, recentlyScrolled, hovered, focused }: LegendState): boolean {
+    return navPassed && (recentlyScrolled || hovered || focused);
 }

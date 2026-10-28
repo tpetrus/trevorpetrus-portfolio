@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { activeSectionId, currentSectionId, isAtPageEnd, readingLine, showsBackToTop, showsLegend } from './sectionNav';
+import {
+    activeSectionId,
+    currentSectionId,
+    isAtPageEnd,
+    isNavPassed,
+    readingLine,
+    showsBackToTop,
+    showsLegend,
+} from './sectionNav';
 
 const sections = [
     { id: 'landscape', top: -900 },
@@ -58,10 +66,28 @@ describe('showsBackToTop', () => {
     });
 });
 
+describe('isNavPassed', () => {
+    it('is true only when the nav has scrolled out above the viewport', () => {
+        expect(isNavPassed(true, 100)).toBe(false);
+        expect(isNavPassed(false, -80)).toBe(true);
+        expect(isNavPassed(false, 1200)).toBe(false);
+    });
+});
+
 describe('showsLegend', () => {
-    it('shows only when the nav has scrolled out above the viewport', () => {
-        expect(showsLegend(true, 100)).toBe(false);
-        expect(showsLegend(false, -80)).toBe(true);
-        expect(showsLegend(false, 1200)).toBe(false);
+    const idle = { navPassed: true, recentlyScrolled: false, hovered: false, focused: false };
+
+    it('shows while scrolling past the nav and hides once scrolling stops', () => {
+        expect(showsLegend({ ...idle, recentlyScrolled: true })).toBe(true);
+        expect(showsLegend(idle)).toBe(false);
+    });
+
+    it('stays up while hovered or focused, even after scrolling stops', () => {
+        expect(showsLegend({ ...idle, hovered: true })).toBe(true);
+        expect(showsLegend({ ...idle, focused: true })).toBe(true);
+    });
+
+    it('never shows while the inline nav is still in view', () => {
+        expect(showsLegend({ navPassed: false, recentlyScrolled: true, hovered: true, focused: true })).toBe(false);
     });
 });

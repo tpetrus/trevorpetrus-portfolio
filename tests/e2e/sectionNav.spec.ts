@@ -18,7 +18,9 @@ test.describe('photography section navigation', () => {
                 await expect(page.locator('[data-sections-root][data-js]')).toBeAttached();
             });
 
-            const backToTop = (page: Page) => page.getByRole('link', { name: 'Back to top' });
+            // includeHidden: while the page is at the top the links are visibility: hidden, which removes them from
+            // the accessibility tree, and the count below must still find them.
+            const backToTop = (page: Page) => page.getByRole('link', { name: 'Back to top', includeHidden: true });
             const legend = (page: Page) => page.getByRole('navigation', { name: 'Jump to a section' });
 
             test('hides the back-to-top links at the top and shows them once scrolled', async ({ page }) => {
@@ -55,10 +57,14 @@ test.describe('photography section navigation', () => {
             });
 
             test('jumps to a section from the legend and marks it as current', async ({ page }) => {
-                await page.locator('section#landscape').scrollIntoViewIfNeeded();
+                // Start from the last section: the first one is already partly on screen at load, so scrolling to it
+                // would not move the inline nav out of view, and the legend would rightly stay hidden.
+                await page.locator('section#car').scrollIntoViewIfNeeded();
                 await expect(legend(page)).toBeVisible();
 
-                const target = PHOTOGRAPHY_CATEGORIES[1];
+                // The first section: the later ones are short and near the page end, so the page cannot scroll their
+                // heading to the top at every viewport size.
+                const target = PHOTOGRAPHY_CATEGORIES[0];
                 const link = legend(page).getByRole('link', { name: target.label });
                 await link.click();
 
@@ -68,13 +74,38 @@ test.describe('photography section navigation', () => {
                         message: 'the heading should settle near the top, below the sticky header',
                     })
                     .toBeLessThan(200);
-                await expect(link).toHaveAttribute('aria-current', 'true');
-                await expect(legend(page).locator('[aria-current="true"]')).toHaveCount(1);
+                // By attribute, not by role: landing on the first section brings the inline nav back into view, so the
+                // legend may already be hidden (and out of the accessibility tree) when this runs.
+                await expect(page.locator(`[data-section-link="${target.id}"]`)).toHaveAttribute(
+                    'aria-current',
+                    'true',
+                );
+                await expect(page.locator('[data-section-legend] [aria-current="true"]')).toHaveCount(1);
+            });
+
+            test('fades the legend once scrolling stops, but keeps it while the mouse is over it', async ({ page }) => {
+                await page.locator('section#portrait').scrollIntoViewIfNeeded();
+                await expect(legend(page)).toBeVisible();
+                // LEGEND_IDLE_MS is 1.5 s; the default 5 s expect timeout covers it.
+                await expect(legend(page)).toBeHidden();
+                await expect(page.locator('[data-section-legend]')).toHaveAttribute('inert', '');
+
+                const hoverCapable = await page.evaluate(() => matchMedia('(hover: hover)').matches);
+                if (!hoverCapable) return;
+                await page.mouse.wheel(0, -200);
+                await expect(legend(page)).toBeVisible();
+                await legend(page).hover();
+                await page.waitForTimeout(2500);
+                await expect(legend(page)).toBeVisible();
+                await page.mouse.move(0, 0);
+                await expect(legend(page)).toBeHidden();
             });
 
             test('places the legend by viewport: bottom pill below lg, right margin from lg', async ({ page }) => {
                 await page.locator('section#portrait').scrollIntoViewIfNeeded();
                 await expect(legend(page)).toBeVisible();
+                // Measure after the pop-up: the fade and the small translate share one 200 ms transition.
+                await expect(legend(page)).toHaveCSS('opacity', '1');
                 const box = await legend(page).boundingBox();
                 const viewport = page.viewportSize()!;
                 expect(box).not.toBeNull();

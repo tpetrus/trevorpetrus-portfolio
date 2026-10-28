@@ -8,11 +8,14 @@
 // legend stays hidden and inert.
 
 import {
+    LEGEND_IDLE_MS,
     activeSectionId,
     isAtPageEnd,
+    isNavPassed,
     readingLine,
     showsBackToTop,
     showsLegend,
+    type LegendState,
     type SectionPosition,
 } from '../lib/sectionNav';
 
@@ -38,9 +41,43 @@ function setUp(): void {
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
     // The legend is inert while hidden so keyboard focus never lands on an invisible link.
-    const setLegendShown = (shown: boolean): void => {
+    const state: LegendState = { navPassed: false, recentlyScrolled: false, hovered: false, focused: false };
+    const renderLegend = (): void => {
+        const shown = showsLegend(state);
         legend.toggleAttribute('data-shown', shown);
         legend.toggleAttribute('inert', !shown);
+    };
+
+    // Every scroll restarts the countdown; when it runs out the legend fades unless it is hovered or focused.
+    let idleTimer = 0;
+    const markScrolled = (): void => {
+        state.recentlyScrolled = true;
+        window.clearTimeout(idleTimer);
+        idleTimer = window.setTimeout(() => {
+            state.recentlyScrolled = false;
+            renderLegend();
+        }, LEGEND_IDLE_MS);
+        renderLegend();
+    };
+
+    // Only a mouse hovers. A touch "enter" ends with the tap, and holding the legend open then would strand it on screen.
+    const onPointerEnter = (event: PointerEvent): void => {
+        if (event.pointerType !== 'mouse') return;
+        state.hovered = true;
+        renderLegend();
+    };
+    const onPointerLeave = (event: PointerEvent): void => {
+        if (event.pointerType !== 'mouse') return;
+        state.hovered = false;
+        renderLegend();
+    };
+    const onFocusIn = (): void => {
+        state.focused = true;
+        renderLegend();
+    };
+    const onFocusOut = (event: FocusEvent): void => {
+        state.focused = legend.contains(event.relatedTarget as Node | null);
+        renderLegend();
     };
 
     const update = (): void => {
@@ -60,6 +97,7 @@ function setUp(): void {
     // One update per frame, however many scroll events arrive.
     let frame = 0;
     const onScroll = (): void => {
+        markScrolled();
         if (frame !== 0) return;
         frame = requestAnimationFrame(() => {
             frame = 0;
@@ -81,7 +119,9 @@ function setUp(): void {
     if (jumpNav && typeof IntersectionObserver !== 'undefined') {
         observer = new IntersectionObserver((entries) => {
             const entry = entries[entries.length - 1];
-            if (entry) setLegendShown(showsLegend(entry.isIntersecting, entry.boundingClientRect.top));
+            if (!entry) return;
+            state.navPassed = isNavPassed(entry.isIntersecting, entry.boundingClientRect.top);
+            renderLegend();
         });
         observer.observe(jumpNav);
     }
@@ -89,6 +129,10 @@ function setUp(): void {
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onScroll, { passive: true });
     root.addEventListener('click', onBackToTop);
+    legend.addEventListener('pointerenter', onPointerEnter);
+    legend.addEventListener('pointerleave', onPointerLeave);
+    legend.addEventListener('focusin', onFocusIn);
+    legend.addEventListener('focusout', onFocusOut);
     update();
 
     cleanup = () => {
@@ -96,6 +140,11 @@ function setUp(): void {
         window.removeEventListener('scroll', onScroll);
         window.removeEventListener('resize', onScroll);
         root.removeEventListener('click', onBackToTop);
+        legend.removeEventListener('pointerenter', onPointerEnter);
+        legend.removeEventListener('pointerleave', onPointerLeave);
+        legend.removeEventListener('focusin', onFocusIn);
+        legend.removeEventListener('focusout', onFocusOut);
+        window.clearTimeout(idleTimer);
         cancelAnimationFrame(frame);
         root.removeAttribute('data-js');
         root.removeAttribute('data-scrolled');
