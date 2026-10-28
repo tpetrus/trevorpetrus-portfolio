@@ -3,7 +3,7 @@
 // id is in the URL fragment (photoIdFromHash checks it).
 
 /** The path of the Photography page. */
-export const PHOTOGRAPHY_PATH = '/photography';
+export const PHOTOGRAPHY_PATH = '/photography/';
 
 const ANCHOR_PREFIX = 'photo-';
 

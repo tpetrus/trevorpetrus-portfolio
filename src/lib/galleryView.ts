@@ -21,7 +21,7 @@ export const GRID_QUALITY = 70;
 
 export interface GalleryTile {
     key: string;
-    /** The tile's `id` on the page, so a link such as `/photography#photo-<name>` can open the photo (see photoLink.ts). */
+    /** The tile's `id` on the page, so a link such as `/photography/#photo-<name>` can open the photo (see photoLink.ts). */
     anchorId: string;
     alt: string;
     width: number;

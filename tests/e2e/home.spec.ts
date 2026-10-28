@@ -142,11 +142,11 @@ test.describe('home page', () => {
             for (const [index, { alt, key }] of shown.entries()) {
                 const link = links.nth(index);
                 await expect(link.locator('img')).toHaveCount(1);
-                await expect(link).toHaveAttribute('href', /\/photography#photo-/);
-                await expect(link).toHaveAttribute('href', `/photography#${photoAnchorId(key)}`);
+                await expect(link).toHaveAttribute('href', /\/photography\/#photo-/);
+                await expect(link).toHaveAttribute('href', `/photography/#${photoAnchorId(key)}`);
                 await expect(page.getByRole('link', { name: alt, exact: true })).toHaveAttribute(
                     'href',
-                    `/photography#${photoAnchorId(key)}`,
+                    `/photography/#${photoAnchorId(key)}`,
                 );
             }
         });

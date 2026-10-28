@@ -105,7 +105,7 @@ const afterNextPaint = (): Promise<void> =>
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
     });
 
-// Opens the photo a "/photography#photo-<name>" link names (the home collage links this way). The index must be
+// Opens the photo a "/photography/#photo-<name>" link names (the home collage links this way). The index must be
 // among the links of its own gallery, because that is the list PhotoSwipe navigates.
 function openFromHash(instance: PhotoSwipeLightbox): void {
     const id = photoIdFromHash(location.hash);

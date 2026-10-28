@@ -68,8 +68,9 @@ Cloudflare Workers Builds (see "CI and deploys").
   `public/video/` (`photography-loop.webm` AV1 and `.mp4` H.264, 480x270, 24 fps, silent, under 1 MB each, plus a WebP
   poster), encoded from the original with ffmpeg (`-an -vf scale=480:-2,fps=24`; `libsvtav1 -crf 50` for the WebM,
   `libx264 -crf 32 -movflags +faststart` for the MP4). The video has `preload="none"` and no `autoplay`:
-  `src/scripts/titleVideo.ts` plays it on `astro:page-load` unless the visitor prefers reduced motion, and a toggle in its
-  corner pauses it (WCAG 2.2.2; icon only below 48rem). Without JavaScript only the poster shows.
+  `src/scripts/titleVideo.ts` plays it once the window has loaded (so it never competes with the LCP image), never for
+  a visitor who prefers reduced motion or has Save-Data on, and pauses it while it is off-screen. A toggle in its corner,
+  named by its action ("Pause/Play background video"), pauses it (WCAG 2.2.2; icon only below 48rem). Without JavaScript only the poster shows.
 - **Sticky header:** the header is sticky on every page (`z-20`, under the `z-30` skip link). On the home page the
   header name is hidden while the giant wordmark is on screen: CSS `body:has([data-wordmark]) [data-header-name]` hides it
   with opacity and a translate, and `src/scripts/headerName.ts` toggles `data-docked` through an IntersectionObserver once
@@ -140,8 +141,8 @@ src/
                         and their image attributes come from lib/homeCluster.ts)
   scripts/galleryLightbox.ts  (src/scripts/) browser glue for the PhotoSwipe lightbox (DOM only, outside unit-test coverage)
   scripts/headerName.ts  (src/scripts/) DOM glue for the header-name handoff, imported by Wordmark.astro (outside unit coverage)
-scripts/galleryReveal.ts  (src/scripts/) DOM glue for the gallery's reveal-on-scroll, imported by Gallery.astro
-scripts/titleVideo.ts  (src/scripts/) DOM glue that plays and pauses the page-title video, imported by PageTitle.astro
+  scripts/galleryReveal.ts  (src/scripts/) DOM glue for the gallery's reveal-on-scroll, imported by Gallery.astro
+  scripts/titleVideo.ts  (src/scripts/) DOM glue that plays and pauses the page-title video, imported by PageTitle.astro
 public/                 static files served from / (favicon.svg; video/: the Photography title loop and its poster)
 tests/e2e/              Playwright specs (smoke.spec.ts is tagged @smoke); its own tsconfig; lightbox.spec.ts skips while
                         the photography data file is empty
@@ -191,7 +192,7 @@ composition (1-5, 5-9 and 9-12, the second and third raised). The column gap and
 Each image's `sizes` follows its span (`clusterSizes`), and `srcset` uses only `GRID_WIDTHS`, plus `LIGHTBOX_WIDTHS` for a
 slot six columns or wider (`clusterSrcsetWidths`), so the cluster adds no new transformations. The cluster deliberately
 shows the photos without captions (each `img` inside a link, no `figure`; each keeps its alt text from the data as the
-link's accessible name). Each link goes to `photoPageHref(key)` (`/photography#photo-<name>`, `src/lib/photoLink.ts`),
+link's accessible name). Each link goes to `photoPageHref(key)` (`/photography/#photo-<name>`, `src/lib/photoLink.ts`),
 and the lightbox glue opens that photo in the lightbox on arrival: the camera settings and the place live on the Photography page and its lightbox. The images carry an explicit `aspect-ratio`, so the cluster never shifts the page.
 
 In the three-photo composition on phones the widest images are about 36% to 38% of the viewport (`phoneImageWidth` in
