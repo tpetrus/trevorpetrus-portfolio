@@ -1,6 +1,9 @@
+import { readdirSync, readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 
 import { parseGallery } from './gallery';
+import { parseSidecar } from './gallerySync';
 import { decodeThumbHash, encodeThumbHash } from './thumbhash';
 
 const files = import.meta.glob<unknown>('../data/gallery/*.json', { eager: true, import: 'default' });
@@ -59,6 +62,28 @@ describe('no coordinates in the committed data', () => {
         expect(JSON.stringify({ at: '38.7223, -9.1393' })).toMatch(COORDINATE_PAIR);
         expect(JSON.stringify({ at: [38.7223, -9.1393] })).toMatch(COORDINATE_PAIR);
     });
+});
+
+// Each hand-written sidecar's category must match the category the committed data records for its photo. A sidecar
+// edited without re-running the sync would otherwise show the old section on the page.
+describe('sidecar categories match the committed data', () => {
+    const sidecarDir = new URL('../content/photography/', import.meta.url);
+    const photography = parseGallery('photography', files['../data/gallery/photography.json']);
+
+    it.each(readdirSync(sidecarDir).filter((name) => name.endsWith('.yml')))(
+        '%s has the category photography.json records',
+        (name) => {
+            const path = `src/content/photography/${name}`;
+            const sidecar = parseSidecar('photography', readFileSync(new URL(name, sidecarDir), 'utf8'), path);
+            const basename = name.slice(0, -'.yml'.length);
+            const entry = photography.find(({ key }) => key === `photography/${basename}.jpg`);
+            if (!entry) return;
+            expect(
+                entry.category,
+                `${path}: category differs from photography.json; re-run npm run sync:gallery -- photography --upload`,
+            ).toBe(sidecar.category);
+        },
+    );
 });
 
 describe('checkGalleryFile', () => {
