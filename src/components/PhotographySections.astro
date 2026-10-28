@@ -6,6 +6,7 @@ import { gallerySections } from '../lib/galleryView';
 import { showsGeonamesPlace } from '../lib/location';
 import Gallery from './Gallery.astro';
 import GeonamesCredit from './GeonamesCredit.astro';
+import SectionLegend from './SectionLegend.astro';
 
 interface Props {
     /** Every photography entry, in the data file's order. */
@@ -19,23 +20,47 @@ const firstFilledId = sections.find((section) => section.entries.length > 0)?.id
 ---
 
 {entries.length > 0 ? (
-    <div class="mt-10 md:mt-14">
-        <nav aria-label="Photo categories">
+    <div class="mt-10 md:mt-14" data-sections-root>
+        <nav aria-label="Photo categories" data-jump-nav>
             <ul role="list" class="flex flex-wrap gap-x-6 gap-y-2 font-mono text-step-n1 tracking-[0.06em] uppercase">
                 {sections.map((section) => (
                     <li>
-                        <a href={`#${section.id}`} class="link">
+                        <a href={`#${section.id}`} class="link text-accent">
                             {section.label}
                         </a>
                     </li>
                 ))}
             </ul>
         </nav>
+        <SectionLegend sections={sections.map(({ id, label }) => ({ id, label }))} />
         {sections.map((section) => (
             <section id={section.id} aria-labelledby={`${section.id}-heading`} class="mt-12 md:mt-16">
-                <h2 id={`${section.id}-heading`} class="mb-6 font-display text-step-2 font-bold md:mb-8">
-                    {section.label}
-                </h2>
+                <div class="mb-6 flex items-center justify-between gap-4 md:mb-8">
+                    <h2 id={`${section.id}-heading`} class="flex items-center gap-3 font-display text-step-2 font-bold">
+                        <span aria-hidden="true" class="size-3 shrink-0 bg-accent" />
+                        {section.label}
+                    </h2>
+                    <a
+                        href="#main"
+                        data-back-to-top
+                        class="back-to-top -mr-3 inline-flex min-h-11 min-w-11 items-center justify-center text-paper hover:text-accent"
+                    >
+                        <span class="sr-only">Back to top</span>
+                        <svg
+                            aria-hidden="true"
+                            focusable="false"
+                            viewBox="0 0 24 24"
+                            width="20"
+                            height="20"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="square"
+                        >
+                            <path d="M12 20V4M5 11l7-7 7 7" />
+                        </svg>
+                    </a>
+                </div>
                 {section.entries.length > 0 ? (
                     <Gallery collection="photography" entries={section.entries} eager={section.id === firstFilledId} />
                 ) : (
@@ -48,3 +73,25 @@ const firstFilledId = sections.find((section) => section.entries.length > 0)?.id
 ) : (
     <p class="mt-8 max-w-measure text-ink-muted-on-ink">Photos are on their way.</p>
 )}
+
+<style>
+    /* Hidden at the very top of the page once the script runs (it sets data-js), shown after any scroll. Without the
+       script the links stay visible and plain `#main` anchors still work. */
+    .back-to-top {
+        transition:
+            opacity 200ms ease,
+            color 150ms ease,
+            visibility 0s;
+    }
+
+    [data-sections-root][data-js]:not([data-scrolled]) .back-to-top {
+        opacity: 0;
+        visibility: hidden;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .back-to-top {
+            transition: none;
+        }
+    }
+</style>
