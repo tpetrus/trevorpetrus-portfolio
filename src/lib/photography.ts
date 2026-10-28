@@ -29,8 +29,10 @@ export const photographySidecarSchema = z.object({
         .string()
         .min(1)
         .refine((alt) => !isPlaceholderAlt(alt), PLACEHOLDER_ALT_MESSAGE),
-    /** Pins the photo's position: lowest first, ahead of every photo without an order. */
+    /** Fixes the photo's position: lowest first, ahead of every photo without an order. */
     order: z.int().optional(),
+    /** Shows the photo in the home page's collage (the first eight pinned photos, in the gallery's order). */
+    pin: z.boolean().optional(),
     /** The place shown in the caption instead of the one derived from the GPS, or `false` for none. */
     location: sidecarLocationSchema.optional(),
 });
@@ -41,9 +43,11 @@ export function photographySidecarTemplate(basename: string): string {
     return `# Sidecar for ${basename}.jpg: the text the site cannot read from the photo.
 # alt (required): one plain sentence saying what is in the photo, for people who cannot see it.
 #   Replace the whole line below. The sync refuses any alt that starts with ${ALT_PLACEHOLDER_MARKER}.
-# order (optional): a whole number that pins this photo's position, lowest first, ahead of photos without one.
+# order (optional): a whole number that fixes this photo's position, lowest first, ahead of photos without one.
+# pin (optional): true shows this photo in the home page's collage (at most eight, in the gallery's order).
 alt: "${ALT_PLACEHOLDER_MARKER}: describe this photo"
 # order: 1
+# pin: true
 # location (optional): the place the caption starts with. By default the sync derives a city and a country from the
 #   photo's GPS (offline, with GeoNames). Uncomment to name another place (also for a photo with no GPS), or write
 #   "location: false" to show none.

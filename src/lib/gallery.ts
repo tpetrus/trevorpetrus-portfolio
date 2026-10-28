@@ -33,6 +33,8 @@ export function galleryEntrySchema<Caption extends z.ZodType>(collection: string
         sourceSha256: z.string().regex(SHA256_HEX, 'Expected 64 lowercase hex characters'),
         processingVersion: z.int().positive(),
         alt: z.string().min(1),
+        // Written only as `true` (from the sidecar's `pin`), so an unpinned entry carries no key and the file stays small.
+        pin: z.literal(true).optional(),
         caption: captionSchema,
     });
 }
@@ -45,6 +47,8 @@ export interface GalleryEntry<Caption> {
     sourceSha256: string;
     processingVersion: number;
     alt: string;
+    /** The home page's collage shows pinned entries. */
+    pin?: true;
     caption: Caption;
 }
 

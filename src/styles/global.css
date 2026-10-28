@@ -83,6 +83,11 @@
         background-color: var(--color-paper);
         color: var(--color-ink);
         color-scheme: light;
+        /*
+         * More than the sticky header's tallest measured height (77 px on phones 375 px wide and narrower, where the nav
+         * wraps under the name; 61 px otherwise), so an anchor or a focused element is not hidden under it (WCAG 2.4.11).
+         */
+        scroll-padding-top: 5.5rem;
     }
 
     h1,
@@ -129,5 +134,32 @@
 
     .surface-ink :focus-visible {
         outline-color: var(--color-accent);
+    }
+}
+
+/*
+ * The header's name link while a page shows the big wordmark (only then does the page contain [data-wordmark]). The
+ * hidden state is plain CSS, so there is no flash before any script runs; headerName.ts only adds [data-docked] once
+ * the wordmark has scrolled under the header. Hidden means transparent and nudged down, never display:none or
+ * visibility:hidden, so the link stays in the accessibility tree and the tab order, and a keyboard focus shows it.
+ * Opacity and transform only, so nothing shifts.
+ */
+body:has([data-wordmark]) [data-header-name] {
+    opacity: 0;
+    transform: translateY(0.75rem);
+    transition:
+        opacity 300ms ease-out,
+        transform 300ms ease-out;
+}
+
+body:has([data-wordmark]) [data-header-name][data-docked],
+body:has([data-wordmark]) [data-header-name]:focus-visible {
+    opacity: 1;
+    transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body:has([data-wordmark]) [data-header-name] {
+        transform: none;
     }
 }

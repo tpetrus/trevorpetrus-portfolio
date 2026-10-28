@@ -23,18 +23,29 @@ interface Props {
 const { project, updated, featured = false, number, priority = false } = Astro.props;
 const { title, description, tech, status, repo, thumbnail } = project;
 
-// The cover spans the content column (75vw from 1024px); a row image sits in an 18rem column from `md:` and is full width below it.
-// The width lists are what the browser may pick from, so a 288px slot gets a 576 or 640px file, never a 1280px one.
+// The cover spans the content column (75vw from 1024px, about 1440 CSS px on a 1920 display, so up to 2880 device px); a row
+// image sits in an 18rem column from `md:` and is full width below it. The width lists are what the browser may pick from:
+// a 288px slot gets a 576 or 640px file, never a 2560px one. The cover tops out at 2560 because the screenshot is captured at
+// 2x (2560px wide), and Astro drops widths above the source. A row goes to 960 so a 3x phone gets a sharp full-width image.
 const sizes = featured
     ? '(min-width: 1024px) 75vw, calc(100vw - 2rem)'
     : '(min-width: 768px) 288px, calc(100vw - 2rem)';
-const widths = featured ? [480, 640, 960, 1280] : [320, 480, 640];
+const widths = featured ? [640, 960, 1280, 1920, 2560] : [320, 480, 640, 960];
 // Reading order follows the DOM (WCAG 1.3.2), so the cover places the screenshot before the text and a row after it in
 // the markup below, never with CSS `order`.
 const screenshot = { src: thumbnail, title, widths, sizes, priority };
 ---
 
-<article class:list={['relative flex flex-col gap-5', featured ? 'md:gap-8' : 'md:grid md:grid-cols-[1fr_18rem]']}>
+{/* The hover box is an outline, not a border: it takes no space, so nothing shifts when it appears. Padding keeps the
+    content clear of the box; a negative margin cancels it (all round on the cover, vertical on a row) so the layout is
+    as if there were no padding, and a row's box ends flush with the index rules. The outline is transparent at rest (not
+    removed) so only its color transitions. `has-focus-visible` shows it for keyboard focus anywhere in the card. */}
+<article
+    class:list={[
+        'relative flex flex-col gap-5 outline-1 outline-offset-0 outline-transparent transition-[outline-color] duration-150 hover:outline-ink has-focus-visible:outline-ink motion-reduce:transition-none',
+        featured ? '-m-2 p-2 md:gap-8 lg:-m-3 lg:p-3' : '-my-3 p-3 md:grid md:grid-cols-[1fr_18rem]',
+    ]}
+>
     {featured && <ProjectScreenshot {...screenshot} />}
     <div class:list={['flex gap-gutter', featured ? 'flex-col md:flex-row md:items-end' : 'flex-col']}>
         {featured && number !== undefined && (
@@ -47,7 +58,7 @@ const screenshot = { src: thumbnail, title, widths, sizes, priority };
                 <Caption label={statusLabel(status)}>
                     <a
                         href={projectHref(project)}
-                        class="after:absolute after:inset-0 hover:underline focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-accent-deep"
+                        class="after:absolute after:inset-0 hover:underline focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-4 focus-visible:after:outline-accent-deep"
                     >
                         {title}
                     </a>

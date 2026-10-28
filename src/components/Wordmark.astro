@@ -12,11 +12,16 @@ const { first, second } = Astro.props;
 {/* The page's h1, as real text so it stays in the accessibility tree. The case is the reader's ("Trevor Petrus"); the
     capitals are CSS. The two lines are blocks, with a space between them in the source so the accessible name reads
     "Trevor Petrus". */}
-<div class="wordmark">
+<div class="wordmark" data-wordmark>
     <h1 class="name">
         {first} <span>{second}</span>
     </h1>
 </div>
+
+{/* Hands the name over to the sticky header once this wordmark scrolls away; only pages that render it load the script. */}
+<script>
+    import '../scripts/headerName.ts';
+</script>
 
 <style>
     /*

@@ -29,6 +29,7 @@ import { isScreenshotTarget, thumbnailFile, thumbnailFrontmatter } from '../src/
 const PROJECTS_DIRECTORY = 'src/content/projects';
 const META_FILE = 'src/data/project-meta.json';
 const VIEWPORT = { width: 1280, height: 800 };
+const SCALE = 2;
 const MAX_IMAGE_BYTES = 500 * 1024;
 const AVIF_QUALITY = 80;
 const PAGE_TIMEOUT_MS = 30_000;
@@ -99,7 +100,9 @@ async function syncMeta(projects: Project[]): Promise<void> {
 async function screenshot(browser: Browser, url: string): Promise<Buffer> {
     const context = await browser.newContext({
         viewport: VIEWPORT,
-        deviceScaleFactor: 1,
+        // 2x so the image is 2560px wide: the cover is about 1440 CSS px (2880 device px) on a 1920 display. The CSS viewport is
+        // unchanged, so the page lays out exactly as before.
+        deviceScaleFactor: SCALE,
         colorScheme: 'dark',
         reducedMotion: 'reduce',
     });
@@ -135,9 +138,11 @@ async function syncScreenshots(projects: Project[]): Promise<void> {
             const output = thumbnailFile(project.slug);
             const png = await screenshot(browser, url);
             const { width, height } = await sharp(png).metadata();
-            if (width !== VIEWPORT.width || height !== VIEWPORT.height) {
+            const expectedWidth = VIEWPORT.width * SCALE;
+            const expectedHeight = VIEWPORT.height * SCALE;
+            if (width !== expectedWidth || height !== expectedHeight) {
                 throw new Error(
-                    `${url}: expected a ${VIEWPORT.width}x${VIEWPORT.height} screenshot, got ${width}x${height}`,
+                    `${url}: expected a ${expectedWidth}x${expectedHeight} screenshot, got ${width}x${height}`,
                 );
             }
             const avif = await sharp(png).avif({ quality: AVIF_QUALITY, effort: 6 }).toBuffer();

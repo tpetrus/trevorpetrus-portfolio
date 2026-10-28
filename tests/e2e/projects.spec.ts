@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-// The one project that exists at launch. Smoke-safe: every assertion is about the committed content and markup, none
+// The cover project. Smoke-safe: every assertion is about the committed content and markup, none
 // depends on the project's own site being up (the links are only read, never followed).
 const PROJECT = {
     title: 'AudioVisualizer',
@@ -8,15 +8,90 @@ const PROJECT = {
     repo: 'https://github.com/tpetrus/AudioVisualizer',
 };
 
+const OTHER_PROJECTS = [
+    { title: 'trevorpetrus-portfolio', repo: 'https://github.com/tpetrus/trevorpetrus-portfolio' },
+    { title: 'ci-workflows', repo: 'https://github.com/tpetrus/ci-workflows' },
+];
+
 test.describe('projects page @smoke', () => {
     test.beforeEach(async ({ page }) => {
         await page.goto('/projects/');
     });
 
-    test('shows the project card with its description, tech tags and status', async ({ page }) => {
-        const card = page.getByRole('article');
+    test('renders the cover and two index rows, the new ones linking to their repos', async ({ page }) => {
+        const cards = page.getByRole('article');
 
-        await expect(card).toHaveCount(1);
+        await expect(cards).toHaveCount(3);
+        await expect(cards.first().getByRole('heading', { level: 2, name: PROJECT.title })).toBeVisible();
+        for (const { title, repo } of OTHER_PROJECTS) {
+            const card = cards.filter({ has: page.getByRole('heading', { level: 2, name: title }) });
+            await expect(card).toHaveCount(1);
+            // No subdomain: both the title and the icon go to the repo.
+            await expect(card.getByRole('heading', { level: 2 }).getByRole('link')).toHaveAttribute('href', repo);
+            await expect(card.getByRole('link', { name: `${title} on GitHub` })).toHaveAttribute('href', repo);
+        }
+    });
+
+    test('hovering a card draws an ink box without moving anything', async ({ page }) => {
+        const hoverCapable = await page.evaluate(() => matchMedia('(hover: hover)').matches);
+        test.skip(!hoverCapable, 'Touch devices have no hover.');
+        const cards = page.getByRole('article');
+
+        for (let index = 0; index < 3; index++) {
+            const card = cards.nth(index);
+            await card.scrollIntoViewIfNeeded();
+            await page.mouse.move(0, 0);
+            await expect(card).toHaveCSS('outline-color', 'rgba(0, 0, 0, 0)');
+            // Page coordinates, not the viewport's: under the sticky header, hover() may scroll the title into view
+            // first, which moves the viewport box without anything shifting.
+            const pageBox = () =>
+                card.evaluate((element) => {
+                    const { x, y, width, height } = element.getBoundingClientRect();
+                    return { x: x + scrollX, y: y + scrollY, width, height };
+                });
+            const before = await pageBox();
+
+            // Hover the title area, which the stretched link makes part of the card.
+            await card.getByRole('heading', { level: 2 }).hover();
+            await expect(card).not.toHaveCSS('outline-color', 'rgba(0, 0, 0, 0)');
+            await expect(card).toHaveCSS('outline-style', 'solid');
+            await expect(card).toHaveCSS('outline-width', '1px');
+            const inkColor = await page.evaluate(() => {
+                const probe = document.createElement('i');
+                probe.className = 'text-ink';
+                document.body.append(probe);
+                const { color } = getComputedStyle(probe);
+                probe.remove();
+                return color;
+            });
+            await expect(card).toHaveCSS('outline-color', inkColor);
+            expect(await pageBox()).toEqual(before);
+        }
+    });
+
+    test('tabbing to a card shows the same box', async ({ page, browserName }) => {
+        test.skip(browserName === 'webkit', 'WebKit does not tab to links by default.');
+        const card = page.getByRole('article').first();
+        await page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Projects' }).focus();
+        await page.mouse.move(0, 0);
+        // Document coordinates: focusing scrolls the page, which moves the viewport box without moving the card.
+        const documentBox = () =>
+            card.evaluate((element) => {
+                const { x, y, width, height } = element.getBoundingClientRect();
+                return { x: x + scrollX, y: y + scrollY, width, height };
+            });
+        const before = await documentBox();
+
+        await page.keyboard.press('Tab');
+        await expect(card.getByRole('heading', { level: 2 }).getByRole('link')).toBeFocused();
+        await expect(card).toHaveCSS('outline-style', 'solid');
+        await expect(card).not.toHaveCSS('outline-color', 'rgba(0, 0, 0, 0)');
+        expect(await documentBox()).toEqual(before);
+    });
+
+    test('shows the project card with its description, tech tags and status', async ({ page }) => {
+        const card = page.getByRole('article').first();
+
         await expect(card.getByRole('heading', { level: 2, name: PROJECT.title })).toBeVisible();
         await expect(card.getByRole('list', { name: 'Technologies' }).getByRole('listitem')).toContainText([
             'TypeScript',
@@ -40,14 +115,19 @@ test.describe('projects page @smoke', () => {
 
     test('shows each project number as zero-padded text, highest first', async ({ page }) => {
         const numbers = await page.locator('[data-index]').allTextContents();
+        // Only the index rows are ordered; the cover is the lowest `order`, whatever its number is.
+        const rowNumbers = await page
+            .getByRole('list', { name: 'More projects' })
+            .locator('[data-index]')
+            .allTextContents();
 
         expect(numbers.length).toBeGreaterThan(0);
         for (const number of numbers) expect(number).toMatch(/^\d{2,}$/);
-        expect(numbers.map(Number)).toEqual([...numbers.map(Number)].sort((a, b) => b - a));
+        expect(rowNumbers.map(Number)).toEqual([...rowNumbers.map(Number)].sort((a, b) => b - a));
     });
 
     test('shows the status as plain bold text above the title', async ({ page }) => {
-        const status = page.getByRole('article').getByText('Live', { exact: true });
+        const status = page.getByRole('article').first().getByText('Live', { exact: true });
 
         await expect(status).toHaveCSS('font-weight', '700');
         await expect(status).toHaveCSS('text-transform', 'uppercase');
@@ -57,7 +137,7 @@ test.describe('projects page @smoke', () => {
     });
 
     test('the whole card is the title link, except the GitHub icon on top of it', async ({ page }) => {
-        const card = page.getByRole('article');
+        const card = page.getByRole('article').first();
         const githubLink = page.getByRole('link', { name: `${PROJECT.title} on GitHub` });
         // The link under a point (viewport coordinates), which is what a click there would follow.
         const hrefAt = ({ x, y }: { x: number; y: number }) =>
@@ -77,9 +157,12 @@ test.describe('projects page @smoke', () => {
     test('the thumbnail is responsive, sized, and loaded eagerly as the first card', async ({ page }) => {
         const image = page.getByRole('img', { name: `Screenshot of ${PROJECT.title}` });
 
-        await expect(image).toHaveAttribute('width', '1280');
-        await expect(image).toHaveAttribute('height', '800');
-        await expect(image).toHaveAttribute('srcset', /480w.*1280w/);
+        // The source is 1280x800 until the screenshot is recaptured at 2x (2560x1600); the 16:10 ratio holds for both.
+        const width = Number(await image.getAttribute('width'));
+        const height = Number(await image.getAttribute('height'));
+        expect(width).toBeGreaterThanOrEqual(1280);
+        expect(width / height).toBe(1.6);
+        await expect(image).toHaveAttribute('srcset', /640w.*1280w/);
         await expect(image).toHaveAttribute('loading', 'eager');
         await expect(image).toHaveAttribute('fetchpriority', 'high');
         await expect(image.locator('xpath=preceding-sibling::source')).toHaveAttribute('type', 'image/avif');
@@ -90,7 +173,7 @@ test.describe('projects page @smoke', () => {
     });
 
     test('shows when the project was last updated', async ({ page }) => {
-        const updated = page.locator('article time[datetime]');
+        const updated = page.locator('article time[datetime]').first();
 
         await expect(updated).toHaveAttribute('datetime', /^\d{4}-\d{2}-\d{2}$/);
         await expect(updated).toHaveText(/^[A-Z][a-z]{2} \d{1,2}, \d{4}$/);
