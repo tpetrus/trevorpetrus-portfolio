@@ -18,6 +18,7 @@ import {
 } from './homeCluster';
 import { GRID_QUALITY } from './galleryView';
 import { GRID_WIDTHS, LIGHTBOX_WIDTHS, imageSrcset, transformedImageUrl } from './imageUrl';
+import { photoPageHref } from './photoLink';
 import type { PhotographyCaption } from './photography';
 import { encodeThumbHash } from './thumbhash';
 
@@ -212,6 +213,7 @@ describe('clusterFigures', () => {
 
         expect(figure).toMatchObject({
             key: 'photography/harbor.jpg',
+            href: photoPageHref('photography/harbor.jpg'),
             alt: 'Alt for harbor',
             width: 3000,
             height: 2000,

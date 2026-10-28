@@ -15,21 +15,22 @@ const photos = await clusterFigures(Astro.props.entries);
 {photos.length > 0 && (
     <div class="cluster" data-home-cluster>
         {photos.map((photo) => (
-            <img
-                src={photo.src}
-                srcset={photo.srcset}
-                sizes={photo.sizes}
-                width={photo.width}
-                height={photo.height}
-                alt={photo.alt}
-                loading="lazy"
-                decoding="async"
-                style={{
-                    ...photo.layout,
-                    aspectRatio: `${photo.width} / ${photo.height}`,
-                    backgroundImage: `url(${photo.placeholder})`,
-                }}
-            />
+            <a href={photo.href} class="photo" style={photo.layout}>
+                <img
+                    src={photo.src}
+                    srcset={photo.srcset}
+                    sizes={photo.sizes}
+                    width={photo.width}
+                    height={photo.height}
+                    alt={photo.alt}
+                    loading="lazy"
+                    decoding="async"
+                    style={{
+                        aspectRatio: `${photo.width} / ${photo.height}`,
+                        backgroundImage: `url(${photo.placeholder})`,
+                    }}
+                />
+            </a>
         ))}
     </div>
 )}
@@ -39,7 +40,7 @@ const photos = await clusterFigures(Astro.props.entries);
      * Twelve columns, one composition per photo count (1 to 8) from the layout table in lib/homeCluster.ts: neighbors
      * overlap by a column, rows stagger by small offsets, and the second row is pulled up over the first. The gap, the
      * offsets and the images all scale with the cluster's width (a `cqi` unit is one percent of it), so a phone shows the
-     * same arrangement as the desktop, smaller. Placement is inline on each image; this is the shared look.
+     * same arrangement as the desktop, smaller. Placement is inline on each photo's link; this is the shared look.
      */
     .cluster {
         container-type: inline-size;
@@ -49,7 +50,40 @@ const photos = await clusterFigures(Astro.props.entries);
         margin-block-start: 3rem;
     }
 
+    /* The link is the grid item. Its alt text, from the image, is its accessible name; there is no other text. */
+    .photo {
+        display: block;
+        position: relative;
+    }
+
+    /* Raised on hover and focus so the outline is not hidden under an overlapping neighbor that comes later. */
+    .photo:hover,
+    .photo:focus-visible {
+        z-index: 1;
+    }
+
+    /* accent-deep, never the bright accent on paper; the offset clears the paper-colored image edge. */
+    .photo:focus-visible {
+        outline: 0.1875rem solid var(--color-accent-deep);
+        outline-offset: 0.3125rem;
+    }
+
+    .photo img {
+        transition: opacity 0.2s;
+    }
+
+    .photo:hover img {
+        opacity: 0.88;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .photo img {
+            transition: none;
+        }
+    }
+
     img {
+        display: block;
         inline-size: 100%;
         block-size: auto;
         background-size: cover;

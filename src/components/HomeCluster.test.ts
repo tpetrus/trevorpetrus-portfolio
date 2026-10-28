@@ -5,6 +5,7 @@ import type { CollectionCaption, GalleryEntry } from '../lib/gallery';
 import { GRID_QUALITY } from '../lib/galleryView';
 import { CLUSTER_LAYOUTS, clusterSizes, slotStyle } from '../lib/homeCluster';
 import { GRID_WIDTHS, imageSrcset, LIGHTBOX_WIDTHS, transformedImageUrl } from '../lib/imageUrl';
+import { photoPageHref } from '../lib/photoLink';
 import { encodeThumbHash } from '../lib/thumbhash';
 import HomeCluster from './HomeCluster.astro';
 
@@ -47,11 +48,13 @@ function attributesOf(tag: string): Record<string, string> {
 describe('HomeCluster', () => {
     let html: string;
     let images: Record<string, string>[];
+    let links: Record<string, string>[];
 
     beforeAll(async () => {
         const container = await AstroContainer.create();
         html = await container.renderToString(HomeCluster, { props: { entries: ENTRIES } });
         images = tagsOf(html, 'img').map(attributesOf);
+        links = tagsOf(html, 'a').map(attributesOf);
     });
 
     it('renders nothing without photos', async () => {
@@ -78,12 +81,22 @@ describe('HomeCluster', () => {
 
         const out = await container.renderToString(HomeCluster, { props: { entries: pinned } });
         const shown = tagsOf(out, 'img').map(attributesOf);
+        const slots = tagsOf(out, 'a').map(attributesOf);
 
         expect(shown.map((image) => image.alt)).toEqual(['Alt text of b', 'Alt text of d']);
         // Two photos: the two-photo composition, not the first two slots of the three.
-        expect(shown[1].style).toContain('grid-column:6 / 12');
+        expect(slots[1].style).toContain('grid-column:6 / 12');
         expect(CLUSTER_LAYOUTS[2][1]).toMatchObject({ start: 6, end: 12 });
-        expect(shown[0].style).toContain(slotStyle(CLUSTER_LAYOUTS[2][0]).gridColumn);
+        expect(slots[0].style).toContain(slotStyle(CLUSTER_LAYOUTS[2][0]).gridColumn);
+    });
+
+    it('wraps each image in a link to its photo on the Photography page, which holds the slot', () => {
+        expect(links.map((link) => link.href)).toEqual(
+            ['harbor', 'dunes', 'pier'].map((name) => photoPageHref(`photography/${name}.jpg`)),
+        );
+        // Each image sits directly inside its own link, with no text beside it, so the alt is the link's name.
+        expect(html.match(/<a\b[^>]*>\s*<img\b[^>]*>\s*<\/a>/g)).toHaveLength(3);
+        for (const image of images) expect(image.style).not.toContain('grid-column');
     });
 
     it('uses only the fixed widths and sizes each image from its own dimensions', () => {

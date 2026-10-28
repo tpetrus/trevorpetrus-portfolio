@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { clusterEntries } from '../../src/lib/homeCluster';
 import { GRID_WIDTHS, LIGHTBOX_WIDTHS } from '../../src/lib/imageUrl';
+import { photoAnchorId } from '../../src/lib/photoLink';
 import { readGalleryEntries } from './galleryData';
 
 const entries = readGalleryEntries('photography');
@@ -133,6 +134,67 @@ test.describe('home page', () => {
             expect((await cluster.textContent())?.trim()).toBe('');
         });
 
+        test('links every photo to its place on the Photography page, named by its alt text', async ({ page }) => {
+            await page.goto('/');
+
+            const links = page.locator('[data-home-cluster] a');
+            await expect(links).toHaveCount(CLUSTER_COUNT);
+            for (const [index, { alt, key }] of shown.entries()) {
+                const link = links.nth(index);
+                await expect(link.locator('img')).toHaveCount(1);
+                await expect(link).toHaveAttribute('href', /\/photography#photo-/);
+                await expect(link).toHaveAttribute('href', `/photography#${photoAnchorId(key)}`);
+                await expect(page.getByRole('link', { name: alt, exact: true })).toHaveAttribute(
+                    'href',
+                    `/photography#${photoAnchorId(key)}`,
+                );
+            }
+        });
+
+        test('navigates to the photo on the Photography page without a full page load', async ({
+            page,
+            browserName,
+        }) => {
+            // Local WebKit crashes the page when a View Transitions navigation to /photography starts from a scrolled
+            // home page, whichever link starts it (the primary nav link crashes the same way). The cluster is below the
+            // fold on a phone, so the click scrolls first. Chromium covers this check.
+            test.skip(browserName === 'webkit', 'WebKit crashes on a scrolled navigation to /photography.');
+            await page.goto('/');
+            await page.evaluate(() => {
+                (window as unknown as { __marker: boolean }).__marker = true;
+            });
+
+            const first = page.locator('[data-home-cluster] a').first();
+            const href = await first.getAttribute('href');
+            await first.click();
+
+            await expect(page).toHaveURL(/\/photography\/?#photo-/);
+            expect(new URL(page.url()).hash).toBe(`#${href!.split('#')[1]}`);
+            // The marker survives only if View Transitions swapped the page instead of loading it.
+            expect(await page.evaluate(() => (window as unknown as { __marker?: boolean }).__marker)).toBe(true);
+            // The tile ids (photoAnchorId) are added to the Photography page by a separate change; assert the tile
+            // only once it exists, and let the integration run check it.
+            const id = new URL(page.url()).hash.slice(1);
+            if ((await page.locator(`[id="${id}"]`).count()) > 0) {
+                await expect(page.locator(`[id="${id}"]`)).toHaveCount(1);
+            }
+        });
+
+        test('reaches a photo link with the keyboard and shows a focus outline', async ({ page, browserName }) => {
+            test.skip(browserName === 'webkit', 'Safari does not Tab to links by default.');
+            await page.goto('/');
+
+            const first = page.locator('[data-home-cluster] a').first();
+            for (let presses = 0; presses < 20; presses += 1) {
+                await page.keyboard.press('Tab');
+                if (await first.evaluate((node) => node === document.activeElement)) break;
+            }
+
+            await expect(first).toBeFocused();
+            await expect(first).toHaveCSS('outline-style', 'solid');
+            expect(parseFloat(await first.evaluate((node) => getComputedStyle(node).outlineWidth))).toBeGreaterThan(0);
+        });
+
         for (const width of [320, 390, 1280]) {
             test(`composes the three images as one overlapping cluster at ${width}px, without scrolling sideways`, async ({
                 page,
@@ -141,7 +203,7 @@ test.describe('home page', () => {
                 await page.setViewportSize({ width, height: 900 });
                 await page.goto('/');
 
-                const [first, second, third] = await page.locator('[data-home-cluster] img').evaluateAll((nodes) =>
+                const [first, second, third] = await page.locator('[data-home-cluster] a').evaluateAll((nodes) =>
                     nodes.map((node) => {
                         const { left, right, top, bottom } = node.getBoundingClientRect();
                         return { left, right, top, bottom };
