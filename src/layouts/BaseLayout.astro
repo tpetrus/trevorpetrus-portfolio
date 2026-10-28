@@ -61,7 +61,7 @@ const canonicalUrl = new URL(Astro.url.pathname, Astro.site);
                                 <a
                                     href={href}
                                     aria-current={isCurrentPage(Astro.url.pathname, href) ? 'page' : undefined}
-                                    class="block py-2 font-mono text-step-n1 tracking-[0.05em] text-ink-muted uppercase underline-offset-4 hover:text-ink hover:underline aria-[current=page]:text-ink aria-[current=page]:underline"
+                                    class="block py-2 font-mono text-step-n1 tracking-[0.05em] text-ink-muted uppercase decoration-accent-deep decoration-2 underline-offset-[6px] hover:text-ink hover:underline aria-[current=page]:text-ink aria-[current=page]:underline"
                                 >
                                     {label}
                                 </a>
@@ -75,7 +75,8 @@ const canonicalUrl = new URL(Astro.url.pathname, Astro.site);
         <main id="main" tabindex="-1" class:list={['flex-1', bleed ? 'flex w-full flex-col' : 'column py-12']}>
             <slot />
         </main>
-        <footer class="surface-ink">
+        {/* The accent band on top is decorative: it marks where the page ends without carrying any meaning. */}
+        <footer class="surface-ink border-t-4 border-accent">
             <div class="column flex flex-col gap-2 py-8 text-step-n1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-gutter">
                 <p class="font-display font-bold tracking-[0.06em] uppercase">
                     &copy; {new Date().getFullYear()} {siteName}

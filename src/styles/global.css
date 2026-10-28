@@ -8,6 +8,8 @@
  * - The accent (vermilion) is only ever a fill behind ink text, or text on ink. It scores 2.94:1 on paper, so never use
  *   it as text, a border or a focus ring on paper.
  * - Links, UI borders and the focus ring on paper use accent-deep.
+ * - A purely decorative accent fill (the band above the footer, a status square, the 3D offset of the project hover box)
+ *   carries no meaning and needs no contrast, so the accent may appear there, always next to an ink or accent-deep cue.
  * Add any new pair to the spec in the same change that introduces it.
  */
 @theme {
@@ -116,6 +118,15 @@
         color: var(--color-accent-deep);
         text-decoration: underline;
         text-underline-offset: 0.2em;
+        transition:
+            background-color 150ms ease-out,
+            color 150ms ease-out;
+    }
+
+    /* On hover the link turns into an accent highlighter with ink text (5.83:1), the site's loudest touch of color. */
+    .link:hover {
+        background-color: var(--color-accent);
+        color: var(--color-ink);
     }
 
     /*
@@ -130,6 +141,18 @@
 
     .surface-ink .link {
         color: var(--color-paper);
+    }
+
+    /* On ink the highlighter would be too loud next to photos: the text turns accent instead (5.83:1 on ink). */
+    .surface-ink .link:hover {
+        background-color: transparent;
+        color: var(--color-accent);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .link {
+            transition: none;
+        }
     }
 
     .surface-ink :focus-visible {
