@@ -25,3 +25,5 @@ playwright/.cache/
 # Visual baselines are Linux-only (made by the update-snapshots workflow); a local run on another OS writes these.
 tests/e2e/*-snapshots/*-win32.png
 tests/e2e/*-snapshots/*-darwin.png
+
+.claude

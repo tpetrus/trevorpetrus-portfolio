@@ -279,7 +279,7 @@ export interface CuratedEntry<Caption> {
     order: number | undefined;
 }
 
-// Pinned entries (an `order`) first, lowest first; then newest capture date; then the key, so the result never depends
+// Entries with an `order` first, lowest first; then newest capture date; then the key, so the result never depends
 // on file-system order.
 function compareCurated(
     a: CuratedEntry<{ taken?: string | undefined }>,
@@ -308,6 +308,23 @@ export function mergeGallery<Caption extends { taken?: string | undefined }>(
         entries: [...current].sort(compareCurated).map(({ entry }) => entry),
         dropped: previous.map(({ key }) => key).filter((key) => !currentKeys.has(key)),
     };
+}
+
+/**
+ * The entry with the sidecar's `pin` applied: `pin: true` when the sidecar pins it, and no `pin` key otherwise, so
+ * removing `pin` from a sidecar unpins a photo whose previous entry still carries it.
+ */
+export function withPin<Caption>(entry: GalleryEntry<Caption>, pin: boolean | undefined): GalleryEntry<Caption> {
+    const { pin: _previous, ...rest } = entry;
+    return pin === true ? { ...rest, pin: true } : rest;
+}
+
+/** A warning when more photos are pinned than the home page's collage shows, naming the ones it leaves out. */
+export function pinLimitWarning(entries: readonly GalleryEntry<unknown>[], limit: number): string | undefined {
+    const pinned = entries.filter(({ pin }) => pin === true);
+    if (pinned.length <= limit) return undefined;
+    const left = pinned.slice(limit).map(({ key }) => key);
+    return `Warning: ${pinned.length} photos are pinned, but the home page shows only the first ${limit}. Not shown: ${left.join(', ')}.`;
 }
 
 /** One line per dropped key, saying plainly that the bucket still holds the object. */

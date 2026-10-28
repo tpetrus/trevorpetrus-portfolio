@@ -1,10 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { GRID_WIDTHS } from '../../src/lib/imageUrl';
+import { clusterEntries } from '../../src/lib/homeCluster';
+import { GRID_WIDTHS, LIGHTBOX_WIDTHS } from '../../src/lib/imageUrl';
 import { readGalleryEntries } from './galleryData';
 
 const entries = readGalleryEntries('photography');
-const CLUSTER_COUNT = Math.min(entries.length, 3);
+const shown = clusterEntries(entries);
+const CLUSTER_COUNT = shown.length;
 
 // The widths, in pixels, of the two lines of the name, and of the box that holds them.
 async function nameMetrics(page: Page): Promise<{ container: number; lines: number[]; height: number }> {
@@ -43,8 +45,11 @@ test.describe('home page', () => {
         await page.goto('/');
 
         const main = page.getByRole('main');
-        await expect(main.getByRole('link', { name: 'photographs' })).toHaveAttribute('href', '/photography/');
-        await expect(main.getByRole('link', { name: 'projects' })).toHaveAttribute('href', '/projects/');
+        await expect(main.getByRole('link', { name: 'photography', exact: true })).toHaveAttribute(
+            'href',
+            '/photography/',
+        );
+        await expect(main.getByRole('link', { name: 'coding projects' })).toHaveAttribute('href', '/projects/');
     });
 
     test('sets each line of the name to fill the width of its container, without scrolling sideways', async ({
@@ -103,16 +108,19 @@ test.describe('home page', () => {
     test.describe('image cluster', () => {
         test.skip(entries.length === 0, 'There are no photos yet (src/data/gallery/photography.json is empty).');
 
-        test('shows the first three photos with their alt text, from the fixed grid widths only', async ({ page }) => {
+        test('shows the pinned photos (or the first three) with their alt text, from the existing widths only', async ({
+            page,
+        }) => {
             await page.goto('/');
 
             const images = page.locator('[data-home-cluster] img');
             await expect(images).toHaveCount(CLUSTER_COUNT);
-            for (const [index, { alt }] of entries.slice(0, CLUSTER_COUNT).entries()) {
+            for (const [index, { alt }] of shown.entries()) {
                 await expect(images.nth(index)).toHaveAttribute('alt', alt);
                 const srcset = (await images.nth(index).getAttribute('srcset')) ?? '';
                 const widths = [...srcset.matchAll(/width=(\d+),/g)].map(([, width]) => Number(width));
-                expect(widths).toEqual([...GRID_WIDTHS]);
+                expect(widths.length).toBeGreaterThan(0);
+                for (const width of widths) expect([...GRID_WIDTHS, ...LIGHTBOX_WIDTHS]).toContain(width);
             }
         });
 
@@ -129,7 +137,7 @@ test.describe('home page', () => {
             test(`composes the three images as one overlapping cluster at ${width}px, without scrolling sideways`, async ({
                 page,
             }) => {
-                test.skip(CLUSTER_COUNT < 3, 'The overlap needs three photos.');
+                test.skip(CLUSTER_COUNT !== 3, 'This checks the three-photo composition.');
                 await page.setViewportSize({ width, height: 900 });
                 await page.goto('/');
 

@@ -10,6 +10,38 @@
     "caption": {}
   },
   {
+    "key": "photography/DSC_0171.jpg",
+    "width": 3333,
+    "height": 5000,
+    "thumbhash": "nOcRDQR2mI93aIhnhoeHaE8TgQdW",
+    "sourceSha256": "a6f50a9a70b2f3d2c1904745b60ef035a702a1b49355179faae7ddee54c05c6b",
+    "processingVersion": 1,
+    "alt": "Someone holds a sign that says Police the Police in the middle of a Pittsburgh Black Lives Matter protest.  To the left is a woman with a sunflower in her hair, and the right is a flag with the names of those who have died in recent months since the BLM protests started.",
+    "caption": {
+      "location": {
+        "city": "Pittsburgh",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
+  },
+  {
+    "key": "photography/DSC_9676.jpg",
+    "width": 4000,
+    "height": 6000,
+    "thumbhash": "WhkODQRWd2+HyHe3dXiIiB3vRgao",
+    "sourceSha256": "20c38a9c2d725cf1a38874dd7802efc13b63cae1c8cd3ae1d3850f3270b38aff",
+    "processingVersion": 1,
+    "alt": "A small waterfall flows over grass-lined hills",
+    "caption": {
+      "location": {
+        "city": "Moffat",
+        "country": "Scotland",
+        "source": "sidecar"
+      }
+    }
+  },
+  {
     "key": "photography/DSC_5047.jpg",
     "width": 4016,
     "height": 6016,
@@ -324,16 +356,6 @@
     "caption": {}
   },
   {
-    "key": "photography/DSC_0171.jpg",
-    "width": 3333,
-    "height": 5000,
-    "thumbhash": "nOcRDQR2mI93aIhnhoeHaE8TgQdW",
-    "sourceSha256": "a6f50a9a70b2f3d2c1904745b60ef035a702a1b49355179faae7ddee54c05c6b",
-    "processingVersion": 1,
-    "alt": "Someone holds a sign that says Police the Police in the middle of a Pittsburgh Black Lives Matter protest.  To the left is a woman with a sunflower in her hair, and the right is a flag with the names of those who have died in recent months since the BLM protests started.",
-    "caption": {}
-  },
-  {
     "key": "photography/DSC_0172.jpg",
     "width": 2965,
     "height": 4447,
@@ -561,16 +583,6 @@
     "sourceSha256": "0d75d6d0412bca112207492a45c8f0cb9a60559074dbca6b21fd5b33d44a9b97",
     "processingVersion": 1,
     "alt": "A cup of hot coffee is sitting on a table with steam rising from the top",
-    "caption": {}
-  },
-  {
-    "key": "photography/DSC_9676.jpg",
-    "width": 4000,
-    "height": 6000,
-    "thumbhash": "WhkODQRWd2+HyHe3dXiIiB3vRgao",
-    "sourceSha256": "20c38a9c2d725cf1a38874dd7802efc13b63cae1c8cd3ae1d3850f3270b38aff",
-    "processingVersion": 1,
-    "alt": "A small waterfall flows over grass-lined hills",
     "caption": {}
   },
   {
