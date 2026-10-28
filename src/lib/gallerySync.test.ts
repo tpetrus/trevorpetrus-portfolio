@@ -15,6 +15,7 @@ import {
     parseSidecar,
     parseSidecars,
     parseSyncArgs,
+    pinLimitWarning,
     planInputs,
     PROCESSING_VERSION,
     r2UploadArgs,
@@ -22,6 +23,7 @@ import {
     serializeGallery,
     sidecarDirectory,
     sidecarFileName,
+    withPin,
     type CuratedEntry,
 } from './gallerySync';
 
@@ -363,6 +365,53 @@ describe('mergeGallery', () => {
         );
         expect(entries).toHaveLength(1);
         expect(dropped).toEqual(['photography/gone.jpg']);
+    });
+});
+
+describe('withPin', () => {
+    it('adds pin: true when the sidecar pins the photo', () => {
+        expect(withPin(entry('photography/a.jpg', undefined), true)).toEqual({
+            ...entry('photography/a.jpg', undefined),
+            pin: true,
+        });
+    });
+
+    it('drops a pin the previous entry carried when the sidecar no longer sets it', () => {
+        const pinned = { ...entry('photography/a.jpg', undefined), pin: true as const };
+        for (const pin of [undefined, false]) {
+            const result = withPin(pinned, pin);
+            expect(result).toEqual(entry('photography/a.jpg', undefined));
+            expect(Object.hasOwn(result, 'pin')).toBe(false);
+        }
+    });
+});
+
+describe('pinLimitWarning', () => {
+    const pinned = (key: string) => ({ ...entry(key, undefined), pin: true as const });
+
+    it('says nothing at or under the limit', () => {
+        expect(pinLimitWarning([], 2)).toBeUndefined();
+        expect(
+            pinLimitWarning(
+                [pinned('photography/a.jpg'), entry('photography/b.jpg', undefined), pinned('photography/c.jpg')],
+                2,
+            ),
+        ).toBeUndefined();
+    });
+
+    it('names the pinned photos past the limit, in order', () => {
+        const warning = pinLimitWarning(
+            [
+                pinned('photography/a.jpg'),
+                entry('photography/b.jpg', undefined),
+                pinned('photography/c.jpg'),
+                pinned('photography/d.jpg'),
+            ],
+            2,
+        );
+        expect(warning).toBe(
+            'Warning: 3 photos are pinned, but the home page shows only the first 2. Not shown: photography/d.jpg.',
+        );
     });
 });
 

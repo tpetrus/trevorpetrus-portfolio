@@ -3,17 +3,16 @@ import { beforeAll, describe, expect, it } from 'vitest';
 
 import type { CollectionCaption, GalleryEntry } from '../lib/gallery';
 import { GRID_QUALITY } from '../lib/galleryView';
-import { CLUSTER_SIZES } from '../lib/homeCluster';
-import { GRID_WIDTHS, imageSrcset, transformedImageUrl } from '../lib/imageUrl';
+import { CLUSTER_LAYOUTS, clusterSizes, slotStyle } from '../lib/homeCluster';
+import { GRID_WIDTHS, imageSrcset, LIGHTBOX_WIDTHS, transformedImageUrl } from '../lib/imageUrl';
 import { encodeThumbHash } from '../lib/thumbhash';
 import HomeCluster from './HomeCluster.astro';
 
 const THUMBHASH = encodeThumbHash(4, 4, new Uint8Array(4 * 4 * 4).fill(128));
 
-function entry(
-    name: string,
-    overrides: Partial<GalleryEntry<CollectionCaption>> = {},
-): GalleryEntry<CollectionCaption> {
+type Entry = GalleryEntry<CollectionCaption>;
+
+function entry(name: string, overrides: Partial<Entry> = {}): Entry {
     return {
         key: `photography/${name}.jpg`,
         width: 3000,
@@ -72,12 +71,28 @@ describe('HomeCluster', () => {
         ]);
     });
 
-    it('uses only the fixed grid widths and sizes each image from its own dimensions', () => {
+    it('pins win over the first three, in the gallery order, each in its slot of that composition', async () => {
+        const container = await AstroContainer.create();
+        const pinned = [entry('a'), entry('b', { pin: true }), entry('c'), entry('d', { pin: true })];
+
+        const out = await container.renderToString(HomeCluster, { props: { entries: pinned } });
+        const shown = tagsOf(out, 'img').map(attributesOf);
+
+        expect(shown.map((image) => image.alt)).toEqual(['Alt text of b', 'Alt text of d']);
+        // Two photos: the two-photo composition, not the first two slots of the three.
+        expect(shown[1].style).toContain('grid-column:6 / 12');
+        expect(CLUSTER_LAYOUTS[2][1]).toMatchObject({ start: 6, end: 12 });
+        expect(shown[0].style).toContain(slotStyle(CLUSTER_LAYOUTS[2][0]).gridColumn);
+    });
+
+    it('uses only the fixed widths and sizes each image from its own dimensions', () => {
         const [harbor, dunes] = images;
 
         expect(harbor.src).toBe(transformedImageUrl('photography/harbor.jpg', { width: 640, quality: GRID_QUALITY }));
-        expect(harbor.srcset).toBe(imageSrcset('photography/harbor.jpg', GRID_WIDTHS, { quality: GRID_QUALITY }));
-        expect(harbor.sizes).toBe(CLUSTER_SIZES);
+        expect(harbor.srcset).toBe(
+            imageSrcset('photography/harbor.jpg', [...GRID_WIDTHS, ...LIGHTBOX_WIDTHS], { quality: GRID_QUALITY }),
+        );
+        expect(harbor.sizes).toBe(clusterSizes(5));
         expect([harbor.width, harbor.height]).toEqual(['4000', '3000']);
         expect([dunes.width, dunes.height]).toEqual(['2000', '3000']);
     });

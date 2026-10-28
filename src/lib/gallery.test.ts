@@ -33,6 +33,12 @@ describe('parseGallery', () => {
         expect(parseGallery('photography', [validEntry, bare])).toEqual([validEntry, bare]);
     });
 
+    it('keeps pin: true and leaves an unpinned entry without the key', () => {
+        const [pinned, bare] = parseGallery('photography', [{ ...validEntry, pin: true }, validEntry]);
+        expect(pinned?.pin).toBe(true);
+        expect(bare && Object.hasOwn(bare, 'pin')).toBe(false);
+    });
+
     it('rejects a collection that does not exist', () => {
         expect(() => parseGallery('sculpture', [])).toThrow(/Unknown gallery collection "sculpture".*photography/);
     });
@@ -56,6 +62,7 @@ describe('parseGallery', () => {
         ['a missing processing version', { processingVersion: undefined }],
         ['an empty alt', { alt: '' }],
         ['a bad caption', { caption: { iso: -1 } }],
+        ['pin: false (only true is written)', { pin: false }],
     ])('rejects %s', (_name, patch) => {
         expect(() => parseGallery('photography', [{ ...validEntry, ...patch }])).toThrow();
     });
@@ -87,6 +94,13 @@ describe('GALLERY_COLLECTIONS', () => {
         expect(() => sidecarSchema.parse({ alt: 'TODO: describe this photo' })).toThrow(/real alt text/);
         expect(() => sidecarSchema.parse({ order: 1 })).toThrow();
         expect(() => sidecarSchema.parse({ alt: 'x', order: 1.5 })).toThrow();
+    });
+
+    it('allows a boolean pin in the sidecar', () => {
+        const { sidecarSchema } = GALLERY_COLLECTIONS.photography;
+        expect(sidecarSchema.parse({ alt: 'A harbor', pin: true })).toEqual({ alt: 'A harbor', pin: true });
+        expect(sidecarSchema.parse({ alt: 'A harbor', pin: false })).toEqual({ alt: 'A harbor', pin: false });
+        expect(() => sidecarSchema.parse({ alt: 'A harbor', pin: 'yes' })).toThrow();
     });
 });
 

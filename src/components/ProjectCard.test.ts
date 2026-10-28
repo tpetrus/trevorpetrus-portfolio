@@ -36,3 +36,21 @@ describe('ProjectCard reading order', () => {
         expect(html.indexOf('<picture')).toBeLessThan(html.indexOf('Fixture Project</a>'));
     });
 });
+
+describe('ProjectCard image widths', () => {
+    it('offers a row image up to 960px and no more', async () => {
+        const html = await render(false);
+
+        expect(html).toMatch(/960w/);
+        expect(html).not.toMatch(/1280w/);
+        expect(html).toContain('(min-width: 768px) 288px');
+    });
+
+    it('offers the cover from 640px, capped by the source image', async () => {
+        const html = await render(true);
+
+        expect(html).toMatch(/640w/);
+        expect(html).not.toMatch(/480w/);
+        expect(html).toContain('(min-width: 1024px) 75vw');
+    });
+});

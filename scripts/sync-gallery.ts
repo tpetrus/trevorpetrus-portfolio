@@ -37,6 +37,7 @@ import {
     mergeGallery,
     parseSidecars,
     parseSyncArgs,
+    pinLimitWarning,
     planInputs,
     PROCESSING_VERSION,
     r2UploadArgs,
@@ -45,9 +46,11 @@ import {
     sidecarDirectory,
     sidecarFileName,
     syncSummary,
+    withPin,
     type CuratedEntry,
     type SyncAction,
 } from '../src/lib/gallerySync.ts';
+import { HOME_PIN_LIMIT } from '../src/lib/homeCluster.ts';
 import { deriveSourceLocation, processImage } from './galleryImage.ts';
 import { loadGeonamesPlaces } from './geonames.ts';
 
@@ -194,7 +197,10 @@ async function syncPhoto({
     if (existing !== undefined && action === 'unchanged') {
         // The alt text and the place are not part of the uploaded file, so a change to either needs no re-upload.
         current.push({
-            entry: { ...existing, alt: sidecar.alt, caption: captionWithLocation(existing.caption, location) },
+            entry: withPin(
+                { ...existing, alt: sidecar.alt, caption: captionWithLocation(existing.caption, location) },
+                sidecar.pin,
+            ),
             order: sidecar.order,
         });
         console.log(`unchanged  ${key}  ${existing.width}x${existing.height}  ${place}`);
@@ -217,13 +223,15 @@ async function syncPhoto({
         alt: sidecar.alt,
         caption: captionWithLocation(processed.caption ?? {}, location),
     };
-    current.push({ entry, order: sidecar.order });
+    current.push({ entry: withPin(entry, sidecar.pin), order: sidecar.order });
 }
 
 await inTwoPasses(images, planPhoto, syncPhoto);
 
 const { entries, dropped } = mergeGallery(current, previous);
 for (const notice of droppedNotices(dropped)) console.log(notice);
+const pinWarning = pinLimitWarning(entries, HOME_PIN_LIMIT);
+if (pinWarning !== undefined) console.warn(pinWarning);
 console.log(syncSummary(counts, dropped.length, entries.length, dataFile, options.upload));
 
 if (credentials) {

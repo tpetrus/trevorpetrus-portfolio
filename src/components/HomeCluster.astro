@@ -3,7 +3,7 @@ import type { CollectionCaption, GalleryEntry } from '../lib/gallery';
 import { clusterFigures } from '../lib/homeCluster';
 
 interface Props {
-    /** The photography entries, in the gallery's order; the cluster shows the first three. */
+    /** The photography entries, in the gallery's order; the cluster shows the pinned ones (or the first three). */
     entries: GalleryEntry<CollectionCaption>[];
 }
 
@@ -25,6 +25,7 @@ const photos = await clusterFigures(Astro.props.entries);
                 loading="lazy"
                 decoding="async"
                 style={{
+                    ...photo.layout,
                     aspectRatio: `${photo.width} / ${photo.height}`,
                     backgroundImage: `url(${photo.placeholder})`,
                 }}
@@ -35,10 +36,10 @@ const photos = await clusterFigures(Astro.props.entries);
 
 <style>
     /*
-     * One composition at every width: twelve columns in one row of images, overlapping by a column. The first image spans
-     * columns 1-5, the second 5-9, the third 9-12; the second and third are raised by a margin for the offset, and the
-     * gap, the offsets and the images all scale with the cluster's width (a `cqi` unit is one percent of it), so a phone
-     * shows the same arrangement as the desktop, smaller.
+     * Twelve columns, one composition per photo count (1 to 8) from the layout table in lib/homeCluster.ts: neighbors
+     * overlap by a column, rows stagger by small offsets, and the second row is pulled up over the first. The gap, the
+     * offsets and the images all scale with the cluster's width (a `cqi` unit is one percent of it), so a phone shows the
+     * same arrangement as the desktop, smaller. Placement is inline on each image; this is the shared look.
      */
     .cluster {
         container-type: inline-size;
@@ -49,28 +50,12 @@ const photos = await clusterFigures(Astro.props.entries);
     }
 
     img {
-        grid-row: 1;
-        align-self: end;
         inline-size: 100%;
         block-size: auto;
         background-size: cover;
         object-fit: cover;
         /* A paper-colored edge where an image overlaps another, so the two stay distinct. */
         outline: 0.25rem solid var(--color-paper);
-    }
-
-    img:nth-child(1) {
-        grid-column: 1 / 6;
-    }
-
-    img:nth-child(2) {
-        grid-column: 5 / 10;
-        margin-block-end: 4.9cqi;
-    }
-
-    img:nth-child(3) {
-        grid-column: 9 / 13;
-        margin-block-end: 2.45cqi;
     }
 
     @media (min-width: 48rem) {

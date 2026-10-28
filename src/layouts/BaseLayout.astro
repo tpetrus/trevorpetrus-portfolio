@@ -40,13 +40,18 @@ const canonicalUrl = new URL(Astro.url.pathname, Astro.site);
     <body class="relative flex min-h-screen flex-col bg-paper font-sans text-ink antialiased">
         <a
             href="#main"
-            class="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-edge focus:z-10 focus:bg-ink focus:px-4 focus:py-2 focus:font-mono focus:text-step-n1 focus:tracking-[0.05em] focus:text-paper focus:uppercase"
+            class="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-edge focus:z-30 focus:bg-ink focus:px-4 focus:py-2 focus:font-mono focus:text-step-n1 focus:tracking-[0.05em] focus:text-paper focus:uppercase"
         >
             Skip to main content
         </a>
-        <header class="border-b border-ink">
+        {/* Sticky on every page, above the page content (incl. the running head) and below the skip link (z-30). */}
+        <header data-site-header class="sticky top-0 z-20 border-b border-ink bg-paper">
             <div class="column flex flex-wrap items-center justify-between gap-x-gutter py-3">
-                <a href="/" class="font-display text-step-n1 font-bold tracking-[0.06em] whitespace-nowrap uppercase">
+                <a
+                    href="/"
+                    data-header-name
+                    class="font-display text-step-n1 font-bold tracking-[0.06em] whitespace-nowrap uppercase"
+                >
                     {siteName}
                 </a>
                 <nav aria-label="Primary">

@@ -58,12 +58,19 @@ Cloudflare Workers Builds (see "CI and deploys").
 - **Shell:** `.surface-ink` (in `global.css`) is the reusable ink surface: ink background, paper text, `.link` in paper and the
   `:focus-visible` ring in `accent`; the footer is its first user and the D4 photography section reuses it. On paper,
   `.link` is `accent-deep` plus an underline. No JavaScript is involved in the focus or selection styles.
+- **Sticky header:** the header is sticky on every page (`z-20`, under the `z-30` skip link). On the home page the
+  header name is hidden while the giant wordmark is on screen: CSS `body:has([data-wordmark]) [data-header-name]` hides it
+  with opacity and a translate, and `src/scripts/headerName.ts` toggles `data-docked` through an IntersectionObserver once
+  the wordmark is under the header. `:focus-visible` reveals the name too, and reduced motion drops the translate. Without
+  JavaScript the header name stays hidden on the home page, where the h1 shows the name. `html` has
+  `scroll-padding-top: 5.5rem`, above the header's tallest measured height (77 px on phones 375 px wide and narrower, where
+  the nav wraps), so anchors and focused elements are not hidden under it (WCAG 2.4.11); re-measure if the header changes.
 - **Page column:** the `column` utility in `global.css` (width token `--container-column: 75vw` in `@theme`) is the one
   content column. The header row, `main` (or, on the bleed Photography page, the inner wrapper of the ink section), the
   footer row and the Photography grid all use it, so every page lines up. Below 1024px it is full width minus the `px-edge`
   padding; from 1024px (`lg`) it is 75vw wide, centered, with no maximum and the padding dropped (so the two never add up;
   the side space is 12.5vw each). Running text keeps `max-w-measure` inside it. Image `sizes` follow it in `vw` from 1024px
-  (`tileSizes`, `CLUSTER_SIZES`, the featured project cover); an `e2e` check in `shell.spec.ts` asserts the three rows share
+  (`tileSizes`, `clusterSizes`, the featured project cover); an `e2e` check in `shell.spec.ts` asserts the three rows share
   their edges at 1440 and 1920. The vertical running head sits in the left margin from `xl` (1280px); at that width the
   margin is 160px and the head ends about 71px from the left, clear of the content.
 - **Design tokens:** `@theme` in `src/styles/global.css` holds the palette (light "paper" theme only), the fluid type
@@ -117,6 +124,7 @@ src/
                         Wordmark.astro (the giant home `h1`), HomeCluster.astro (the home photo cluster; which photos
                         and their image attributes come from lib/homeCluster.ts)
   scripts/galleryLightbox.ts  (src/scripts/) browser glue for the PhotoSwipe lightbox (DOM only, outside unit-test coverage)
+  scripts/headerName.ts  (src/scripts/) DOM glue for the header-name handoff, imported by Wordmark.astro (outside unit coverage)
 public/                 static files served from / (favicon.svg)
 tests/e2e/              Playwright specs (smoke.spec.ts is tagged @smoke); its own tsconfig; lightbox.spec.ts skips while
                         the photography data file is empty
@@ -156,21 +164,25 @@ steps, each a measured `cqi` and `wdth` pair for Archivo at weight 800 with -0.0
 at line-height 0.85), so the font swap shifts nothing. Change the face, weight or tracking and the pairs must be measured
 again (`tests/e2e/home.spec.ts` checks each line fills 90% to 101% of the box).
 
-`HomeCluster.astro` shows the first three photography entries in the gallery's order, through `imageUrl.ts` and
-`GRID_WIDTHS` only (the cluster adds no new transformations), and renders nothing while the data file is empty. It is one
-composition at every width: twelve columns, the images spanning 1-5, 5-9 and 9-12 so each overlaps the next by a column,
-the second and third raised by margins. The column gap and the margins scale with the cluster (`cqi`, an inline-size
-container), so a 320 px phone shows the desktop arrangement smaller, with no horizontal overflow. The cluster deliberately
+`HomeCluster.astro` shows the pinned photography entries (`pin: true` in the sidecar, at most `HOME_PIN_LIMIT`, 8; see
+"Home collage" under "Gallery"), or the first three when none is pinned, in the gallery's order, and renders nothing while
+the data file is empty. `CLUSTER_LAYOUTS` in `src/lib/homeCluster.ts` holds one composition per count from 1 to 8 as
+data (grid lines of twelve columns, a row, and `cqi` offsets); the template only applies `slotStyle`. Neighbors overlap
+by a column; five or more photos use two rows, the second pulled up over the first. Three photos keep the original
+composition (1-5, 5-9 and 9-12, the second and third raised). The column gap and the offsets scale with the cluster
+(`cqi`, an inline-size container), so a 320 px phone shows the desktop arrangement smaller, with no horizontal overflow.
+Each image's `sizes` follows its span (`clusterSizes`), and `srcset` uses only `GRID_WIDTHS`, plus `LIGHTBOX_WIDTHS` for a
+slot six columns or wider (`clusterSrcsetWidths`), so the cluster adds no new transformations. The cluster deliberately
 shows the photos without captions (plain `img` elements, no `figure`; each keeps its alt text from the data as its
 accessible name): the camera settings and the place live on the Photography page and its lightbox. The images carry an explicit `aspect-ratio`, so the cluster never shifts the page.
 
-On phones the widest images are about 36% to 38% of the viewport (`phoneImageWidth` in `src/lib/homeCluster.ts`; the third,
-four columns wide as on desktop, is about 29%), and `CLUSTER_SIZES` gives the browser the matching `38vw` hint. They are
+In the three-photo composition on phones the widest images are about 36% to 38% of the viewport (`phoneImageWidth` in
+`src/lib/homeCluster.ts`; the third, four columns wide as on desktop, is about 29%). They are
 smaller than the wordmark `h1`, so the wordmark stays the largest contentful paint and every cluster image can stay lazy
 with no `fetchpriority="high"`. Measured on this layout (mobile Lighthouse, 3 runs on `/`, with the three real photos):
 LCP element `h1.name` in every run, performance 0.99, LCP 2.0 s, CLS 0. PR #16 measured about 2.4 s (performance about 0.97)
-when a cluster photo was the LCP element and eager with `fetchpriority="high"`. If the first three photos or the layout
-change, re-check the LCP element with `npm run lighthouse` before merging: if a photo is the LCP, make that one image
+when a cluster photo was the LCP element and eager with `fetchpriority="high"`. If the shown photos, the pins or the layout
+change (a lone pinned photo spans six columns), re-check the LCP element with `npm run lighthouse` before merging: if a photo is the LCP, make that one image
 eager with `fetchpriority="high"` and keep the rest lazy.
 
 ## Projects
@@ -183,7 +195,8 @@ chip), a bold caps title, and a byline with the tech list and "Updated <date>". 
 newest has the highest number, and adding a project never renumbers another; ties on the same date go by slug, and a
 project with no recorded `created` is numbered after every dated one (by slug), so it still renders; run the sync to
 give it its place. The page shows them highest first. A card's main link is `projectUrl(subdomain)` when `subdomain` is set, otherwise the repo;
-every card also has a GitHub icon link. The status is `live`, `in-progress` or `archived`. Tech tags and the description
+every card also has a GitHub icon link, and a card draws a 1px ink outline on hover and keyboard focus. Screenshots are
+captured at 2x (CSS viewport 1280x800, a 2560x1600 image) and the cover offers widths up to 2560. The status is `live`, `in-progress` or `archived`. Tech tags and the description
 are curated by hand in the frontmatter; the sync script never rewrites them.
 
 **Add a project:**
@@ -220,9 +233,9 @@ With no entries the page shows "Photos are on their way." and references no Phot
 2. Scaffold the sidecars: `npm run scaffold:gallery -- photography` (add `--dry-run` to only list what it would do). For
    every accepted JPEG without one it writes `src/content/photography/<basename>.yml` from the collection's template, and
    it never overwrites an existing sidecar (exclusive create). The template holds `alt: "TODO: describe this photo"` and a
-   commented-out `# order: 1` and `# location:` (see "Where it was taken").
+   commented-out `# order: 1`, `# pin: true` and `# location:` (see "Where it was taken").
 3. Replace each `TODO` with real alt text (EXIF has no alt text) and, optionally, set an integer `order` (lowest first,
-   ahead of photos without one) and a `location` override (see "Where it was taken"). The photography sidecar schema rejects an `alt` that starts with `TODO`
+   ahead of photos without one), `pin: true` (see "Home collage") and a `location` override (see "Where it was taken"). The photography sidecar schema rejects an `alt` that starts with `TODO`
    (`ALT_PLACEHOLDER_MARKER` in `src/lib/sidecarPlaceholder.ts`, case-insensitive), so the sync fails, dry run included,
    and lists every such sidecar. It also reports every missing sidecar, orphan sidecar, non-JPEG and duplicate name in one
    run.
@@ -277,6 +290,13 @@ keys and number pairs.
   it for every photo, including unchanged ones, so existing entries gain a place on the next sync like an alt-text edit does.
 - **Attribution.** The Photography page shows "Place names from GeoNames, CC BY 4.0" (`GeonamesCredit.astro`) only when at
   least one entry has `source: "geonames"`.
+
+**Home collage.** The home page's photo collage (`components/HomeCluster.astro`, layouts in `src/lib/homeCluster.ts`)
+shows the photos whose sidecar has `pin: true`, in the gallery's order, at most `HOME_PIN_LIMIT` (8), with its own
+composition for each count from 1 to 8. With nothing pinned it shows the first three photos. Like the alt text, `pin`
+reaches the page through the sync: it is stored as `"pin": true` in the data file (absent when unpinned), so pinning or
+unpinning needs no re-upload but does need `npm run sync:gallery -- photography --upload` to rewrite the JSON. The sync
+warns, naming the photos left out, when more than eight are pinned.
 
 **R2 objects are never deleted by the script.** A photo whose source is gone is dropped from the JSON with a notice; remove
 its object by hand.

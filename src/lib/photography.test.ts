@@ -222,6 +222,7 @@ describe('photographySidecarTemplate', () => {
         expect(template).toContain('DSC_0001.jpg');
         expect(template).toContain(`\nalt: "${ALT_PLACEHOLDER_MARKER}: describe this photo"\n`);
         expect(template).toContain('\n# order: 1\n');
+        expect(template).toContain('\n# pin: true\n');
         expect(template.endsWith('\n')).toBe(true);
     });
 
