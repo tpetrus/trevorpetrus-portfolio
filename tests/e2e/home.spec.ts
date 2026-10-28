@@ -172,12 +172,9 @@ test.describe('home page', () => {
             expect(new URL(page.url()).hash).toBe(`#${href!.split('#')[1]}`);
             // The marker survives only if View Transitions swapped the page instead of loading it.
             expect(await page.evaluate(() => (window as unknown as { __marker?: boolean }).__marker)).toBe(true);
-            // The tile ids (photoAnchorId) are added to the Photography page by a separate change; assert the tile
-            // only once it exists, and let the integration run check it.
             const id = new URL(page.url()).hash.slice(1);
-            if ((await page.locator(`[id="${id}"]`).count()) > 0) {
-                await expect(page.locator(`[id="${id}"]`)).toHaveCount(1);
-            }
+            await expect(page.locator(`[id="${id}"]`)).toHaveCount(1);
+            await expect(page.getByRole('dialog')).toBeVisible();
         });
 
         test('reaches a photo link with the keyboard and shows a focus outline', async ({ page, browserName }) => {

@@ -118,8 +118,54 @@ test.describe('photography lightbox', () => {
         );
     });
 
+    test('clears the photo fragment when the viewer closes, so reload does not reopen it', async ({ page }) => {
+        await stubRemotePhotos(page);
+        await page.goto(`/photography/#${photoAnchorId(entries[0].key)}`);
+        const dialog = page.getByRole('dialog');
+        await expect(dialog).toBeVisible();
+
+        await expect(async () => {
+            await page.keyboard.press('Escape');
+            await expect(dialog).toBeHidden({ timeout: 1000 });
+        }).toPass();
+        expect(page.url()).not.toContain('#photo-');
+
+        await page.reload();
+        await expect(page.locator('[data-gallery][data-reveal]').first()).toBeAttached();
+        await expect(page.getByRole('dialog')).toHaveCount(0);
+    });
+
+    test('opens the photo when the fragment is set on the page', async ({ page }) => {
+        await stubRemotePhotos(page);
+        await page.goto('/photography/');
+        await expect(page.locator('[data-gallery][data-reveal]').first()).toBeAttached();
+
+        await page.evaluate((id) => {
+            location.hash = `#${id}`;
+        }, photoAnchorId(entries[0].key));
+
+        await expect(page.getByRole('dialog')).toBeVisible();
+    });
+
+    test('opens the last photo of the landscape gallery with its own original', async ({ page }) => {
+        const landscape = entries.filter((entry) => entry.category === 'landscape');
+        test.skip(landscape.length === 0, 'There are no landscape photos.');
+        const last = landscape[landscape.length - 1];
+        await stubRemotePhotos(page);
+        await page.goto(`/photography/#${photoAnchorId(last.key)}`);
+
+        const dialog = page.getByRole('dialog');
+        await expect(dialog).toBeVisible();
+        await expect(dialog.getByRole('link', { name: 'View original' })).toHaveAttribute(
+            'href',
+            originalImageUrl(last.key),
+        );
+    });
+
     test('ignores a fragment that names no photo', async ({ page }) => {
         await page.goto('/photography/#photo-does-not-exist');
+        // Wait until the page's scripts ran, so a missing dialog is not just a script that has not run yet.
+        await expect(page.locator('[data-gallery][data-reveal]').first()).toBeAttached();
 
         await expect(page.getByRole('dialog')).toHaveCount(0);
     });
