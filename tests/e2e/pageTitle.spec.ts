@@ -135,7 +135,13 @@ test.describe('page titles', () => {
                     nextTop: next ? next.getBoundingClientRect().top : null,
                 };
             });
-            expect(boxes.mediaWidth / boxes.column).toBeCloseTo(1 / 3, 2);
+            // A third of the column on wide screens; below 48rem it runs from its left edge to the column's right edge.
+            if (width < 768) {
+                expect(boxes.mediaWidth / boxes.column).toBeCloseTo(1 / 2, 2);
+                expect(boxes.mediaLeft + boxes.mediaWidth).toBeCloseTo(boxes.column, 0);
+            } else {
+                expect(boxes.mediaWidth / boxes.column).toBeCloseTo(1 / 3, 2);
+            }
             expect(boxes.mediaLeft / boxes.column).toBeGreaterThanOrEqual(0.45);
             expect(boxes.mediaLeft / boxes.column).toBeLessThanOrEqual(0.55);
             if (boxes.nextTop !== null) expect(boxes.mediaBottom).toBeLessThanOrEqual(boxes.nextTop + 0.5);

@@ -103,6 +103,16 @@ const { text, video } = Astro.props;
         block-size: calc(var(--media-top) + var(--media-height));
     }
 
+    /*
+     * On a phone a third of the column is a thumbnail (about 115 px) floating in empty space, so below 48rem the video
+     * keeps its left edge and runs on to the column's right edge: half the column. The reserved height follows.
+     */
+    @media (max-width: 47.99rem) {
+        .stage[data-has-video] {
+            --media-width: 50cqi;
+        }
+    }
+
     .media {
         position: absolute;
         inset-inline-start: 50cqi;

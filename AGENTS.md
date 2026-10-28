@@ -64,7 +64,7 @@ Cloudflare Workers Builds (see "CI and deploys").
   from the number, like the wordmark's. It has no `data-wordmark`, so the header keeps the site name on those pages.
   `tests/e2e/pageTitle.spec.ts` checks the 65% to 75% span; change the face, weight, tracking or `wdth` and re-measure.
   With a `video` prop (`PHOTOGRAPHY_TITLE_VIDEO` in `src/lib/pageTitle.ts`) it adds a decorative loop a third of the column
-  wide, behind the right part of the letters and hanging below them, inside reserved space. The files are in
+  wide (below 48rem it runs on to the column's right edge, half the column), behind the right part of the letters and hanging below them, inside reserved space. The files are in
   `public/video/` (`photography-loop.webm` AV1 and `.mp4` H.264, 480x270, 24 fps, silent, under 1 MB each, plus a WebP
   poster), encoded from the original with ffmpeg (`-an -vf scale=480:-2,fps=24`; `libsvtav1 -crf 50` for the WebM,
   `libx264 -crf 32 -movflags +faststart` for the MP4). The video autoplays: `src/scripts/titleVideo.ts`
