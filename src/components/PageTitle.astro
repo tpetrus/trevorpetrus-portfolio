@@ -1,0 +1,152 @@
+---
+import type { TitleVideo } from '../lib/pageTitle';
+
+interface Props {
+    /** The h1 text in the reader's case ("Photography"); the capitals are CSS. */
+    text: string;
+    /** An optional decorative loop that sits behind the right part of the letters. */
+    video?: TitleVideo;
+}
+
+const { text, video } = Astro.props;
+---
+
+{/* A giant subpage title, set like the home wordmark (Wordmark.astro) but on one line. It deliberately has no
+    `data-wordmark`: the sticky header keeps showing the site name on these pages. */}
+<div class="page-title">
+    <div
+        class="stage"
+        data-has-video={video ? '' : undefined}
+        style={video ? `--vw:${video.width};--vh:${video.height}` : undefined}
+    >
+        <h1 class="title">{text}</h1>
+        {video && (
+            /* The framed video is its own play/pause control: a click (or Enter/Space, it is a real button) pauses or
+               resumes it, so motion can always be stopped (WCAG 2.2.2) without a visible chip over the clip. It stays
+               disabled until titleVideo.ts runs, because without JavaScript it would do nothing. */
+            <button
+                type="button"
+                class="media"
+                data-title-video-toggle
+                aria-label="Pause background video"
+                data-state="playing"
+                disabled
+            >
+                {/* Decorative and silent, so it is hidden from assistive technology; the button carries the name. */}
+                <video
+                    data-title-video
+                    muted
+                    loop
+                    playsinline
+                    preload="none"
+                    poster={video.poster}
+                    width={video.width}
+                    height={video.height}
+                    aria-hidden="true"
+                    tabindex="-1"
+                >
+                    <source src={video.webm} type='video/webm; codecs="av01.0.00M.08"' />
+                    <source src={video.mp4} type="video/mp4" />
+                </video>
+            </button>
+        )}
+    </div>
+</div>
+
+{video && <script>
+    import '../scripts/titleVideo.ts';
+</script>}
+
+<style>
+    /*
+     * One size for every title and every width, in `cqi` of the content column: "PHOTOGRAPHY" at the narrowest
+     * `wdth` (62) spans about 70% of it, and a shorter title such as "PROJECTS" simply fills less, so the titles
+     * match in scale. Like the wordmark, the height is reserved from the number (the line height times the size), not
+     * from the glyphs, so the font swap shifts nothing; `overflow-x: clip` and `nowrap` keep the fallback face, a
+     * little wider until Archivo arrives, from scrolling the page or wrapping.
+     */
+    .page-title {
+        container-type: inline-size;
+    }
+
+    .stage {
+        --size: 14cqi;
+        --line-height: 0.85;
+        position: relative;
+    }
+
+    .title {
+        position: relative;
+        /* Above the video, so the letters stay readable and keep the text selectable. */
+        z-index: 1;
+        font-family: var(--font-display);
+        font-size: var(--size);
+        font-variation-settings: 'wdth' 62;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        line-height: var(--line-height);
+        block-size: calc(var(--size) * var(--line-height));
+        overflow-x: clip;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    /*
+     * The video is a third of the column, pushed right so it sits behind the right part of the letters and dropped so
+     * it overlaps their lower half and hangs below them. The stage reserves the room it needs, so it never covers what
+     * follows. All of it is in `cqi`, so it scales with the title.
+     */
+    .stage[data-has-video] {
+        --media-width: 33.333cqi;
+        --media-top: 6cqi;
+        --media-height: calc(var(--media-width) * var(--vh) / var(--vw));
+        block-size: calc(var(--media-top) + var(--media-height));
+    }
+
+    /*
+     * On a phone a third of the column is a thumbnail (about 115 px) floating in empty space, so below 48rem the video
+     * keeps its left edge and runs on to the column's right edge: half the column. The reserved height follows.
+     */
+    @media (max-width: 47.99rem) {
+        .stage[data-has-video] {
+            --media-width: 50cqi;
+        }
+    }
+
+    .media {
+        position: absolute;
+        inset-inline-start: 50cqi;
+        inset-block-start: var(--media-top);
+        inline-size: var(--media-width);
+        block-size: var(--media-height);
+    }
+
+    video {
+        display: block;
+        inline-size: 100%;
+        block-size: 100%;
+        object-fit: cover;
+        aspect-ratio: calc(var(--vw) / var(--vh));
+    }
+
+    /*
+     * The paper frame sits inside the box (border-box), so the reserved space above stays exact. The pointer says it
+     * can be clicked; the keyboard focus ring comes from global.css.
+     */
+    .media {
+        padding: 0;
+        border: 0.25rem solid var(--color-paper);
+        background-color: var(--color-ink);
+        cursor: pointer;
+    }
+
+    .media:disabled {
+        cursor: default;
+    }
+
+    @media (forced-colors: active) {
+        .media {
+            border-color: ButtonText;
+        }
+    }
+</style>

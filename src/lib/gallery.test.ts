@@ -20,6 +20,7 @@ const validEntry = {
     sourceSha256: 'a'.repeat(64),
     processingVersion: 1,
     alt: 'Boats in a harbor at dawn',
+    category: 'landscape',
     caption: { camera: 'Canon EOS R5', iso: 400, taken: '2026-10-01' },
 };
 
@@ -61,6 +62,8 @@ describe('parseGallery', () => {
         ['an uppercase sha', { sourceSha256: 'A'.repeat(64) }],
         ['a missing processing version', { processingVersion: undefined }],
         ['an empty alt', { alt: '' }],
+        ['a missing category', { category: undefined }],
+        ['an unknown category', { category: 'street' }],
         ['a bad caption', { caption: { iso: -1 } }],
         ['pin: false (only true is written)', { pin: false }],
     ])('rejects %s', (_name, patch) => {
@@ -70,8 +73,9 @@ describe('parseGallery', () => {
 
 describe('galleryEntrySchema', () => {
     it('takes the caption schema as a parameter', () => {
-        const schema = galleryEntrySchema('art', z.object({ title: z.string() }));
-        const entry = { ...validEntry, key: 'art/piece.jpg', caption: { title: 'Piece' } };
+        const schema = galleryEntrySchema('art', z.object({ title: z.string() }), [{ id: 'oil', label: 'Oil' }]);
+        const entry = { ...validEntry, key: 'art/piece.jpg', category: 'oil', caption: { title: 'Piece' } };
+        expect(() => schema.parse({ ...entry, category: 'landscape' })).toThrow(/one of oil/);
         expect(schema.parse(entry)).toEqual(entry);
         expect(() => schema.parse({ ...entry, caption: {} })).toThrow();
     });
@@ -82,25 +86,64 @@ describe('GALLERY_COLLECTIONS', () => {
         expect(GALLERY_COLLECTIONS.photography.keepsCameraExif).toBe(true);
     });
 
+    it('shows only the place under a photography tile', () => {
+        const { formatTileCaption } = GALLERY_COLLECTIONS.photography;
+        const location = { city: 'Lisbon', country: 'Portugal', source: 'sidecar' } as const;
+        expect(formatTileCaption({ location, camera: 'X100V', iso: 200 })).toBe('Lisbon, Portugal');
+        expect(formatTileCaption({ camera: 'X100V' })).toBe('');
+    });
+
     it('formats a photography caption', () => {
         expect(GALLERY_COLLECTIONS.photography.formatCaption({ camera: 'X100V', iso: 200 })).toBe('X100V · ISO 200');
     });
 
+    it('lists the photography sections in page order', () => {
+        expect(GALLERY_COLLECTIONS.photography.categories.map(({ id }) => id)).toEqual([
+            'landscape',
+            'portrait',
+            'car',
+        ]);
+    });
+
+    it('requires a known category in the sidecar', () => {
+        const { sidecarSchema } = GALLERY_COLLECTIONS.photography;
+        expect(() => sidecarSchema.parse({ alt: 'A harbor' })).toThrow();
+        expect(() => sidecarSchema.parse({ alt: 'A harbor', category: 'street' })).toThrow();
+        expect(sidecarSchema.parse({ alt: 'A harbor', category: 'car' })).toEqual({ alt: 'A harbor', category: 'car' });
+    });
+
     it('requires alt text in the sidecar and allows an order', () => {
         const { sidecarSchema } = GALLERY_COLLECTIONS.photography;
-        expect(sidecarSchema.parse({ alt: 'A harbor', order: 2 })).toEqual({ alt: 'A harbor', order: 2 });
-        expect(sidecarSchema.parse({ alt: 'A harbor' })).toEqual({ alt: 'A harbor' });
+        expect(sidecarSchema.parse({ alt: 'A harbor', category: 'landscape', order: 2 })).toEqual({
+            alt: 'A harbor',
+            category: 'landscape',
+            order: 2,
+        });
+        expect(sidecarSchema.parse({ alt: 'A harbor', category: 'landscape' })).toEqual({
+            alt: 'A harbor',
+            category: 'landscape',
+        });
         expect(() => sidecarSchema.parse({ alt: '' })).toThrow();
-        expect(() => sidecarSchema.parse({ alt: 'TODO: describe this photo' })).toThrow(/real alt text/);
+        expect(() => sidecarSchema.parse({ alt: 'TODO: describe this photo', category: 'landscape' })).toThrow(
+            /real alt text/,
+        );
         expect(() => sidecarSchema.parse({ order: 1 })).toThrow();
         expect(() => sidecarSchema.parse({ alt: 'x', order: 1.5 })).toThrow();
     });
 
     it('allows a boolean pin in the sidecar', () => {
         const { sidecarSchema } = GALLERY_COLLECTIONS.photography;
-        expect(sidecarSchema.parse({ alt: 'A harbor', pin: true })).toEqual({ alt: 'A harbor', pin: true });
-        expect(sidecarSchema.parse({ alt: 'A harbor', pin: false })).toEqual({ alt: 'A harbor', pin: false });
-        expect(() => sidecarSchema.parse({ alt: 'A harbor', pin: 'yes' })).toThrow();
+        expect(sidecarSchema.parse({ alt: 'A harbor', category: 'landscape', pin: true })).toEqual({
+            alt: 'A harbor',
+            category: 'landscape',
+            pin: true,
+        });
+        expect(sidecarSchema.parse({ alt: 'A harbor', category: 'landscape', pin: false })).toEqual({
+            alt: 'A harbor',
+            category: 'landscape',
+            pin: false,
+        });
+        expect(() => sidecarSchema.parse({ alt: 'A harbor', category: 'landscape', pin: 'yes' })).toThrow();
     });
 });
 

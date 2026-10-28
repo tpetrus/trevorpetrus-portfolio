@@ -1,6 +1,7 @@
 import type { CollectionCaption, GalleryEntry } from './gallery';
 import { GRID_QUALITY } from './galleryView';
 import { GRID_WIDTHS, imageSrcset, LIGHTBOX_WIDTHS, transformedImageUrl } from './imageUrl';
+import { photoPageHref } from './photoLink';
 import { placeholderDataUrl } from './thumbhash';
 
 /** How many photos the cluster shows when none is pinned: the first few in the gallery's order. */
@@ -145,6 +146,8 @@ export function slotStyle({ start, end, row, lift = 0, pull = 0 }: Slot): Record
 
 export interface ClusterFigure {
     key: string;
+    /** The photo's place on the Photography page, where it opens in the lightbox. */
+    href: string;
     alt: string;
     width: number;
     height: number;
@@ -176,6 +179,7 @@ export async function clusterFigures(entries: readonly GalleryEntry<CollectionCa
             const span = slot.end - slot.start;
             return {
                 key,
+                href: photoPageHref(key),
                 alt,
                 width,
                 height,

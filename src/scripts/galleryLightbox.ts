@@ -4,6 +4,7 @@
 import PhotoSwipeLightbox from 'photoswipe/lightbox';
 import 'photoswipe/style.css';
 
+import { photoIdFromHash } from '../lib/photoLink';
 import '../styles/lightbox.css';
 
 // An arrow leaving a box: "open the original in a new tab". It reuses PhotoSwipe's own button markup, so it gets the
@@ -16,7 +17,8 @@ const VIEW_ORIGINAL_ICON = {
 
 function createLightbox(): PhotoSwipeLightbox {
     const lightbox = new PhotoSwipeLightbox({
-        gallery: '#gallery',
+        // One lightbox for every gallery on the page (one per category); each gallery navigates within itself.
+        gallery: '[data-gallery]',
         children: 'a',
         // PhotoSwipe's core is loaded on the first click, not with the page.
         pswpModule: () => import('photoswipe'),
@@ -61,6 +63,14 @@ function createLightbox(): PhotoSwipeLightbox {
         });
     });
 
+    // A deep link's fragment would reopen the viewer on reload or Back after it closes, so it is dropped on close.
+    // history.state is kept because Astro's ClientRouter stores its navigation state there.
+    lightbox.on('close', () => {
+        if (photoIdFromHash(location.hash) !== undefined) {
+            history.replaceState(history.state, '', location.pathname + location.search);
+        }
+    });
+
     lightbox.init();
     return lightbox;
 }
@@ -95,10 +105,28 @@ const afterNextPaint = (): Promise<void> =>
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
     });
 
+// Opens the photo a "/photography/#photo-<name>" link names (the home collage links this way). The index must be
+// among the links of its own gallery, because that is the list PhotoSwipe navigates.
+function openFromHash(instance: PhotoSwipeLightbox): void {
+    const id = photoIdFromHash(location.hash);
+    if (id === undefined) return;
+    const photo = document.getElementById(id)?.querySelector<HTMLAnchorElement>('a.photo');
+    const gallery = photo?.closest<HTMLElement>('[data-gallery]');
+    if (photo == null || gallery == null) return;
+    const index = Array.from(gallery.querySelectorAll('a')).indexOf(photo);
+    if (index >= 0) instance.loadAndOpen(index, { gallery });
+}
+
 document.addEventListener('astro:page-load', () => {
-    if (document.querySelector('#gallery') !== null) {
+    if (document.querySelector('[data-gallery]') !== null) {
         lightbox = createLightbox();
+        openFromHash(lightbox);
     }
+});
+
+// Setting the fragment on the page (or following an in-page link) does not reload it, so it opens the photo too.
+window.addEventListener('hashchange', () => {
+    if (lightbox !== null) openFromHash(lightbox);
 });
 
 // Navigating away with the viewer open used to swap the page while the viewer was still live, which crashed Playwright's

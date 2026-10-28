@@ -3,7 +3,7 @@
 A personal portfolio: an intro page (a 3D hero is planned), a photography gallery and a projects list. Static Astro site
 served from Cloudflare Workers static assets. Step 1 (skeleton, tooling, CI), Step 2 (the Projects page, built from a
 content collection) and Step 3 (the photo gallery pipeline and the Photography page) are done; the 3D hero is not. The
-Photography page is real but empty ("Photos are on their way.") until photos are uploaded (see "Gallery"). The home page
+Photography page shows the uploaded photos in three category sections, Landscape, Portrait and Car (see "Gallery"). The home page
 is real but pre-hero: the giant name, a short statement and, once photos exist, a three-photo cluster (see "Home").
 
 ## Commands
@@ -37,7 +37,7 @@ Cloudflare Workers Builds (see "CI and deploys").
   page (not only the first load) belong in an `astro:page-load` listener.
 - **PhotoSwipe 5** (`photoswipe`) is the gallery lightbox. Its glue is `src/scripts/galleryLightbox.ts`, imported by
   `Gallery.astro`, so its JS and CSS load only on a page that renders a gallery (not on the Photography page while it is
-  empty). Astro runs a module script once, so the glue creates a lightbox on each `astro:page-load` that has `#gallery`
+  empty). Astro runs a module script once, so the glue creates a lightbox on each `astro:page-load` that has a `[data-gallery]`
   and destroys it on `astro:before-swap` (PhotoSwipe binds to the elements present at `init()`, and `destroy()` is final).
 - **React 19 via `@astrojs/react`**, only for future interactive islands (the 3D hero). No page uses it yet, so the
   island runtime (`dist/_astro/client.*.js`) is emitted but never loaded; the JS budget excludes it for that reason.
@@ -58,6 +58,21 @@ Cloudflare Workers Builds (see "CI and deploys").
 - **Shell:** `.surface-ink` (in `global.css`) is the reusable ink surface: ink background, paper text, `.link` in paper and the
   `:focus-visible` ring in `accent`; the footer is its first user and the D4 photography section reuses it. On paper,
   `.link` is `accent-deep` plus an underline. No JavaScript is involved in the focus or selection styles.
+- **Page titles:** `PageTitle.astro` is the `h1` of the Photography and Projects pages: one line in the home wordmark's
+  style (Archivo 800, -0.04em, capitals by CSS) at the narrowest `wdth` (62) and one size, `14cqi` of the content column,
+  so "PHOTOGRAPHY" spans about 70% of it at every width and "PROJECTS" is the same size, shorter. Its height is reserved
+  from the number, like the wordmark's. It has no `data-wordmark`, so the header keeps the site name on those pages.
+  `tests/e2e/pageTitle.spec.ts` checks the 65% to 75% span; change the face, weight, tracking or `wdth` and re-measure.
+  With a `video` prop (`PHOTOGRAPHY_TITLE_VIDEO` in `src/lib/pageTitle.ts`) it adds a decorative loop a third of the column
+  wide (below 48rem it runs on to the column's right edge, half the column), behind the right part of the letters and hanging below them, inside reserved space. The files are in
+  `public/video/` (`photography-loop.webm` AV1 and `.mp4` H.264, 480x270, 24 fps, silent, under 1 MB each, plus a WebP
+  poster), encoded from the original with ffmpeg (`-an -vf scale=480:-2,fps=24`; `libsvtav1 -crf 50` for the WebM,
+  `libx264 -crf 32 -movflags +faststart` for the MP4). The video autoplays: `src/scripts/titleVideo.ts`
+  starts it on `astro:page-load` (not through an `autoplay` attribute, so a visitor who prefers reduced motion never sees
+  it move) and pauses it while it is off-screen. It has a 0.25rem paper frame, and the framed video is itself the
+  play/pause button: a click pauses or resumes it, and as a real button it works from the keyboard too (WCAG 2.2.2),
+  named by its action ("Pause/Play background video"), with no control drawn over the clip. The button is disabled
+  until the script runs. Without JavaScript only the poster shows.
 - **Sticky header:** the header is sticky on every page (`z-20`, under the `z-30` skip link). On the home page the
   header name is hidden while the giant wordmark is on screen: CSS `body:has([data-wordmark]) [data-header-name]` hides it
   with opacity and a translate, and `src/scripts/headerName.ts` toggles `data-docked` through an IntersectionObserver once
@@ -90,15 +105,16 @@ Cloudflare Workers Builds (see "CI and deploys").
 src/
   config/site.ts        THE site-config module: SITE_URL and PROJECTS_DOMAIN (the one place the domain is set), projectUrl(),
                         and PHOTOS_ORIGIN (the one place the image host is set)
-  lib/                  pure, unit-tested logic (nav.ts; numbering.ts: stable index numbers by date, shared by Projects
-                        and later Photography/Art; projects.ts: the project schema and card helpers; projectMeta.ts,
+  lib/                  pure, unit-tested logic (nav.ts; numbering.ts: stable index numbers by date, used by
+                        Projects; photoLink.ts: the Photography page's deep-link format (tile ids and hrefs);
+                        pageTitle.ts: the page-title video files; projects.ts: the project schema and card helpers; projectMeta.ts,
                         projectSource.ts: parsing for the sync script and the page; date.ts: UTC date formatting;
                         gallery.ts: the collection registry (GALLERY_COLLECTIONS) and the entry schema; photography.ts:
                         the photography caption/sidecar schemas and template, EXIF mapping and caption
                         formatting; sidecarPlaceholder.ts: the TODO alt marker the schema rejects; gallerySync.ts:
                         sync arguments, planning, merging and the wrangler arguments; gallerySidecars.ts: the scaffold's
                         arguments and plan; galleryView.ts: the per-entry view
-                        model the Gallery renders; imageUrl.ts: original and resized-variant URLs and the fixed width
+                        model the Gallery renders and the category sections; imageUrl.ts: original and resized-variant URLs and the fixed width
                         sets; thumbhash.ts: ThumbHash validation and the WebP placeholder; exifLocation.ts: which
                         metadata keys are a location; location.ts: the city/country schemas, sidecar-vs-derived
                         merge and the caption text; geonames.ts: offline place lookup and `cities1000`
@@ -108,8 +124,8 @@ src/
   assets/projects/      generated screenshots (<slug>.avif), committed; rendered through astro:assets
   data/project-meta.json  generated last-updated and creation dates keyed by project slug, committed
   data/gallery/         <collection>.json, written by sync-gallery and committed: one entry per photo (key, size,
-                        ThumbHash, caption, alt); `[]` until photos are uploaded
-  content/<collection>/ one <image basename>.yml sidecar per photo with the `alt` text and an optional `order`
+                        ThumbHash, caption, alt, category); `[]` until photos are uploaded
+  content/<collection>/ one <image basename>.yml sidecar per photo with the `alt` text, the `category` and an optional `order`
                         (e.g. content/photography/); hand-written
   layouts/              BaseLayout.astro: head/meta, skip link, running-head header and nav, View Transitions, ink footer
   pages/                index, photography, projects (default exports required by Astro)
@@ -118,14 +134,19 @@ src/
   components/           ProjectCard.astro, Caption.astro (label/title/byline/credit stack, slots for title, `byline`,
                         `credit`), SectionIndex.astro (numbered `role="list"` rows with 1px ink rules, one named slot per
                         row id), GitHubIcon.astro, Gallery.astro (generic over the collection),
-                        PhotoCaption.astro (the visible caption under a tile),
+                        PhotographySections.astro (the Photography page body: the category jump links, one section
+                        and Gallery per category, the credit), PhotoCaption.astro (the place under a tile),
+                        PageTitle.astro (the giant subpage `h1`, optionally with the loop video),
                         GeonamesCredit.astro (the CC BY 4.0 credit line),
                         RunningHead.astro (the decorative vertical site/page name, `aria-hidden`, shown from `xl` up),
                         Wordmark.astro (the giant home `h1`), HomeCluster.astro (the home photo cluster; which photos
                         and their image attributes come from lib/homeCluster.ts)
   scripts/galleryLightbox.ts  (src/scripts/) browser glue for the PhotoSwipe lightbox (DOM only, outside unit-test coverage)
   scripts/headerName.ts  (src/scripts/) DOM glue for the header-name handoff, imported by Wordmark.astro (outside unit coverage)
-public/                 static files served from / (favicon.svg)
+  scripts/galleryReveal.ts  (src/scripts/) DOM glue for the gallery's reveal-on-scroll, imported by Gallery.astro
+  scripts/titleVideo.ts  (src/scripts/) DOM glue that plays and pauses the page-title video, imported by PageTitle.astro
+public/                 static files served from / (favicon.svg; video/: the Photography title loop and its poster;
+                        lychee.toml: makes the CI link check resolve /photography/#photo-* inside index.html)
 tests/e2e/              Playwright specs (smoke.spec.ts is tagged @smoke); its own tsconfig; lightbox.spec.ts skips while
                         the photography data file is empty
 gallery-originals/      gitignored: the source JPEGs for sync-gallery (images never go in git)
@@ -173,8 +194,9 @@ composition (1-5, 5-9 and 9-12, the second and third raised). The column gap and
 (`cqi`, an inline-size container), so a 320 px phone shows the desktop arrangement smaller, with no horizontal overflow.
 Each image's `sizes` follows its span (`clusterSizes`), and `srcset` uses only `GRID_WIDTHS`, plus `LIGHTBOX_WIDTHS` for a
 slot six columns or wider (`clusterSrcsetWidths`), so the cluster adds no new transformations. The cluster deliberately
-shows the photos without captions (plain `img` elements, no `figure`; each keeps its alt text from the data as its
-accessible name): the camera settings and the place live on the Photography page and its lightbox. The images carry an explicit `aspect-ratio`, so the cluster never shifts the page.
+shows the photos without captions (each `img` inside a link, no `figure`; each keeps its alt text from the data as the
+link's accessible name). Each link goes to `photoPageHref(key)` (`/photography/#photo-<name>`, `src/lib/photoLink.ts`),
+and the lightbox glue opens that photo in the lightbox on arrival: the camera settings and the place live on the Photography page and its lightbox. The images carry an explicit `aspect-ratio`, so the cluster never shifts the page.
 
 In the three-photo composition on phones the widest images are about 36% to 38% of the viewport (`phoneImageWidth` in
 `src/lib/homeCluster.ts`; the third, four columns wide as on desktop, is about 29%). They are
@@ -218,6 +240,17 @@ file and re-run the sync if so. **Nothing checks external links**: CI's lychee r
 links are verified only by the smoke tests reading the `href`, never by following them.
 
 ## Gallery
+**Sections.** The Photography page (`PhotographySections.astro`) has one section per category in
+`GALLERY_COLLECTIONS.photography.categories` (`PHOTOGRAPHY_CATEGORIES` in `src/lib/photography.ts`: `landscape`,
+`portrait`, `car`, in that order), each with an `h2`, its own grid (tiles are placed per section) and the anchor id of the
+category, after a row of jump links. A category with no photos shows a short line instead of a grid. Every entry carries
+a `category`, copied by the sync from the sidecar, where it is required. Only the first photo of the page is eager.
+Each tile's `li` has the id `photoAnchorId(key)`; a `#photo-<name>` fragment makes `galleryLightbox.ts` open that photo on
+`astro:page-load` (one PhotoSwipe lightbox serves every section, and each section navigates within itself).
+`galleryReveal.ts` fades photos in and raises them 14 px as they scroll into view. Photos already on screen are shown at
+once, and nothing is hidden without JavaScript or under reduced motion. Only the `.photo` link moves, never the subgrid
+tile.
+
 The Photography page renders `src/data/gallery/photography.json` through `components/Gallery.astro`, which takes a
 `collection` name and the parsed entries, so a later `art` collection reuses it (each collection registers its caption
 schema, sidecar schema and caption formatter in `GALLERY_COLLECTIONS` in `src/lib/gallery.ts`; `art` is not built).
@@ -232,9 +265,10 @@ With no entries the page shows "Photos are on their way." and references no Phot
 1. Put the JPEGs in `gallery-originals/photography/` (gitignored; create the folder if it does not exist).
 2. Scaffold the sidecars: `npm run scaffold:gallery -- photography` (add `--dry-run` to only list what it would do). For
    every accepted JPEG without one it writes `src/content/photography/<basename>.yml` from the collection's template, and
-   it never overwrites an existing sidecar (exclusive create). The template holds `alt: "TODO: describe this photo"` and a
-   commented-out `# order: 1`, `# pin: true` and `# location:` (see "Where it was taken").
-3. Replace each `TODO` with real alt text (EXIF has no alt text) and, optionally, set an integer `order` (lowest first,
+   it never overwrites an existing sidecar (exclusive create). The template holds `alt: "TODO: describe this photo"`, a
+   `category` placeholder and a commented-out `# order: 1`, `# pin: true` and `# location:` (see "Where it was taken").
+3. Replace each `TODO` with real alt text (EXIF has no alt text) and the `category` (`landscape`, `portrait` or `car`;
+   the schema rejects anything else) and, optionally, set an integer `order` (lowest first,
    ahead of photos without one), `pin: true` (see "Home collage") and a `location` override (see "Where it was taken"). The photography sidecar schema rejects an `alt` that starts with `TODO`
    (`ALT_PLACEHOLDER_MARKER` in `src/lib/sidecarPlaceholder.ts`, case-insensitive), so the sync fails, dry run included,
    and lists every such sidecar. It also reports every missing sidecar, orphan sidecar, non-JPEG and duplicate name in one
@@ -325,9 +359,9 @@ phone `sizes` is 88vw, slightly under the real column, so a 1.75x phone takes th
 Lighthouse with real photos. The caption markup is `PhotoCaption.astro` (not the shared `Caption.astro`, whose title is the
 loud display-caps line and whose colors are for paper).
 
-**Numbering.** Each caption starts with a stable index ("01"). `galleryTiles` numbers the entries with `numberItems`
-(`src/lib/numbering.ts`) by `caption.taken`, oldest first, ties by key; photos with no capture date come after all dated ones, by key. The number comes from the data alone, so it
-does not follow the display order (sidecar `order`, then newest first) and adding a newer photo never renumbers an older one. A photo that gains a date moves to its dated place, shifting only the undated numbers. The lightbox caption has no number.
+**Captions.** Under a tile the caption is only the place (`formatTileCaption`, nothing when the photo has no place).
+The full line (place, camera, lens, settings, date; `formatCaption`) is the tile's `data-caption`, shown in the lightbox
+under the image. Photos carry no index numbers.
 
 **Off-screen photos.** `.photo` (the link around each image) has `content-visibility: auto`, so photos far from the viewport are
 not rendered and their images are not all requested up front. It is on the photo and not on the tile on purpose: containment

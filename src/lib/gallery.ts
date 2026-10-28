@@ -2,6 +2,8 @@ import { z } from 'astro/zod';
 
 import {
     formatPhotographyCaption,
+    formatPhotographyTileCaption,
+    PHOTOGRAPHY_CATEGORIES,
     photographyCaptionSchema,
     photographySidecarSchema,
     photographySidecarTemplate,
@@ -20,7 +22,12 @@ function isGalleryKey(collection: string, key: string): boolean {
  * The schema of one entry in `src/data/gallery/<collection>.json`. A factory because the caption differs by
  * collection: photography keeps camera settings, art will keep a title and medium.
  */
-export function galleryEntrySchema<Caption extends z.ZodType>(collection: string, captionSchema: Caption) {
+export function galleryEntrySchema<Caption extends z.ZodType>(
+    collection: string,
+    captionSchema: Caption,
+    categories: readonly GalleryCategory[],
+) {
+    const categoryIds = categories.map(({ id }) => id);
     return z.object({
         // The R2 object key. Output files are always JPEGs, so the key always ends in `.jpg`.
         key: z
@@ -33,6 +40,10 @@ export function galleryEntrySchema<Caption extends z.ZodType>(collection: string
         sourceSha256: z.string().regex(SHA256_HEX, 'Expected 64 lowercase hex characters'),
         processingVersion: z.int().positive(),
         alt: z.string().min(1),
+        // Copied from the sidecar by the sync; one of the collection's categories.
+        category: z
+            .string()
+            .refine((category) => categoryIds.includes(category), `Expected one of ${categoryIds.join(', ')}`),
         // Written only as `true` (from the sidecar's `pin`), so an unpinned entry carries no key and the file stays small.
         pin: z.literal(true).optional(),
         caption: captionSchema,
@@ -47,9 +58,19 @@ export interface GalleryEntry<Caption> {
     sourceSha256: string;
     processingVersion: number;
     alt: string;
+    /** The section of the collection's page the entry is shown in: the `id` of one of its `categories`. */
+    category: string;
     /** The home page's collage shows pinned entries. */
     pin?: true;
     caption: Caption;
+}
+
+/** One section of a collection's page. */
+export interface GalleryCategory {
+    /** The value a sidecar's `category` holds, also the section's anchor id on the page. */
+    id: string;
+    /** The section's heading. */
+    label: string;
 }
 
 interface GalleryCollection<Caption extends z.ZodType, Sidecar extends z.ZodType> {
@@ -60,8 +81,12 @@ interface GalleryCollection<Caption extends z.ZodType, Sidecar extends z.ZodType
     sidecarTemplate(basename: string): string;
     /** Whether the processed JPEG keeps the camera's EXIF (never GPS). Art has none worth keeping. */
     keepsCameraExif: boolean;
+    /** The page's sections, in the order they render; every entry is in exactly one. */
+    categories: readonly GalleryCategory[];
     // A method, not a property, so each collection can take its own caption type (parameters are checked bivariantly).
     formatCaption(caption: z.output<Caption>): string;
+    /** The short line under a tile in the grid; the full `formatCaption` line is shown in the lightbox. */
+    formatTileCaption(caption: z.output<Caption>): string;
 }
 
 /** Everything that differs between collections. `art` is added here, with its own caption and sidecar, later. */
@@ -71,7 +96,9 @@ export const GALLERY_COLLECTIONS = {
         sidecarSchema: photographySidecarSchema,
         sidecarTemplate: photographySidecarTemplate,
         keepsCameraExif: true,
+        categories: PHOTOGRAPHY_CATEGORIES,
         formatCaption: formatPhotographyCaption,
+        formatTileCaption: formatPhotographyTileCaption,
     },
 } satisfies Record<string, GalleryCollection<z.ZodType, z.ZodType>>;
 
@@ -99,6 +126,6 @@ export function galleryCollection(name: string): (typeof GALLERY_COLLECTIONS)[Ga
 
 /** Validates the parsed contents of `src/data/gallery/<collection>.json` (an array of entries). */
 export function parseGallery(collection: string, data: unknown): GalleryEntry<CollectionCaption>[] {
-    const { captionSchema } = galleryCollection(collection);
-    return z.array(galleryEntrySchema(collection, captionSchema)).parse(data);
+    const { captionSchema, categories } = galleryCollection(collection);
+    return z.array(galleryEntrySchema(collection, captionSchema, categories)).parse(data);
 }

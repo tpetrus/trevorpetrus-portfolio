@@ -198,26 +198,31 @@ describe('planInputs', () => {
 
 describe('parseSidecar', () => {
     it('parses alt and order', () => {
-        expect(parseSidecar('photography', 'alt: A harbor at dawn\norder: 2\n', 'a.yml')).toEqual({
+        expect(parseSidecar('photography', 'alt: A harbor at dawn\ncategory: landscape\norder: 2\n', 'a.yml')).toEqual({
             alt: 'A harbor at dawn',
+            category: 'landscape',
             order: 2,
         });
     });
 
     it('parses a location override: a place, or false to hide it', () => {
         const place = 'location:\n  city: Lisbon\n  country: Portugal\n';
-        expect(parseSidecar('photography', `alt: A harbor\n${place}`, 'a.yml')).toEqual({
+        expect(parseSidecar('photography', `alt: A harbor\ncategory: landscape\n${place}`, 'a.yml')).toEqual({
             alt: 'A harbor',
+            category: 'landscape',
             location: { city: 'Lisbon', country: 'Portugal' },
         });
-        expect(parseSidecar('photography', 'alt: A harbor\nlocation: false\n', 'a.yml')).toEqual({
+        expect(parseSidecar('photography', 'alt: A harbor\ncategory: landscape\nlocation: false\n', 'a.yml')).toEqual({
             alt: 'A harbor',
+            category: 'landscape',
             location: false,
         });
     });
 
     it('leaves the location absent when the sidecar has none, so the sync derives it', () => {
-        expect(parseSidecar('photography', 'alt: A harbor\n', 'a.yml')).not.toHaveProperty('location');
+        expect(parseSidecar('photography', 'alt: A harbor\ncategory: landscape\n', 'a.yml')).not.toHaveProperty(
+            'location',
+        );
     });
 
     it.each([
@@ -251,7 +256,7 @@ describe('parseSidecars', () => {
     it('collects every invalid sidecar in one pass and keeps the valid ones', () => {
         const result = parseSidecars('photography', [
             { basename: 'a', source: 'dir/a.yml', text: 'alt: "TODO: describe this photo"\n' },
-            { basename: 'b', source: 'dir/b.yml', text: 'alt: A harbor\norder: 3\n' },
+            { basename: 'b', source: 'dir/b.yml', text: 'alt: A harbor\ncategory: landscape\norder: 3\n' },
             { basename: 'c', source: 'dir/c.yml', text: 'order: 1\n' },
             { basename: 'd', source: 'dir/d.yml', text: 'alt: "TODO"\n' },
         ]);
@@ -260,7 +265,7 @@ describe('parseSidecars', () => {
         expect(result.problems[1]).toMatch(/dir\/c\.yml: invalid sidecar/);
         expect(result.problems[2]).toMatch(/dir\/d\.yml: invalid sidecar/);
         expect([...result.sidecars.keys()]).toEqual(['b']);
-        expect(result.sidecars.get('b')).toEqual({ alt: 'A harbor', order: 3 });
+        expect(result.sidecars.get('b')).toEqual({ alt: 'A harbor', category: 'landscape', order: 3 });
     });
 });
 
@@ -294,6 +299,7 @@ const entry = (key: string, taken: string | undefined, sha = 'a'.repeat(64)): Ga
     sourceSha256: sha,
     processingVersion: PROCESSING_VERSION,
     alt: 'alt',
+    category: 'landscape',
     caption: taken === undefined ? {} : { taken },
 });
 const curated = (key: string, taken: string | undefined, order?: number): CuratedEntry<{ taken?: string }> => ({

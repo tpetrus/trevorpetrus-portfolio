@@ -64,7 +64,12 @@ describe('every collection template', () => {
             expect(() => parseSidecar(name, template, 'src/content/x/IMG_0001.yml')).toThrow(
                 /src\/content\/x\/IMG_0001\.yml: invalid sidecar[\s\S]*real alt text/,
             );
-            const edited = template.replace(/^alt: .*$/m, 'alt: A harbor at dawn');
+            const edited = template
+                .replace(/^alt: .*$/m, 'alt: A harbor at dawn')
+                .replace(/^category: .*$/m, 'category: landscape');
+            expect(() => parseSidecar(name, template.replace(/^alt: .*$/m, 'alt: A harbor at dawn'), 'a.yml')).toThrow(
+                /category/,
+            );
             expect(parseSidecar(name, edited, 'a.yml')).toMatchObject({ alt: 'A harbor at dawn' });
         },
     );

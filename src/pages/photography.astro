@@ -1,10 +1,10 @@
 ---
-import Gallery from '../components/Gallery.astro';
-import GeonamesCredit from '../components/GeonamesCredit.astro';
+import PageTitle from '../components/PageTitle.astro';
+import PhotographySections from '../components/PhotographySections.astro';
 import photographyJson from '../data/gallery/photography.json';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { parseGallery } from '../lib/gallery';
-import { showsGeonamesPlace } from '../lib/location';
+import { PHOTOGRAPHY_TITLE_VIDEO } from '../lib/pageTitle';
 
 const entries = parseGallery('photography', photographyJson);
 ---
@@ -15,15 +15,8 @@ const entries = parseGallery('photography', photographyJson);
         head, which is dark on paper and would be unreadable on ink. */}
     <section class="surface-ink relative z-[1] flex flex-1 flex-col border-b border-ink-muted-on-ink/40">
         <div class="column flex-1 pt-12 pb-6 md:pt-16">
-            <h1 class="text-step-3 font-bold">Photography</h1>
-            {entries.length > 0 ? (
-                <div class="mt-10 md:mt-14">
-                    <Gallery collection="photography" entries={entries} />
-                    {showsGeonamesPlace(entries) && <GeonamesCredit />}
-                </div>
-            ) : (
-                <p class="mt-8 max-w-measure text-ink-muted-on-ink">Photos are on their way.</p>
-            )}
+            <PageTitle text="Photography" video={PHOTOGRAPHY_TITLE_VIDEO} />
+            <PhotographySections entries={entries} />
         </div>
     </section>
 </BaseLayout>

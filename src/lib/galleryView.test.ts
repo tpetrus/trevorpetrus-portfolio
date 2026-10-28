@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import type { GalleryEntry } from './gallery';
 import { tileSizes } from './galleryLayout';
-import { EAGER_TILE_COUNT, GRID_SRC_WIDTH, GRID_QUALITY, galleryTiles } from './galleryView';
+import { EAGER_TILE_COUNT, GRID_SRC_WIDTH, GRID_QUALITY, galleryTiles, gallerySections } from './galleryView';
 import { GRID_WIDTHS, LIGHTBOX_WIDTHS, imageSrcset, originalImageUrl, transformedImageUrl } from './imageUrl';
+import { photoAnchorId } from './photoLink';
 import { encodeThumbHash } from './thumbhash';
 import type { PhotographyCaption } from './photography';
 
@@ -14,6 +15,7 @@ function entry(
     caption: PhotographyCaption = {},
     width = 3000,
     height = 2000,
+    category = 'landscape',
 ): GalleryEntry<PhotographyCaption> {
     return {
         key: `photography/${name}.jpg`,
@@ -23,73 +25,12 @@ function entry(
         sourceSha256: 'a'.repeat(64),
         processingVersion: 1,
         alt: `Alt for ${name}`,
+        category,
         caption,
     };
 }
 
 const FIVE = ['a', 'b', 'c', 'd', 'e'].map((name) => entry(name));
-
-describe('galleryTiles numbering', () => {
-    const numbersOf = async (entries: GalleryEntry<PhotographyCaption>[]) =>
-        (await galleryTiles('photography', entries)).map(({ key, number }) => [key.slice(12, -4), number]);
-
-    it('numbers by capture date, oldest first, and keeps the display order of the entries', async () => {
-        const entries = [
-            entry('newest', { taken: '2026-03-02' }),
-            entry('middle', { taken: '2025-07-19' }),
-            entry('oldest', { taken: '2024-01-05' }),
-        ];
-
-        expect(await numbersOf(entries)).toEqual([
-            ['newest', '03'],
-            ['middle', '02'],
-            ['oldest', '01'],
-        ]);
-    });
-
-    it('numbers a pinned order the same as a date order: the number never follows position', async () => {
-        const dated = [entry('a', { taken: '2024-01-05' }), entry('b', { taken: '2025-07-19' })];
-
-        expect(await numbersOf(dated)).toEqual([
-            ['a', '01'],
-            ['b', '02'],
-        ]);
-        expect(await numbersOf([...dated].reverse())).toEqual([
-            ['b', '02'],
-            ['a', '01'],
-        ]);
-    });
-
-    it('puts photos without a capture date after the dated ones, by key, and keeps every number unique', async () => {
-        const entries = [
-            entry('zeta'),
-            entry('dated', { taken: '2026-03-02' }),
-            entry('alpha', { location: { city: 'Lisbon', country: 'Portugal', source: 'sidecar' } }),
-            entry('same-day-b', { taken: '2024-01-05' }),
-            entry('same-day-a', { taken: '2024-01-05' }),
-        ];
-
-        const numbers = await numbersOf(entries);
-
-        expect(Object.fromEntries(numbers)).toEqual({
-            'same-day-a': '01',
-            'same-day-b': '02',
-            dated: '03',
-            alpha: '04',
-            zeta: '05',
-        });
-        expect(new Set(numbers.map(([, number]) => number)).size).toBe(entries.length);
-    });
-
-    it('pads to two digits and grows to three past 99', async () => {
-        const entries = Array.from({ length: 100 }, (_, index) => entry(`p${String(index).padStart(3, '0')}`));
-
-        const numbers = (await numbersOf(entries)).map(([, number]) => number);
-
-        expect(numbers[0]).toBe('01');
-        expect(numbers[99]).toBe('100');
-    });
-});
 
 describe('galleryTiles', () => {
     it('is empty for no entries', async () => {
@@ -138,14 +79,41 @@ describe('galleryTiles', () => {
         expect(tile.href).toContain('width=2560,');
     });
 
-    it("formats the caption with the collection's formatter", async () => {
+    it('keeps the full caption for the lightbox and shows only the place under the tile', async () => {
         const [full, bare] = await galleryTiles('photography', [
-            entry('full', { camera: 'Canon EOS R5', iso: 400 }),
+            entry('full', {
+                camera: 'Canon EOS R5',
+                iso: 400,
+                location: { city: 'Lisbon', country: 'Portugal', source: 'sidecar' },
+            }),
             entry('bare'),
         ]);
 
-        expect(full.caption).toBe('Canon EOS R5 · ISO 400');
+        expect(full.caption).toBe('Lisbon, Portugal · Canon EOS R5 · ISO 400');
+        expect(full.tileCaption).toBe('Lisbon, Portugal');
         expect(bare.caption).toBe('');
+        expect(bare.tileCaption).toBe('');
+    });
+
+    it('gives a camera-only photo no tile caption and no number', async () => {
+        const [tile] = await galleryTiles('photography', [entry('a', { camera: 'Canon EOS R5', iso: 400 })]);
+
+        expect(tile.tileCaption).toBe('');
+        expect(tile).not.toHaveProperty('number');
+    });
+
+    it('gives each tile the anchor id the deep link uses', async () => {
+        const [tile] = await galleryTiles('photography', [entry('DSC_0098-Edit')]);
+
+        expect(tile.anchorId).toBe(photoAnchorId('photography/DSC_0098-Edit.jpg'));
+        expect(tile.anchorId).toBe('photo-DSC_0098-Edit');
+    });
+
+    it('loads no tile eagerly and gives none a priority when eager is false', async () => {
+        const tiles = await galleryTiles('photography', FIVE, { eager: false });
+
+        expect(tiles.every((tile) => tile.loading === 'lazy')).toBe(true);
+        expect(tiles.every((tile) => tile.fetchpriority === undefined)).toBe(true);
     });
 
     it('loads the first screenful eagerly and the rest lazily', async () => {
@@ -195,5 +163,40 @@ describe('galleryTiles', () => {
         const tiles = await galleryTiles('photography', FIVE);
 
         expect(tiles.map((tile) => tile.key)).toEqual(FIVE.map((e) => e.key));
+    });
+});
+
+describe('gallerySections', () => {
+    it('returns every category in render order, with empty ones kept', () => {
+        const sections = gallerySections('photography', [entry('a')]);
+
+        expect(sections.map(({ id, label }) => [id, label])).toEqual([
+            ['landscape', 'Landscape'],
+            ['portrait', 'Portrait'],
+            ['car', 'Car'],
+        ]);
+        expect(sections.map((section) => section.entries.length)).toEqual([1, 0, 0]);
+    });
+
+    it('groups entries by category and keeps the data order within each', () => {
+        const entries = [
+            entry('car1', {}, 3000, 2000, 'car'),
+            entry('land1'),
+            entry('port1', {}, 2000, 3000, 'portrait'),
+            entry('land2'),
+            entry('car2', {}, 3000, 2000, 'car'),
+        ];
+
+        const sections = gallerySections('photography', entries);
+
+        expect(sections.map((section) => section.entries.map((e) => e.key.slice(12, -4)))).toEqual([
+            ['land1', 'land2'],
+            ['port1'],
+            ['car1', 'car2'],
+        ]);
+    });
+
+    it('is three empty sections for no entries', () => {
+        expect(gallerySections('photography', []).map((section) => section.entries)).toEqual([[], [], []]);
     });
 });

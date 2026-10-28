@@ -1,6 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 
+import PageTitle from '../components/PageTitle.astro';
 import ProjectCard from '../components/ProjectCard.astro';
 import SectionIndex from '../components/SectionIndex.astro';
 import projectMetaJson from '../data/project-meta.json';
@@ -22,7 +23,7 @@ const rows = numbered.filter(({ id }) => id !== coverId);
 ---
 
 <BaseLayout title="Projects" description="Software projects by Trevor Petrus.">
-    <h1 class="text-step-3 font-bold">Projects</h1>
+    <PageTitle text="Projects" />
     {cover && (
         <div class="mt-8 flex flex-col gap-12">
             <ProjectCard
