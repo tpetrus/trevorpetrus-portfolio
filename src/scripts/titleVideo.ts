@@ -30,7 +30,11 @@ function bind(video: HTMLVideoElement): () => void {
     const toggle = video.parentElement?.querySelector<HTMLButtonElement>('[data-title-video-toggle]') ?? null;
 
     const syncToggle = (): void => {
-        toggle?.setAttribute('aria-pressed', String(!video.paused));
+        const playing = !video.paused;
+        toggle?.setAttribute('data-state', playing ? 'playing' : 'paused');
+        // Named by its action, so the label never has to be read together with a pressed state. Both labels contain
+        // the visible text "Video" (WCAG 2.5.3).
+        toggle?.setAttribute('aria-label', playing ? 'Pause background video' : 'Play background video');
     };
     const onToggle = (): void => {
         if (video.paused) {

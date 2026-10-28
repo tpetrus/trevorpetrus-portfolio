@@ -45,8 +45,8 @@ const { text, video } = Astro.props;
                     type="button"
                     class="toggle"
                     data-title-video-toggle
-                    aria-label="Background video"
-                    aria-pressed="false"
+                    aria-label="Play background video"
+                    data-state="paused"
                     hidden
                 >
                     <span class="icon" aria-hidden="true"></span>
@@ -173,7 +173,7 @@ const { text, video } = Astro.props;
         background: linear-gradient(to right, currentColor 35%, transparent 35% 65%, currentColor 65%);
     }
 
-    .toggle[aria-pressed='false'] .icon {
+    .toggle[data-state='paused'] .icon {
         background: currentColor;
         clip-path: polygon(0 0, 100% 50%, 0 100%);
     }

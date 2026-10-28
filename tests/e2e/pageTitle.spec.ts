@@ -131,27 +131,27 @@ test.describe('page titles', () => {
         await open(page, '/photography/');
 
         await expect(toggle(page)).toBeVisible();
-        await expect(toggle(page)).toHaveAttribute('aria-pressed', 'false');
+        await expect(toggle(page)).toHaveAttribute('aria-label', 'Play background video');
         expect(await video(page).evaluate((el: HTMLVideoElement) => el.paused)).toBe(true);
 
         await toggle(page).click();
         await expect.poll(() => video(page).evaluate((el: HTMLVideoElement) => el.paused)).toBe(false);
-        await expect(toggle(page)).toHaveAttribute('aria-pressed', 'true');
+        await expect(toggle(page)).toHaveAttribute('aria-label', 'Pause background video');
     });
 
     test('plays the video and the toggle pauses and resumes it', async ({ page }) => {
         await open(page, '/photography/');
 
         await expect.poll(() => video(page).evaluate((el: HTMLVideoElement) => el.paused)).toBe(false);
-        await expect(toggle(page)).toHaveAttribute('aria-pressed', 'true');
+        await expect(toggle(page)).toHaveAttribute('aria-label', 'Pause background video');
 
         await toggle(page).click();
         await expect.poll(() => video(page).evaluate((el: HTMLVideoElement) => el.paused)).toBe(true);
-        await expect(toggle(page)).toHaveAttribute('aria-pressed', 'false');
+        await expect(toggle(page)).toHaveAttribute('aria-label', 'Play background video');
 
         await toggle(page).click();
         await expect.poll(() => video(page).evaluate((el: HTMLVideoElement) => el.paused)).toBe(false);
-        await expect(toggle(page)).toHaveAttribute('aria-pressed', 'true');
+        await expect(toggle(page)).toHaveAttribute('aria-label', 'Pause background video');
     });
 
     test('pauses the video off-screen and resumes it on return, unless the visitor paused it', async ({ page }) => {
