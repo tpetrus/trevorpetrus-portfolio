@@ -13,6 +13,10 @@ test.skip(
     'Visual baselines are Linux-only; regenerate them with the "Update visual snapshots" workflow (VISUAL_LOCAL=1 forces a local run).',
 );
 
+// WebKit cannot capture a screenshot over 32,767 device pixels on either side, and the iPhone project renders at 3x, so
+// a long page (the Photography page with a full gallery) is captured only down to this many CSS pixels.
+const MAX_CAPTURE_HEIGHT = 8000;
+
 const PAGES = [
     { name: 'home', path: '/' },
     { name: 'photography', path: '/photography/' },
@@ -42,8 +46,14 @@ test.describe('visual baseline', () => {
             await page.goto(path);
             await waitForStablePage(page);
 
+            const { width, height } = await page.evaluate(() => ({
+                width: document.documentElement.clientWidth,
+                height: document.documentElement.scrollHeight,
+            }));
+
             await expect(page).toHaveScreenshot(`${name}.png`, {
                 fullPage: true,
+                clip: { x: 0, y: 0, width, height: Math.min(height, MAX_CAPTURE_HEIGHT) },
                 animations: 'disabled',
                 // The footer carries the build year and the project cards a last-commit date; both change with time
                 // alone, so they are masked rather than baked into a baseline that would break on its own.

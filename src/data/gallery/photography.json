@@ -7,8 +7,14 @@
     "sourceSha256": "1f9f2eb23bbac214b8d9071e962d5e830c65d423b1eeb725be72211c3696e354",
     "processingVersion": 1,
     "alt": "A building painted half blue and half pink is framed by another building to the left and right",
-    "caption": {},
-    "category": "landscape"
+    "category": "landscape",
+    "caption": {
+      "location": {
+        "city": "Burano",
+        "country": "Italy",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_0171.jpg",
@@ -18,14 +24,14 @@
     "sourceSha256": "a6f50a9a70b2f3d2c1904745b60ef035a702a1b49355179faae7ddee54c05c6b",
     "processingVersion": 1,
     "alt": "Someone holds a sign that says Police the Police in the middle of a Pittsburgh Black Lives Matter protest.  To the left is a woman with a sunflower in her hair, and the right is a flag with the names of those who have died in recent months since the BLM protests started.",
+    "category": "portrait",
     "caption": {
       "location": {
-        "city": "Pittsburgh",
+        "city": "Pittsburgh, Pennsylvania",
         "country": "United States",
         "source": "sidecar"
       }
-    },
-    "category": "landscape"
+    }
   },
   {
     "key": "photography/DSC_9676.jpg",
@@ -35,14 +41,14 @@
     "sourceSha256": "20c38a9c2d725cf1a38874dd7802efc13b63cae1c8cd3ae1d3850f3270b38aff",
     "processingVersion": 1,
     "alt": "A small waterfall flows over grass-lined hills",
+    "category": "landscape",
     "caption": {
       "location": {
-        "city": "Moffat",
-        "country": "Scotland",
+        "city": "Moffat, Scotland",
+        "country": "United Kingdom",
         "source": "sidecar"
       }
-    },
-    "category": "landscape"
+    }
   },
   {
     "key": "photography/DSC_5047.jpg",
@@ -52,6 +58,7 @@
     "sourceSha256": "467138741269990f25d26d7a8ec2888a7921bd2b12e321a0f03560024bcf3b41",
     "processingVersion": 1,
     "alt": "A tan apartment building is shown with a restaurant underneath with a sign that says 'The Souvlaki House'",
+    "category": "landscape",
     "caption": {
       "camera": "NIKON D750",
       "lens": "35.0 mm f/1.4",
@@ -59,9 +66,13 @@
       "aperture": 8,
       "exposure": 0.008,
       "iso": 100,
-      "taken": "2025-07-22"
-    },
-    "category": "landscape"
+      "taken": "2025-07-22",
+      "location": {
+        "city": "Ithaca, New York",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_5051.jpg",
@@ -71,6 +82,7 @@
     "sourceSha256": "786bc876f5dbed42587260d5d65e87600371a10fea2be8e9088e2165b9f81685",
     "processingVersion": 1,
     "alt": "A row of single family homes are shown lining a steeply declined road",
+    "category": "landscape",
     "caption": {
       "camera": "NIKON D750",
       "lens": "35.0 mm f/1.4",
@@ -78,9 +90,13 @@
       "aperture": 8,
       "exposure": 0.005,
       "iso": 100,
-      "taken": "2025-07-22"
-    },
-    "category": "landscape"
+      "taken": "2025-07-22",
+      "location": {
+        "city": "Ithaca, New York",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_1158-Edit (2).jpg",
@@ -90,10 +106,227 @@
     "sourceSha256": "38dda9e31ce1362c09e942c0ffbc6f3e995058e76f1380864769b0ba59c4ff0c",
     "processingVersion": 1,
     "alt": "A skyscraper and monument are shown at the end of a road flanked by city buildings",
+    "category": "landscape",
     "caption": {
-      "taken": "2021-05-22"
-    },
-    "category": "landscape"
+      "taken": "2021-05-22",
+      "location": {
+        "city": "Buffalo, New York",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
+  },
+  {
+    "key": "photography/DSC_0273-crop.jpg",
+    "width": 3184,
+    "height": 2808,
+    "thumbhash": "G/gVDoKpeHd/d4d6h3h3d3iIbUvw8xM=",
+    "sourceSha256": "d6775bfecbdc9ae7c16e16fcc9b0f31c1953d56c07335e4e7a0d4ddda8290d2a",
+    "processingVersion": 1,
+    "alt": "Head on portrait of a man leaning over a railing with a black facemask on",
+    "category": "portrait",
+    "caption": {
+      "camera": "NIKON D750",
+      "focalLength": 35,
+      "aperture": 3.5,
+      "exposure": 0.0005,
+      "iso": 1600,
+      "taken": "2020-05-02",
+      "location": {
+        "city": "Kent, Ohio",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
+  },
+  {
+    "key": "photography/DSC_0085.jpg",
+    "width": 6016,
+    "height": 4016,
+    "thumbhash": "bRgGDYLEjzF3VpeZZqd4hwxSqTCV",
+    "sourceSha256": "fea0dff863e4bf76d103daec2c17fa5077eedfa98330887bbcbc8c59eac560fb",
+    "processingVersion": 1,
+    "alt": "4 toothbrush heads are photographed standing, slightly fanned out, on a white background",
+    "category": "portrait",
+    "caption": {
+      "camera": "NIKON D750",
+      "lens": "TAMRON SP AF 28-75mm F2.8 XR Di LD Aspherical IF Macro A09NII",
+      "focalLength": 75,
+      "aperture": 16,
+      "exposure": 0.4,
+      "iso": 100,
+      "taken": "2020-02-03",
+      "location": {
+        "city": "Syracuse, New York",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
+  },
+  {
+    "key": "photography/DSC_0138-crop.jpg",
+    "width": 4016,
+    "height": 4954,
+    "thumbhash": "pCgKFgZ5SofFmQh3aYd3iZioCImDcDg=",
+    "sourceSha256": "cd5def52a890141ed95e6568ee82500fd1a39bfc5b629f91f2569a057b48202f",
+    "processingVersion": 1,
+    "alt": "Head on portrait of a man holding up 4 toothbrushes and a set of bamboo utensils",
+    "category": "portrait",
+    "caption": {
+      "camera": "NIKON D750",
+      "focalLength": 35,
+      "aperture": 3.2,
+      "exposure": 0.03333333,
+      "iso": 320,
+      "taken": "2020-02-03",
+      "location": {
+        "city": "Syracuse, New York",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
+  },
+  {
+    "key": "photography/DSC_0139-crop.jpg",
+    "width": 4016,
+    "height": 5047,
+    "thumbhash": "pigKFgZ5SofGmAhnaYd3iIm4B4iCcDg=",
+    "sourceSha256": "abe2b5e870bc0e86583bacdf044f4f30fceb1b14082b69efdb442158296a095e",
+    "processingVersion": 1,
+    "alt": "Head on portrait of a man holding up 4 toothbrushes and a set of bamboo utensils",
+    "category": "portrait",
+    "caption": {
+      "camera": "NIKON D750",
+      "focalLength": 35,
+      "aperture": 3.2,
+      "exposure": 0.03333333,
+      "iso": 320,
+      "taken": "2020-02-03",
+      "location": {
+        "city": "Syracuse, New York",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
+  },
+  {
+    "key": "photography/DSC_0146-crop.jpg",
+    "width": 4016,
+    "height": 5021,
+    "thumbhash": "YxgKHgiJiLf1WBhIaHSIi7iXB4p3kGg=",
+    "sourceSha256": "c91cef035e693b5ecef7079253fcbbc98f53489c5e1dca387f21ffcb4b44afbe",
+    "processingVersion": 1,
+    "alt": "Head on portrait of a man comically pretending to put toothbrushes into his mouth",
+    "category": "portrait",
+    "caption": {
+      "camera": "NIKON D750",
+      "focalLength": 35,
+      "aperture": 3.2,
+      "exposure": 0.025,
+      "iso": 400,
+      "taken": "2020-02-03",
+      "location": {
+        "city": "Syracuse, New York",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
+  },
+  {
+    "key": "photography/DSC_0013.jpg",
+    "width": 6016,
+    "height": 4016,
+    "thumbhash": "qRgOFYKFeGhwdneLdliHhjl3oGQG",
+    "sourceSha256": "36e51de47dddc346b076668e56ea4d667f4b389e84f2e8a9275c678131286592",
+    "processingVersion": 1,
+    "alt": "Two cardboard toothbrush boxes are standing up, with a hand holding one up behind a white background",
+    "category": "portrait",
+    "caption": {
+      "camera": "NIKON D750",
+      "lens": "35.0 mm f/1.4",
+      "focalLength": 35,
+      "aperture": 2.5,
+      "exposure": 0.1,
+      "iso": 100,
+      "taken": "2020-01-30",
+      "location": {
+        "city": "Syracuse, New York",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
+  },
+  {
+    "key": "photography/DSC_0026.jpg",
+    "width": 5941,
+    "height": 3966,
+    "thumbhash": "ZhgKFYSlRohwhnh7hlmHeAeHcoA4",
+    "sourceSha256": "03969ad8602066722763b6dabce021767611e10681f7fff380e3e954e9def506",
+    "processingVersion": 1,
+    "alt": "A cardboard toothbrush box stands in front of a white background with a toothbrush leaning against the side of it",
+    "category": "portrait",
+    "caption": {
+      "camera": "NIKON D750",
+      "lens": "35.0 mm f/1.4",
+      "focalLength": 35,
+      "aperture": 4,
+      "exposure": 0.2,
+      "iso": 100,
+      "taken": "2020-01-30",
+      "location": {
+        "city": "Syracuse, New York",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
+  },
+  {
+    "key": "photography/DSC_0037.jpg",
+    "width": 6016,
+    "height": 4016,
+    "thumbhash": "pSgKDYJ2h4dgd3dteGiIhWNwIDUI",
+    "sourceSha256": "65e4e72c718a59684f6bec6d9909d107fbb1d8c3c21e26c75b1750f3ee43fd64",
+    "processingVersion": 1,
+    "alt": "An assortment of toothbrushes lay on a white floor with the word 'Panda's Best' printed on the toothbrush in focus",
+    "category": "portrait",
+    "caption": {
+      "camera": "NIKON D750",
+      "lens": "TAMRON SP AF 28-75mm F2.8 XR Di LD Aspherical IF Macro A09NII",
+      "focalLength": 55,
+      "aperture": 4,
+      "exposure": 0.1,
+      "iso": 100,
+      "taken": "2020-01-30",
+      "location": {
+        "city": "Syracuse, New York",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
+  },
+  {
+    "key": "photography/DSC_1276.jpg",
+    "width": 3276,
+    "height": 4907,
+    "thumbhash": "JwgWDQJ1l3+Id3eYeIdod3mAqQaY",
+    "sourceSha256": "ec1a63728647916a5b08434d39b204d14a8a46799596d749f21fd599032779fa",
+    "processingVersion": 1,
+    "alt": "A man is washing the side of his car with a car wash sprayer",
+    "category": "portrait",
+    "caption": {
+      "camera": "NIKON D750",
+      "lens": "35.0 mm f/1.8",
+      "focalLength": 35,
+      "aperture": 1.8,
+      "exposure": 0.005,
+      "iso": 1600,
+      "taken": "2019-01-11",
+      "location": {
+        "city": "Orchard Park, New York",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_9783-Crop.jpg",
@@ -103,6 +336,7 @@
     "sourceSha256": "c2ae293e32256ea38c4ad313d9b55d5d4d7449be8c7450349896892e6bfeb969",
     "processingVersion": 1,
     "alt": "A narrow, vibrant yellow alley-way is shown through an arched entryway",
+    "category": "landscape",
     "caption": {
       "camera": "NIKON D3400",
       "lens": "35.0 mm f/1.8",
@@ -110,9 +344,13 @@
       "aperture": 1.8,
       "exposure": 0.001,
       "iso": 100,
-      "taken": "2018-10-21"
-    },
-    "category": "landscape"
+      "taken": "2018-10-21",
+      "location": {
+        "city": "Copenhagen",
+        "country": "Denmark",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_9660.jpg",
@@ -122,6 +360,7 @@
     "sourceSha256": "ec7c57bebb7a03e25371137ea9cffded5ebd7c856acf87092a9de9c9f9dfdac8",
     "processingVersion": 1,
     "alt": "A small waterfall flows over grass-lined hills",
+    "category": "landscape",
     "caption": {
       "camera": "NIKON D3400",
       "lens": "35.0 mm f/1.8",
@@ -129,9 +368,13 @@
       "aperture": 1.8,
       "exposure": 0.0025,
       "iso": 200,
-      "taken": "2018-10-14"
-    },
-    "category": "landscape"
+      "taken": "2018-10-14",
+      "location": {
+        "city": "Moffat, Scotland",
+        "country": "United Kingdom",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_9685.jpg",
@@ -141,6 +384,7 @@
     "sourceSha256": "82d9b796beca33eb8ca19957a2cc1c6ac8af50f83b184a10d777bd5961e3a8ea",
     "processingVersion": 1,
     "alt": "Fog rises over grass-lined hills",
+    "category": "landscape",
     "caption": {
       "camera": "NIKON D3400",
       "lens": "35.0 mm f/1.8",
@@ -148,9 +392,13 @@
       "aperture": 1.8,
       "exposure": 0.0025,
       "iso": 200,
-      "taken": "2018-10-14"
-    },
-    "category": "landscape"
+      "taken": "2018-10-14",
+      "location": {
+        "city": "Moffat, Scotland",
+        "country": "United Kingdom",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_9699.jpg",
@@ -160,6 +408,7 @@
     "sourceSha256": "4e4038206c57d5e5971c712019d14be930c67ce46c6f7ed7cc1251f358448108",
     "processingVersion": 1,
     "alt": "A small waterfall flows over grass-lined hills",
+    "category": "landscape",
     "caption": {
       "camera": "NIKON D3400",
       "lens": "35.0 mm f/1.8",
@@ -167,9 +416,13 @@
       "aperture": 1.8,
       "exposure": 0.0025,
       "iso": 200,
-      "taken": "2018-10-14"
-    },
-    "category": "landscape"
+      "taken": "2018-10-14",
+      "location": {
+        "city": "Moffat, Scotland",
+        "country": "United Kingdom",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_9707.jpg",
@@ -179,6 +432,7 @@
     "sourceSha256": "61cf81745004bd177be60a172592b5e070843b0b9ae6a3047a4809cb2fbf3ecc",
     "processingVersion": 1,
     "alt": "A small waterfall flows over grass-lined hills",
+    "category": "landscape",
     "caption": {
       "camera": "NIKON D3400",
       "lens": "35.0 mm f/1.8",
@@ -186,9 +440,13 @@
       "aperture": 1.8,
       "exposure": 0.0025,
       "iso": 200,
-      "taken": "2018-10-14"
-    },
-    "category": "landscape"
+      "taken": "2018-10-14",
+      "location": {
+        "city": "Moffat, Scotland",
+        "country": "United Kingdom",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_9725.jpg",
@@ -198,6 +456,7 @@
     "sourceSha256": "3f235b5cbfa38d8d204344cb81bf8209b9088b536a7ef05a0ef8b8e3fdc6ef14",
     "processingVersion": 1,
     "alt": "A group of people walk down a dirt path over rolling hills",
+    "category": "landscape",
     "caption": {
       "camera": "NIKON D3400",
       "lens": "35.0 mm f/1.8",
@@ -205,9 +464,13 @@
       "aperture": 1.8,
       "exposure": 0.002,
       "iso": 200,
-      "taken": "2018-10-14"
-    },
-    "category": "landscape"
+      "taken": "2018-10-14",
+      "location": {
+        "city": "Moffat, Scotland",
+        "country": "United Kingdom",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_9735.jpg",
@@ -217,6 +480,7 @@
     "sourceSha256": "6d19a88dfc6ee2512ccc803061f223155295961520a87fee49941f48ecee65f4",
     "processingVersion": 1,
     "alt": "A small waterfall flows over grass-lined hills",
+    "category": "landscape",
     "caption": {
       "camera": "NIKON D3400",
       "lens": "35.0 mm f/1.8",
@@ -224,9 +488,85 @@
       "aperture": 1.8,
       "exposure": 0.002,
       "iso": 200,
-      "taken": "2018-10-14"
-    },
-    "category": "landscape"
+      "taken": "2018-10-14",
+      "location": {
+        "city": "Moffat, Scotland",
+        "country": "United Kingdom",
+        "source": "sidecar"
+      }
+    }
+  },
+  {
+    "key": "photography/DSC_9546-7.jpg",
+    "width": 3392,
+    "height": 5088,
+    "thumbhash": "HggODQK1iE92h1eId3d4eLmfpvtY",
+    "sourceSha256": "deb744fa54d02f67d3ea616abad219fb7533996fbc371cbb61f896b963576a48",
+    "processingVersion": 1,
+    "alt": "A man is sitting slightly off of a ledge, posing for a photograph",
+    "category": "portrait",
+    "caption": {
+      "camera": "NIKON D3400",
+      "lens": "35.0 mm f/1.8",
+      "focalLength": 35,
+      "aperture": 1.8,
+      "exposure": 0.005,
+      "iso": 100,
+      "taken": "2018-10-10",
+      "location": {
+        "city": "London, England",
+        "country": "United Kingdom",
+        "source": "sidecar"
+      }
+    }
+  },
+  {
+    "key": "photography/DSC_9575-15.jpg",
+    "width": 3403,
+    "height": 5105,
+    "thumbhash": "4BkSJQKWaX+Gx2eImHRodvikC12a",
+    "sourceSha256": "cf575de7e0665d85832e15df6a9c141518e3b803428a1812da1b6a6f6869d038",
+    "processingVersion": 1,
+    "alt": "A man is sitting in the grass, posing for a photograph",
+    "category": "portrait",
+    "caption": {
+      "camera": "NIKON D3400",
+      "lens": "35.0 mm f/1.8",
+      "focalLength": 35,
+      "aperture": 1.8,
+      "exposure": 0.005,
+      "iso": 200,
+      "taken": "2018-10-10",
+      "location": {
+        "city": "London, England",
+        "country": "United Kingdom",
+        "source": "sidecar"
+      }
+    }
+  },
+  {
+    "key": "photography/DSC_9588-20.jpg",
+    "width": 3483,
+    "height": 5224,
+    "thumbhash": "MfgJDQL4Jo+KtSioV3lIiLaKcOoJ",
+    "sourceSha256": "62d831261b5e5303f6cdfcc806b5afe859d56a2ecf7c7ff7646bc9744893937b",
+    "processingVersion": 1,
+    "alt": "A man is standing on a sidewalk, looking down, posing for a photograph",
+    "category": "portrait",
+    "caption": {
+      "camera": "NIKON D3400",
+      "lens": "35.0 mm f/1.8",
+      "focalLength": 35,
+      "aperture": 1.8,
+      "exposure": 0.005,
+      "iso": 200,
+      "taken": "2018-10-10",
+      "location": {
+        "city": "London, England",
+        "country": "United Kingdom",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_9619.jpg",
@@ -236,6 +576,7 @@
     "sourceSha256": "eb45fa8c121e4d76cda923923416cc07657f554d50a7490a7fdda114b5ce9e40",
     "processingVersion": 1,
     "alt": "Two skyscrapers are dimmy lit behind a setting sun",
+    "category": "landscape",
     "caption": {
       "camera": "NIKON D3400",
       "lens": "35.0 mm f/1.8",
@@ -243,9 +584,13 @@
       "aperture": 1.8,
       "exposure": 0.005,
       "iso": 400,
-      "taken": "2018-10-10"
-    },
-    "category": "landscape"
+      "taken": "2018-10-10",
+      "location": {
+        "city": "London, England",
+        "country": "United Kingdom",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_9441.jpg",
@@ -255,6 +600,7 @@
     "sourceSha256": "39bd85be84976ecbaf13b638b20f27e4ac35fd8f200297016d800ea90f906dc0",
     "processingVersion": 1,
     "alt": "A tall metal pole is shown from the bottom up, as if it goes up forever",
+    "category": "landscape",
     "caption": {
       "camera": "NIKON D3400",
       "lens": "35.0 mm f/1.8",
@@ -262,9 +608,13 @@
       "aperture": 1.8,
       "exposure": 0.00025,
       "iso": 100,
-      "taken": "2018-09-29"
-    },
-    "category": "landscape"
+      "taken": "2018-09-29",
+      "location": {
+        "city": "Dublin",
+        "country": "Ireland",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_8027.jpg",
@@ -274,6 +624,7 @@
     "sourceSha256": "fdc3470ff36286789c9f98f010ceeee6e85e31c444094aeb922431e0e09a2ff0",
     "processingVersion": 1,
     "alt": "An old brick apartment building is viewed through a large-paned window",
+    "category": "landscape",
     "caption": {
       "camera": "NIKON D3400",
       "lens": "35.0 mm f/1.8",
@@ -281,9 +632,37 @@
       "aperture": 2.8,
       "exposure": 0.005,
       "iso": 100,
-      "taken": "2018-08-30"
-    },
-    "category": "landscape"
+      "taken": "2018-08-30",
+      "location": {
+        "city": "London, England",
+        "country": "United Kingdom",
+        "source": "sidecar"
+      }
+    }
+  },
+  {
+    "key": "photography/DSC_6371.jpg",
+    "width": 3729,
+    "height": 5593,
+    "thumbhash": "X/gVFQR6aH94x3eYh3V3eN1CgAh2",
+    "sourceSha256": "b380914c8bd52efea92d3d517653efb2136c3fdc0e1b31af42b276386e41b659",
+    "processingVersion": 1,
+    "alt": "A man with sunglasses is looking head on at the camera while standing on a set of train tracks",
+    "category": "portrait",
+    "caption": {
+      "camera": "NIKON D3400",
+      "lens": "35.0 mm f/1.8",
+      "focalLength": 35,
+      "aperture": 2.5,
+      "exposure": 0.0005,
+      "iso": 200,
+      "taken": "2018-07-25",
+      "location": {
+        "city": "East Aurora, New York",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_2638-1.jpg",
@@ -293,6 +672,7 @@
     "sourceSha256": "1726c50c8011c16ff2ccc9bd60e8ee3d59cc15b693516833995578e9ee1a0cb9",
     "processingVersion": 1,
     "alt": "A palm tree is shown looking over a beach, the ocean, and mountains",
+    "category": "landscape",
     "caption": {
       "camera": "NIKON D3400",
       "lens": "18.0-55.0 mm f/3.5-5.6",
@@ -300,9 +680,13 @@
       "aperture": 6.3,
       "exposure": 0.0015625,
       "iso": 100,
-      "taken": "2018-03-14"
-    },
-    "category": "landscape"
+      "taken": "2018-03-14",
+      "location": {
+        "city": "Venice, California",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_1883-12.jpg",
@@ -312,6 +696,7 @@
     "sourceSha256": "cc762dd1b095fd27fd658300d8467bb30b207eac472e8515157a855265a8b2aa",
     "processingVersion": 1,
     "alt": "Two palm trees are shown next to each with on a beach, with mountains and lifeguard huts in the background",
+    "category": "landscape",
     "caption": {
       "camera": "NIKON D3400",
       "lens": "18.0-55.0 mm f/3.5-5.6",
@@ -319,9 +704,13 @@
       "aperture": 6.3,
       "exposure": 0.005,
       "iso": 100,
-      "taken": "2018-03-11"
-    },
-    "category": "landscape"
+      "taken": "2018-03-11",
+      "location": {
+        "city": "Venice, California",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_0093.jpg",
@@ -331,8 +720,14 @@
     "sourceSha256": "5ae58a63d37cc6115ff3cb96b6b350d5dbbfed3b1256f65e5e05777920c40633",
     "processingVersion": 1,
     "alt": "A woman holds a protest sign that says Black Lives Matter in a crowd of others protesting with her",
-    "caption": {},
-    "category": "landscape"
+    "category": "portrait",
+    "caption": {
+      "location": {
+        "city": "Pittsburgh",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_0096.jpg",
@@ -342,8 +737,14 @@
     "sourceSha256": "cf4e6eb046e2ec34976dd9ff3292361ef6965ba02eae91137e62199fff11fc6b",
     "processingVersion": 1,
     "alt": "A lady is just about to cut a strand of white balloons tied to a railing with the Pittsburgh skyline in the background",
-    "caption": {},
-    "category": "landscape"
+    "category": "portrait",
+    "caption": {
+      "location": {
+        "city": "Pittsburgh, Pennsylvania",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_0098.jpg",
@@ -353,8 +754,14 @@
     "sourceSha256": "a1b0a211708f8030998022009d3effe5a1d073cdda0df4e64974aa903f613fd5",
     "processingVersion": 1,
     "alt": "A man is holding a sign that says Defend Black Lives along with a group of others also holding protest signs",
-    "caption": {},
-    "category": "landscape"
+    "category": "portrait",
+    "caption": {
+      "location": {
+        "city": "Pittsburgh, Pennsylvania",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_0129.jpg",
@@ -364,8 +771,14 @@
     "sourceSha256": "e3941d9a8824ace55ac5373bdca6251c1f76779fc3f129c542963ea0f6498894",
     "processingVersion": 1,
     "alt": "A group of Black Lives Matter protestors crowd a city street",
-    "caption": {},
-    "category": "landscape"
+    "category": "portrait",
+    "caption": {
+      "location": {
+        "city": "Pittsburgh, Pennsylvania",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_0147.jpg",
@@ -375,8 +788,14 @@
     "sourceSha256": "3e3e6a31a56a1dfac81df52a40f1e5428894f4b21104ec23879372c888eaa298",
     "processingVersion": 1,
     "alt": "Someone holds a Black Lives Matter sign in the middle of a protest",
-    "caption": {},
-    "category": "landscape"
+    "category": "portrait",
+    "caption": {
+      "location": {
+        "city": "Pittsburgh, Pennsylvania",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_0172.jpg",
@@ -386,8 +805,14 @@
     "sourceSha256": "96b1f76ac6e0711ed9789c1f22fb0eee24413423666d39a2e05ee028eaf57d27",
     "processingVersion": 1,
     "alt": "Someone holds a protest sign that says 'Breonna Taylor, say her name' during a Pittsburgh Black Lives Matter protest",
-    "caption": {},
-    "category": "landscape"
+    "category": "portrait",
+    "caption": {
+      "location": {
+        "city": "Pittsburgh, Pennsylvania",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_0354-Edit.jpg",
@@ -397,8 +822,14 @@
     "sourceSha256": "da6b3718696d13efa47914ab114b32df203c12c45d071784d101207b177f3351",
     "processingVersion": 1,
     "alt": "Electrical infrastructure lines are shown scaling down a mountain with snow covered alps in the background",
-    "caption": {},
-    "category": "landscape"
+    "category": "landscape",
+    "caption": {
+      "location": {
+        "city": "Mount Titlis",
+        "country": "Switzerland",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_0413-Edit.jpg",
@@ -408,8 +839,14 @@
     "sourceSha256": "bfb41aa9746b2a44ee3f9ba7290f79bbb4b721fd8a37aac7ec7e731800b63d42",
     "processingVersion": 1,
     "alt": "Dozens of mountains are shown intersecting as you look further and further",
-    "caption": {},
-    "category": "landscape"
+    "category": "landscape",
+    "caption": {
+      "location": {
+        "city": "Mount Titlis",
+        "country": "Switzerland",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_0426.jpg",
@@ -419,8 +856,31 @@
     "sourceSha256": "cc6b8ed92dc0234ad7c498e84bac6294ab1b1f9b5c748591bbc7b44dfbac5934",
     "processingVersion": 1,
     "alt": "A gandola is shown descending a snow-covered mountain above a large body of clouds and mountain tops",
-    "caption": {},
-    "category": "landscape"
+    "category": "landscape",
+    "caption": {
+      "location": {
+        "city": "Mount Titlis",
+        "country": "Switzerland",
+        "source": "sidecar"
+      }
+    }
+  },
+  {
+    "key": "photography/DSC_0598-Edit.jpg",
+    "width": 967,
+    "height": 1354,
+    "thumbhash": "GhgSDQLQZ4qIeHZ4ZXl3eG+Y2DdP",
+    "sourceSha256": "abeb016da21241638fca660bb58ae9ea1e4cef5629b3e3418afe3a3622500eb6",
+    "processingVersion": 1,
+    "alt": "Head on portrait of a woman with a black facemask on and a graduation cap",
+    "category": "portrait",
+    "caption": {
+      "location": {
+        "city": "Kent, Ohio",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_0814.jpg",
@@ -430,8 +890,14 @@
     "sourceSha256": "02bacce309c71d69f1b9b148274ba0f204bfe8575466787800c12613e0396cbe",
     "processingVersion": 1,
     "alt": "A lake is shown at the end of a concrete tunnel that has a 'No Trespassing' sign at the end",
-    "caption": {},
-    "category": "landscape"
+    "category": "landscape",
+    "caption": {
+      "location": {
+        "city": "Buffalo, New York",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_0868.jpg",
@@ -441,8 +907,14 @@
     "sourceSha256": "553ad450e571a18097fd23c310dc482adbe8fee304d590a67ce14069cd26e93f",
     "processingVersion": 1,
     "alt": "A large waterfall is shown going over a mountain cliff that sits an observation station",
-    "caption": {},
-    "category": "landscape"
+    "category": "landscape",
+    "caption": {
+      "location": {
+        "city": "Niagara Falls, Ontario",
+        "country": "Canada",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_0883.jpg",
@@ -452,8 +924,14 @@
     "sourceSha256": "93bcc3a742a26b8919cac5854077591b077f8ea1140ffe3b2ab43ace38bce6d5",
     "processingVersion": 1,
     "alt": "swirling water is shown crashing along a rock bed",
-    "caption": {},
-    "category": "landscape"
+    "category": "landscape",
+    "caption": {
+      "location": {
+        "city": "Niagara Falls, Ontario",
+        "country": "Canada",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_1026-Edit.jpg",
@@ -463,8 +941,14 @@
     "sourceSha256": "44d7b8abbe72ee151b137ccbd1339b1dd7ee6c77494aa18c72b2ad1ef14c1bcd",
     "processingVersion": 1,
     "alt": "A pontoon boat is shown traversing a lake at sunset",
-    "caption": {},
-    "category": "landscape"
+    "category": "landscape",
+    "caption": {
+      "location": {
+        "city": "Lime Lake, New York",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_1059-Edit.jpg",
@@ -474,8 +958,14 @@
     "sourceSha256": "16886e3888c71dbff180402b5195a10b326ce5ea61745fa2c3522f1b3ee3de79",
     "processingVersion": 1,
     "alt": "Three skyscrapers under a sky of stars, with a canadian flag in the foreground",
-    "caption": {},
-    "category": "landscape"
+    "category": "landscape",
+    "caption": {
+      "location": {
+        "city": "Toronto, Ontario",
+        "country": "Canada",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_1289-Edit.jpg",
@@ -485,8 +975,48 @@
     "sourceSha256": "9bc7f894cd7ac1a7e3a5fb1ca0170eba7679e4197ae08c5b3f70cc90173e72f1",
     "processingVersion": 1,
     "alt": "A building is shown behind a lake.  The perspective shows this building framed by two pine trees",
-    "caption": {},
-    "category": "landscape"
+    "category": "landscape",
+    "caption": {
+      "location": {
+        "city": "Buffalo, New York",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
+  },
+  {
+    "key": "photography/DSC_1357.jpg",
+    "width": 4016,
+    "height": 6016,
+    "thumbhash": "FAgOBQCPm2h4uFamh2enaIyLn8f6",
+    "sourceSha256": "dc2011d8fd1f78dff2ed89a6e498772fa81d856ece41c2a084abf218155603b2",
+    "processingVersion": 1,
+    "alt": "A man is washing the back of his car with a car wash sprayer",
+    "category": "portrait",
+    "caption": {
+      "location": {
+        "city": "Orchard Park, New York",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
+  },
+  {
+    "key": "photography/DSC_1371.jpg",
+    "width": 3294,
+    "height": 4935,
+    "thumbhash": "XhgOFQK/imyaSGe2Zlmnp0lghwA3",
+    "sourceSha256": "f82b1d50fe33ca3260e5dc7019307d1ad293af0c713eb86dfec7dad128ab2a83",
+    "processingVersion": 1,
+    "alt": "A man is holding a jet tag that says 'AutoNirvana' in front of his car",
+    "category": "portrait",
+    "caption": {
+      "location": {
+        "city": "Orchard Park, New York",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_1597.jpg",
@@ -496,8 +1026,14 @@
     "sourceSha256": "eb715b8c633f332c80d5feb349ed59eb534a3761e3b585e9495e212803aef5ee",
     "processingVersion": 1,
     "alt": "A marquee sign that says 'Sheas Buffalo' is shown from directly below it looking up",
-    "caption": {},
-    "category": "landscape"
+    "category": "landscape",
+    "caption": {
+      "location": {
+        "city": "Buffalo, New York",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_1785-Edit.jpg",
@@ -507,8 +1043,14 @@
     "sourceSha256": "764d4d2208bc54abbdf698c09d4a5b9ef5e708da9cfcfa1b500f78f599b99a22",
     "processingVersion": 1,
     "alt": "Three skyscrapers are shown looking straight up with a blue cloudy sky in the background",
-    "caption": {},
-    "category": "landscape"
+    "category": "landscape",
+    "caption": {
+      "location": {
+        "city": "New York, New York",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_1809-Edit.jpg",
@@ -518,8 +1060,14 @@
     "sourceSha256": "0a4ae4bc5b6946b30c632fd827bc033a15b1cd1cf0b68df20dfbb4e643c0523d",
     "processingVersion": 1,
     "alt": "A skyscraper with pointed, geometric windows is shown against a blue cloudy sky",
-    "caption": {},
-    "category": "landscape"
+    "category": "landscape",
+    "caption": {
+      "location": {
+        "city": "New York, New York",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_1924-Edit.jpg",
@@ -529,8 +1077,14 @@
     "sourceSha256": "4b915af9e4aa273ae00d3cbcc4394e9d0f3d8b4fed1c0dff2792b810bb11c9fa",
     "processingVersion": 1,
     "alt": "A wooden pedestrian bridge goes over a small river or canal",
-    "caption": {},
-    "category": "landscape"
+    "category": "landscape",
+    "caption": {
+      "location": {
+        "city": "Pompano Beach, Florida",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_1950-Pano.jpg",
@@ -540,8 +1094,14 @@
     "sourceSha256": "06c870fddb78415dd9cd966f069f770c56e906f088acae5fabe67626c3b6a185",
     "processingVersion": 1,
     "alt": "An old abandoned factory building is shown against a blue cloudy sky",
-    "caption": {},
-    "category": "landscape"
+    "category": "landscape",
+    "caption": {
+      "location": {
+        "city": "Buffalo, New York",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_2059-Edit.jpg",
@@ -551,8 +1111,14 @@
     "sourceSha256": "c6d255fda48595905889a325ada97d15c23e3aaa4dc209573d232b498f27b574",
     "processingVersion": 1,
     "alt": "A bakery is shown with a sign saying 'Lucibello Pastries'",
-    "caption": {},
-    "category": "landscape"
+    "category": "landscape",
+    "caption": {
+      "location": {
+        "city": "New Haven, Connecticut",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_2109-Edit.jpg",
@@ -562,8 +1128,14 @@
     "sourceSha256": "b00d6af0da37d347f01eec3e704b09b226a78e3ceea831e0777eca37b31e7479",
     "processingVersion": 1,
     "alt": "Top up shot of a brick building in Manhattan",
-    "caption": {},
-    "category": "landscape"
+    "category": "landscape",
+    "caption": {
+      "location": {
+        "city": "New York, New York",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_2219-Edit.jpg",
@@ -573,8 +1145,14 @@
     "sourceSha256": "ff7ff17e9aca593922567c86a86580f65dfd35a34e3290cd125984302766c009",
     "processingVersion": 1,
     "alt": "An observatory is shown deep in the foreground over cascading hills",
-    "caption": {},
-    "category": "landscape"
+    "category": "landscape",
+    "caption": {
+      "location": {
+        "city": "Los Angeles, California",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_3620-Edit.jpg",
@@ -584,8 +1162,14 @@
     "sourceSha256": "9c4bcb0d5dfe574a7b0cd8877c367e132f3853f362ebf46e896f1443f0bdcc32",
     "processingVersion": 1,
     "alt": "A gold-plated elevator entrance is open with a sign that says 'This car up'",
-    "caption": {},
-    "category": "landscape"
+    "category": "landscape",
+    "caption": {
+      "location": {
+        "city": "Buffalo, New York",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_3699-Edit.jpg",
@@ -595,8 +1179,14 @@
     "sourceSha256": "e8955a75991bf7390dea8a1e40fa07f8ebe4283257afab9c1912556ebb44cbea",
     "processingVersion": 1,
     "alt": "A skyscraper is viewed through a curved gold railing",
-    "caption": {},
-    "category": "landscape"
+    "category": "landscape",
+    "caption": {
+      "location": {
+        "city": "Charlotte, North Carolina",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_8062.jpg",
@@ -606,8 +1196,14 @@
     "sourceSha256": "f6aa70e97a423d4295e520d8e781a19401cc0cab8b173165033d4ce1208fe766",
     "processingVersion": 1,
     "alt": "A bright red telephone booth is shown centered with a park behind it",
-    "caption": {},
-    "category": "landscape"
+    "category": "landscape",
+    "caption": {
+      "location": {
+        "city": "London, England",
+        "country": "United Kingdom",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_9119.jpg",
@@ -617,8 +1213,14 @@
     "sourceSha256": "59d52a8c701aaf525a7fb5f890871c22707e4da65be0350eefdebf8554e23ba1",
     "processingVersion": 1,
     "alt": "A red castle with a Swedish flag is centered on a large stone outcropping on a body of water",
-    "caption": {},
-    "category": "landscape"
+    "category": "landscape",
+    "caption": {
+      "location": {
+        "city": "Stockholm",
+        "country": "Sweden",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_9127.jpg",
@@ -628,8 +1230,14 @@
     "sourceSha256": "0d75d6d0412bca112207492a45c8f0cb9a60559074dbca6b21fd5b33d44a9b97",
     "processingVersion": 1,
     "alt": "A cup of hot coffee is sitting on a table with steam rising from the top",
-    "caption": {},
-    "category": "landscape"
+    "category": "landscape",
+    "caption": {
+      "location": {
+        "city": "Stockholm",
+        "country": "Sweden",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_9740.jpg",
@@ -639,8 +1247,14 @@
     "sourceSha256": "b828be47cd7da701badf6da47bec371cd802d6b2a0d2850fc98b8cef9f3e347f",
     "processingVersion": 1,
     "alt": "A mountain goat peers over a field of grass",
-    "caption": {},
-    "category": "landscape"
+    "category": "landscape",
+    "caption": {
+      "location": {
+        "city": "Moffat, Scotland",
+        "country": "United Kingdom",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/DSC_9788.jpg",
@@ -650,8 +1264,31 @@
     "sourceSha256": "ef3479daf7176f7675c8c3c1f71be9a162bfe19e95079600867bfee19b22beb0",
     "processingVersion": 1,
     "alt": "A sight-seeing boat glides along a canal flanked by side-by-side old apartment buildings",
-    "caption": {},
-    "category": "landscape"
+    "category": "landscape",
+    "caption": {
+      "location": {
+        "city": "Copenhagen",
+        "country": "Denmark",
+        "source": "sidecar"
+      }
+    }
+  },
+  {
+    "key": "photography/Hops Endtable.jpg",
+    "width": 5861,
+    "height": 3913,
+    "thumbhash": "USkGFYTg2Uizknl6dJdXiL93+U5l",
+    "sourceSha256": "0700083872fb47152d462858b5677d303e1e86af50662f124866102c1539b637",
+    "processingVersion": 1,
+    "alt": "A book called 'The Book of Hops' is photographed sitting on an endtable surrounded by houseplants",
+    "category": "portrait",
+    "caption": {
+      "location": {
+        "city": "Buffalo, New York",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
   },
   {
     "key": "photography/MiamiV1.jpg",
@@ -661,7 +1298,13 @@
     "sourceSha256": "b64aec9761a92ac003dc960a1b2f564494e2cb382e1a3247a7bcb4101533238c",
     "processingVersion": 1,
     "alt": "two palm trees are surrounded by many roofs",
-    "caption": {},
-    "category": "landscape"
+    "category": "landscape",
+    "caption": {
+      "location": {
+        "city": "Miami, Florida",
+        "country": "United States",
+        "source": "sidecar"
+      }
+    }
   }
 ]
