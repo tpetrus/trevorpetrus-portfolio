@@ -1,0 +1,107 @@
+---
+// A floating list of the page's sections that pops up while the visitor scrolls past the inline category nav, fades out
+// once scrolling stops (unless a mouse is over it or focus is inside it), and marks the section being read. Hidden and inert until src/scripts/sectionNav.ts shows it, so without JavaScript only the
+// inline nav and the back-to-top links exist. The script marks the current link with aria-current and toggles
+// `data-shown`; the states below are CSS only.
+interface Props {
+    /** The sections to link, in page order. */
+    sections: { id: string; label: string }[];
+}
+
+const { sections } = Astro.props;
+---
+
+<nav aria-label="Jump to a section" data-section-legend inert class="legend z-10">
+    <ul role="list" class="legend-list font-mono text-step-n1 tracking-[0.06em] uppercase">
+        {sections.map((section) => (
+            <li>
+                <a
+                    href={`#${section.id}`}
+                    data-section-link={section.id}
+                    class="group flex min-h-11 items-center gap-2 text-ink-muted-on-ink hover:text-paper aria-[current=true]:text-paper max-lg:aria-[current=true]:text-accent max-lg:aria-[current=true]:underline lg:min-h-0"
+                >
+                    <span
+                        aria-hidden="true"
+                        class="hidden size-2 shrink-0 bg-accent opacity-0 group-aria-[current=true]:opacity-100 lg:block"
+                    />
+                    {section.label}
+                </a>
+            </li>
+        ))}
+    </ul>
+</nav>
+
+<style>
+    /* Hidden by default: invisible and not focusable. The visibility change waits for the fade so it is seen. */
+    .legend {
+        position: fixed;
+        background-color: color-mix(in srgb, var(--color-ink, #0e0e0c) 90%, transparent);
+        border: 1px solid color-mix(in srgb, var(--color-paper, #f4f1ea) 20%, transparent);
+        opacity: 0;
+        visibility: hidden;
+        transition:
+            opacity 200ms ease,
+            translate 200ms ease,
+            visibility 0s linear 200ms;
+        /* Below lg: a pill centered at the bottom, clear of the home indicator. */
+        left: 0;
+        right: 0;
+        bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+        margin-inline: auto;
+        width: max-content;
+        max-width: calc(100vw - 1rem);
+        padding: 0 1rem;
+        border-radius: 9999px;
+        translate: 0 0.5rem;
+    }
+
+    .legend[data-shown] {
+        opacity: 1;
+        visibility: visible;
+        translate: 0 0;
+        transition-delay: 0s;
+    }
+
+    .legend-list {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        column-gap: 1.25rem;
+    }
+
+    /* From lg: vertically centered in the right margin. The centering uses transform, the pop uses translate. */
+    @media (min-width: 64rem) {
+        .legend {
+            left: auto;
+            right: 1.5rem;
+            bottom: auto;
+            top: 50%;
+            margin-inline: 0;
+            width: auto;
+            max-width: none;
+            padding: 0.75rem 1rem;
+            border-radius: 0;
+            transform: translateY(-50%);
+            translate: 0.5rem 0;
+        }
+
+        .legend-list {
+            display: block;
+        }
+
+        .legend-list li + li {
+            margin-top: 0.5rem;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .legend {
+            transition: none;
+            translate: 0 0;
+        }
+    }
+</style>
+
+<script>
+    import '../scripts/sectionNav';
+</script>

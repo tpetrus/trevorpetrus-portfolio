@@ -3,7 +3,7 @@ import { formatNumber } from '../lib/numbering';
 
 interface Props {
     /** The rows in display order. Each row's content is the named slot that matches its `id`. */
-    rows: readonly { id: string; number: number }[];
+    rows: readonly { id: string; number?: number | undefined }[];
     /** Accessible name of the list. */
     label: string;
 }
@@ -11,14 +11,22 @@ interface Props {
 const { rows, label } = Astro.props;
 ---
 
-{/* A numbered index: a 1px ink rule above every row, the zero-padded number in the display face, then the row's
-    content (the slot named after its id). Numbers come from `numberItems`, so they stay put as rows are added. */}
+{/* A ruled index: a 1px ink rule above every row, then the row's content (the slot named after its id). A row given a
+    `number` also gets a number column in the display face; a row without one draws its own number inside its content,
+    so a hover box around that content can enclose the number. */}
 <ul role="list" aria-label={label} class="border-b border-ink">
     {rows.map(({ id, number }) => (
-        <li class="grid gap-x-gutter gap-y-3 border-t border-ink py-6 md:grid-cols-[5.5rem_1fr]">
-            <span data-index class="font-display text-step-3 leading-none font-bold tracking-tight">
-                {formatNumber(number)}
-            </span>
+        <li
+            class:list={[
+                'border-t border-ink',
+                number !== undefined && 'grid gap-x-gutter gap-y-3 py-6 md:grid-cols-[5.5rem_1fr]',
+            ]}
+        >
+            {number !== undefined && (
+                <span data-index class="font-display text-step-3 leading-none font-bold tracking-tight">
+                    {formatNumber(number)}
+                </span>
+            )}
             <slot name={id} />
         </li>
     ))}

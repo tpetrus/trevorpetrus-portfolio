@@ -130,12 +130,12 @@ const { text, video } = Astro.props;
     }
 
     /*
-     * The paper frame sits inside the box (border-box), so the reserved space above stays exact. The pointer says it
+     * The accent frame (on ink, 5.83:1) sits inside the box (border-box), so the reserved space above stays exact. The pointer says it
      * can be clicked; the keyboard focus ring comes from global.css.
      */
     .media {
         padding: 0;
-        border: 0.25rem solid var(--color-paper);
+        border: 0.25rem solid var(--color-accent);
         background-color: var(--color-ink);
         cursor: pointer;
     }
