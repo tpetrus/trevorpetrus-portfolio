@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 
 // The cover project. Smoke-safe: every assertion is about the committed content and markup, none
 // depends on the project's own site being up (the links are only read, never followed).
@@ -18,9 +18,10 @@ const OTHER_PROJECTS = [
 const ACCENT = 'rgb(255, 77, 31)';
 const ACCENT_DEEP = 'rgb(184, 46, 0)';
 
-const escape = (text: string) => text.replace(/[()]/g, '\\$&');
-// A hovered or focused card's shadow lists the accent-deep ring and the accent offset.
-const hasBothAccents = new RegExp(`(?=.*${escape(ACCENT)})(?=.*${escape(ACCENT_DEEP)})`);
+// The card's computed box-shadow, compared as plain text: at rest it holds neither accent, and hovered or focused it
+// lists the accent-deep ring and the accent offset.
+const boxShadow = (card: Locator) => card.evaluate((element) => getComputedStyle(element).boxShadow);
+const accentsIn = (shadow: string) => ({ accent: shadow.includes(ACCENT), accentDeep: shadow.includes(ACCENT_DEEP) });
 
 test.describe('projects page @smoke', () => {
     test.beforeEach(async ({ page }) => {
@@ -51,7 +52,9 @@ test.describe('projects page @smoke', () => {
             await card.scrollIntoViewIfNeeded();
             await page.mouse.move(0, 0);
             // At rest both shadows are transparent: no accent color anywhere in the value.
-            await expect(card).not.toHaveCSS('box-shadow', new RegExp(`${escape(ACCENT)}|${escape(ACCENT_DEEP)}`));
+            await expect
+                .poll(async () => accentsIn(await boxShadow(card)))
+                .toEqual({ accent: false, accentDeep: false });
             await expect(card).not.toHaveCSS('box-shadow', 'none');
             // Page coordinates, not the viewport's: under the sticky header, hover() may scroll the title into view
             // first, which moves the viewport box without anything shifting.
@@ -64,7 +67,7 @@ test.describe('projects page @smoke', () => {
 
             // Hover the title area, which the stretched link makes part of the card.
             await card.getByRole('heading', { level: 2 }).hover();
-            await expect(card).toHaveCSS('box-shadow', hasBothAccents);
+            await expect.poll(async () => accentsIn(await boxShadow(card))).toEqual({ accent: true, accentDeep: true });
             expect(await pageBox()).toEqual(before);
         }
     });
@@ -84,7 +87,7 @@ test.describe('projects page @smoke', () => {
 
         await page.keyboard.press('Tab');
         await expect(card.getByRole('heading', { level: 2 }).getByRole('link')).toBeFocused();
-        await expect(card).toHaveCSS('box-shadow', hasBothAccents);
+        await expect.poll(async () => accentsIn(await boxShadow(card))).toEqual({ accent: true, accentDeep: true });
         expect(await documentBox()).toEqual(before);
     });
 

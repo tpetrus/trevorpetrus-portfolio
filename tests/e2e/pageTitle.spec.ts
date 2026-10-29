@@ -109,16 +109,16 @@ test.describe('page titles', () => {
             await expect(toggle(page)).toHaveAccessibleName(/background video/);
             const frame = await toggle(page).evaluate((el) => {
                 const style = getComputedStyle(el);
-                const paper = getComputedStyle(document.documentElement).getPropertyValue('--color-paper').trim();
+                const accent = getComputedStyle(document.documentElement).getPropertyValue('--color-accent').trim();
                 const probe = document.createElement('div');
-                probe.style.color = paper;
+                probe.style.color = accent;
                 document.body.append(probe);
-                const paperRgb = getComputedStyle(probe).color;
+                const accentRgb = getComputedStyle(probe).color;
                 probe.remove();
-                return { width: style.borderTopWidth, color: style.borderTopColor, paperRgb };
+                return { width: style.borderTopWidth, color: style.borderTopColor, accentRgb };
             });
             expect(parseFloat(frame.width)).toBeGreaterThan(0);
-            expect(frame.color).toBe(frame.paperRgb);
+            expect(frame.color).toBe(frame.accentRgb);
 
             const boxes = await page.evaluate(() => {
                 // The framed box (the toggle button) is what is placed and sized; the video fills it inside the frame.

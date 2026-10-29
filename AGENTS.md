@@ -69,7 +69,7 @@ Cloudflare Workers Builds (see "CI and deploys").
   poster), encoded from the original with ffmpeg (`-an -vf scale=480:-2,fps=24`; `libsvtav1 -crf 50` for the WebM,
   `libx264 -crf 32 -movflags +faststart` for the MP4). The video autoplays: `src/scripts/titleVideo.ts`
   starts it on `astro:page-load` (not through an `autoplay` attribute, so a visitor who prefers reduced motion never sees
-  it move) and pauses it while it is off-screen. It has a 0.25rem paper frame, and the framed video is itself the
+  it move) and pauses it while it is off-screen. It has a 0.25rem accent frame, and the framed video is itself the
   play/pause button: a click pauses or resumes it, and as a real button it works from the keyboard too (WCAG 2.2.2),
   named by its action ("Pause/Play background video"), with no control drawn over the clip. The button is disabled
   until the script runs. Without JavaScript only the poster shows.
@@ -220,7 +220,7 @@ then the giant numeral and the caption, left-aligned; from `lg:` the image takes
 caption sit beside it); the rest are a numbered index (`SectionIndex`: a 1px rule, then the card, which draws its own
 number so the hover box encloses it, the caption stack, and the image on the right from `md:`), newest first. Each card
 is a `Caption`: a bold caps status label in `accent-deep` after a decorative square (plain text, no chip), a bold caps
-title, and a byline with the tech chips (`paper-2`) and "Updated <date>". Numbers are `accent-deep`. **Numbers** come from `numberItems` in
+title, and a byline with the tech chips (`paper-2`) and "Updated <date>". Numbers stay ink. **Numbers** come from `numberItems` in
 `src/lib/numbering.ts`: ascending by the repo's creation date (`created` in `project-meta.json`), so the oldest is 01, the
 newest has the highest number, and adding a project never renumbers another; ties on the same date go by slug, and a
 project with no recorded `created` is numbered after every dated one (by slug), so it still renders; run the sync to
