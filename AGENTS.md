@@ -23,7 +23,7 @@ is real but pre-hero: the giant name, a short statement and, once photos exist, 
 | End-to-end tests (Playwright, 3 projects; the build must exist, served via wrangler) | `npm run test:e2e` (first time: `npm run test:e2e:install`) |
 | Smoke tests (Chromium projects only) against `BASE_URL`, default the site URL in `src/config/site.ts` | `npm run test:smoke` |
 | Lighthouse budget on all three pages, mobile then desktop (reads the existing build) | `npm run lighthouse` |
-| Refresh the generated project assets by hand (GitHub last-commit dates and live-site screenshots; see "Projects") | `npm run sync:projects` |
+| Refresh the generated project data by hand (GitHub dates, About text and topics, live-site screenshots; `--check` writes nothing and exits 2 when an output would change; `--force` is reserved for recapturing screenshots; see "Projects") | `npm run sync:projects [-- --check] [--force]` |
 | Publish a gallery collection by hand: processes JPEGs from `gallery-originals/<collection>` and, with `--upload`, uploads them to R2 and rewrites `src/data/gallery/<collection>.json`; a dry run without `--upload` (see "Gallery") | `npm run sync:gallery -- <collection> [--source <dir>] [--upload] [--bucket <name>] [--account <id>]` (the bucket defaults to `portfolio-photos`) |
 | Serve the build locally like production | `npm run preview` (builds, then `wrangler dev`) |
 
@@ -112,8 +112,10 @@ src/
                         and PHOTOS_ORIGIN (the one place the image host is set)
   lib/                  pure, unit-tested logic (nav.ts; numbering.ts: stable index numbers by date, used by
                         Projects; photoLink.ts: the Photography page's deep-link format (tile ids and hrefs);
-                        pageTitle.ts: the page-title video files; projects.ts: the project schema and card helpers; projectMeta.ts,
-                        projectSource.ts: parsing for the sync script and the page; date.ts: UTC date formatting;
+                        pageTitle.ts: the page-title video files; projects.ts: the project schema and card helpers; projectMeta.ts
+                        (the generated meta schema and its canonical serializer), projectSource.ts: parsing for the sync
+                        script and the page; topicMap.ts: GitHub topic slugs to chip names; projectSync.ts: the sync's
+                        flags, exit codes and copy validation; date.ts: UTC date formatting;
                         gallery.ts: the collection registry (GALLERY_COLLECTIONS) and the entry schema; photography.ts:
                         the photography caption/sidecar schemas and template, EXIF mapping and caption
                         formatting; sidecarPlaceholder.ts: the TODO alt marker the schema rejects; gallerySync.ts:
@@ -238,21 +240,31 @@ hover and keyboard focus, and shows an `aria-hidden` tooltip, "View this project
 border, above the icon and right-aligned so it opens into the card); the link's `aria-label` already names the action.
 The tooltip is a child of the link, so the pointer can move onto it (WCAG 1.4.13), and Escape hides it:
 `src/scripts/tooltipDismiss.ts` sets `data-tooltip-dismissed` on `html` until the pointer or focus leaves the link. Screenshots are
-captured at 2x (CSS viewport 1280x800, a 2560x1600 image) and the cover offers widths up to 2560. The status is `live`, `in-progress` or `archived`. Tech tags and the description
-are curated by hand in the frontmatter; the sync script never rewrites them.
+captured at 2x (CSS viewport 1280x800, a 2560x1600 image) and the cover offers widths up to 2560. The status is `live`, `in-progress` or `archived`.
+
+**The copy comes from GitHub.** A card's description is the repo's GitHub About text and its tech chips are the repo's
+topics, mapped to display names through `TOPIC_NAMES` in `src/lib/topicMap.ts` (`threejs` -> `three.js`), in GitHub's
+(alphabetical) order. The sync writes both into `src/data/project-meta.json`; the frontmatter has neither. The sync fails,
+names the repo and the field or slug, and writes nothing when any repo has an empty About, no topics, or a topic the map
+does not know: add the slug to the map in the same change. A project missing from the meta file fails the build
+(`copyFor`), so a card never renders without copy. The meta file is generated: its format is whatever
+`serializeProjectMeta` writes (keys sorted at every level, two-space indent), so it is in `.prettierignore` and never
+hand-formatted. To change a card's text, edit the repo's About or topics on GitHub, then sync.
 
 **Add a project:**
-1. Create `src/content/projects/<slug>.md` with `title`, `description` (1-2 sentences), `tech`, `status`, `repo`
-   (`https://github.com/<owner>/<repo>`), `order`, and `subdomain` if it has its own address (the DNS label only).
-2. Run `npm run sync:projects` (set `GITHUB_TOKEN` to avoid the unauthenticated GitHub rate limit). It records the newest
-   default-branch commit date (`updated`) and the repo's creation date (`created`, which numbers the project) in
-   `src/data/project-meta.json`, and for live projects with a subdomain it screenshots the
+1. Give the repo an About text and topics on GitHub, and add any topic `src/lib/topicMap.ts` does not know.
+2. Create `src/content/projects/<slug>.md` with `title`, `status`, `repo` (`https://github.com/<owner>/<repo>`), `order`,
+   and `subdomain` if it has its own address (the DNS label only). A live project with a subdomain also needs
+   `appSelector`: a CSS selector for an element the app renders once it is ready (the screenshot waits for it).
+3. Run `npm run sync:projects` (set `GITHUB_TOKEN` to avoid the unauthenticated GitHub rate limit). It records the newest
+   default-branch commit date (`updated`), the repo's creation date (`created`, which numbers the project), the About
+   text (`description`) and the mapped topics (`tech`) in `src/data/project-meta.json`, and for live projects with a subdomain it screenshots the
    site to `src/assets/projects/<slug>.avif` and prints a reminder to add
    `thumbnail: ../../assets/projects/<slug>.avif` to the frontmatter. Add it, look at the screenshot, and commit all of it.
-3. `thumbnail` is optional (a card without one renders without an image); the date is omitted, and the number comes last, when the meta file
-   has no entry for the slug.
+4. `thumbnail` is optional (a card without one renders without an image).
 
-**The sync is manual and its outputs are committed.** The build makes no network calls. Re-run the script when a project
+**The sync is manual and its outputs are committed.** The build makes no network calls. A local run uses the same code
+path a scheduled job will, but screenshots rendered on Windows or macOS differ from ones rendered on the Linux runner. Re-run the script when a project
 changes and commit the diff (the screenshot is written only if its bytes changed; it fails above 500 kB). The
 AudioVisualizer screenshot shows the landing view with its visualizer previews (v0.3.0 no longer opens the "Audio source"
 dialog that v0.2.7 showed). The capture can race the app's first render and come out almost blank (about 6 kB); look at the
@@ -430,7 +442,9 @@ is empty.
   (`npm run test:e2e:install`); CI's e2e job runs in the Playwright container image, which has every browser.
 - `tests/e2e/visual.spec.ts` compares a full-page screenshot of every page in each Playwright project with a committed
   baseline in `tests/e2e/visual.spec.ts-snapshots/` (reduced motion, fonts awaited, remote gallery photos stubbed with a
-  fixed image, the footer and `<time>` elements masked because they change with the date). Baselines are Linux-only: the
+  fixed image, the footer and `<time>` elements masked because they change with the date; on `/projects` the
+  descriptions, tech chips, dates and screenshots are replaced with fixed-length placeholders and a fixed image first, so a
+  data-only change, such as a new About text, never changes the layout or fails the spec). Baselines are Linux-only: the
   snapshot names carry the platform, so Windows or macOS runs skip the spec unless `VISUAL_LOCAL=1`, and their
   `*-win32.png` and `*-darwin.png` files are git-ignored. A deliberate visual change fails this spec until you
   regenerate the baselines: run the "Update visual snapshots" workflow on the branch (Actions tab, or
