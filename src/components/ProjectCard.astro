@@ -113,13 +113,16 @@ const rowGrid = thumbnail
                     sighted users; it is aria-hidden because the aria-label already says it. It is a child of the link
                     and flush against its top edge (no gap), so moving the pointer onto it keeps the link hovered
                     (WCAG 1.4.13). It is right-aligned and grows leftward so it cannot run off the viewport's edge.
-                    tooltipDismiss.ts hides it on Escape through html[data-tooltip-dismissed]. */}
+                    tooltipDismiss.ts hides it on Escape through html[data-tooltip-dismissed]. The link sits at z-10 at
+                    rest but rises to z-25 while hovered or keyboard-focused: the sticky header is z-20, so without the
+                    raise it would cover a tooltip opened by an icon scrolled just under it. 25 stays below the z-30
+                    skip link. */}
                 <a
                     href={repo}
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={`${title} on GitHub (opens in a new tab)`}
-                    class="relative z-10 -m-1 inline-flex size-9 shrink-0 items-center justify-center text-ink-muted transition-colors hover:bg-accent hover:text-ink focus-visible:bg-accent focus-visible:text-ink motion-reduce:transition-none"
+                    class="relative z-10 -m-1 inline-flex size-9 shrink-0 items-center justify-center text-ink-muted transition-colors hover:z-[25] hover:bg-accent hover:text-ink focus-visible:z-[25] focus-visible:bg-accent focus-visible:text-ink motion-reduce:transition-none"
                 >
                     <GitHubIcon class="size-5" />
                     <span
@@ -146,6 +149,19 @@ const rowGrid = thumbnail
     }
     a:focus-visible > [data-tooltip] {
         display: block;
+    }
+    /* A diagonal pointer path from the icon to the tooltip crosses paper beside the icon and below the tooltip, which
+       would drop :hover and close it (WCAG 1.4.13, hoverable). This transparent triangle, from the tooltip's bottom-left
+       corner to the icon's bottom-right corner, fills that gap. It is a child of the tooltip, so it exists only while
+       the tooltip is displayed and never intercepts the pointer at rest. The height is the icon's (size-9). */
+    [data-tooltip]::after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        height: 2.25rem;
+        clip-path: polygon(0 0, 100% 0, 100% 100%);
     }
     /* More specific than the two rules above, so Escape wins while the link stays hovered or focused. */
     :global(html[data-tooltip-dismissed]) a[href] > [data-tooltip] {

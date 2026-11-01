@@ -351,6 +351,47 @@ test.describe('GitHub icon tooltip', () => {
         await expect(tooltip).toBeVisible();
     });
 
+    test('a diagonal pointer path from the icon to the tooltip keeps it visible', async ({ page }) => {
+        const hasHover = await page.evaluate(() => matchMedia('(hover: hover)').matches);
+        test.skip(!hasHover, 'Touch devices have no hover.');
+        const link = githubLink(page);
+        const tooltip = link.locator('[data-tooltip]');
+        await link.evaluate((element) => element.scrollIntoView({ block: 'center' }));
+        await link.hover();
+        await expect(tooltip).toBeVisible();
+
+        const linkBox = await link.boundingBox();
+        const box = await tooltip.boundingBox();
+        if (!linkBox || !box) throw new Error('The link or tooltip has no layout box.');
+        await page.mouse.move(linkBox.x + linkBox.width / 2, linkBox.y + linkBox.height / 2);
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 20 });
+
+        await expect(tooltip).toBeVisible();
+    });
+
+    test('the tooltip stays above the sticky header when the icon is scrolled just under it', async ({ page }) => {
+        const link = githubLink(page);
+        const tooltip = link.locator('[data-tooltip]');
+        const headerBottom = await page.evaluate(
+            () => document.querySelector('header')!.getBoundingClientRect().bottom,
+        );
+        // Focus first: focusing scrolls the link clear of the header (scroll-padding-top), so the scroll that puts the
+        // tooltip under the header comes after it. A mouse hover never scrolls, so this is where a pointer user can be.
+        await focusWithKeyboard(page);
+        await link.evaluate((element, offset) => {
+            window.scrollTo(0, window.scrollY + element.getBoundingClientRect().top - offset);
+        }, headerBottom + 4);
+        await expect(tooltip).toBeVisible();
+        expect(await tooltip.evaluate((element) => element.getBoundingClientRect().top)).toBeLessThan(headerBottom);
+
+        const hit = await tooltip.evaluate((element) => {
+            const rect = element.getBoundingClientRect();
+            const found = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+            return found === element || element.contains(found);
+        });
+        expect(hit).toBe(true);
+    });
+
     test('on a 320px screen the tooltip stays inside the viewport', async ({ page }) => {
         await page.setViewportSize({ width: 320, height: 640 });
         const link = githubLink(page);
