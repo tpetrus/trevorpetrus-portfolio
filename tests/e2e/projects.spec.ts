@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { expect, test, type Locator } from '@playwright/test';
 
 // The cover project. Smoke-safe: every assertion is about the committed content and markup, none
@@ -13,6 +15,17 @@ const OTHER_PROJECTS = [
     { title: 'trevorpetrus-portfolio', repo: 'https://github.com/tpetrus/trevorpetrus-portfolio' },
     { title: 'ci-workflows', repo: 'https://github.com/tpetrus/ci-workflows' },
 ];
+
+interface MetaEntry {
+    description: string;
+    tech: string[];
+}
+
+// The card copy is GitHub's About text and topics, refreshed daily into the committed meta file, so the specs read the
+// same file the build did (production is built from it too) instead of repeating the words. HTML collapses runs of
+// whitespace, so both sides are compared with whitespace collapsed.
+const META = JSON.parse(readFileSync('src/data/project-meta.json', 'utf8')) as Record<string, MetaEntry>;
+const normalize = (text: string) => text.replace(/\s+/g, ' ').trim();
 
 // The hover box's two colors as the browser reports them (accent and accent-deep in global.css).
 const ACCENT = 'rgb(255, 77, 31)';
@@ -138,18 +151,32 @@ test.describe('projects page @smoke', () => {
         expect(Math.abs(numeralBox.x - titleBox.x)).toBeLessThanOrEqual(1);
     });
 
-    test('shows the project card with its description, tech tags and status', async ({ page }) => {
+    test('shows the project card with its status', async ({ page }) => {
         const card = page.getByRole('article').first();
 
         await expect(card.getByRole('heading', { level: 2, name: PROJECT.title })).toBeVisible();
-        await expect(card.getByRole('list', { name: 'Technologies' }).getByRole('listitem')).toContainText([
-            'TypeScript',
-            'React',
-            'three.js',
-            'Web Audio API',
-            'Tailwind CSS',
-        ]);
         await expect(card.getByText('Live', { exact: true })).toBeVisible();
+    });
+
+    test('every card shows its project meta description and tech chips', async ({ page }) => {
+        const cards = page.getByRole('article');
+        const count = await cards.count();
+        const entries = Object.values(META);
+        expect(count).toBeGreaterThan(0);
+
+        for (let index = 0; index < count; index++) {
+            const card = cards.nth(index);
+            const description = normalize(await card.locator('[data-project-description]').innerText());
+            const chips = (await card.locator('[data-project-tech] > li').allInnerTexts()).map(normalize);
+
+            expect(description).not.toBe('');
+            expect(chips.length).toBeGreaterThan(0);
+            // The card is matched to its entry by the description, then the chips must be that entry's list.
+            const entry = entries.find((candidate) => normalize(candidate.description) === description);
+            expect(entry, `no meta entry has the description "${description}"`).toBeDefined();
+            expect(chips).toEqual(entry?.tech.map(normalize));
+        }
+        await expect(cards.first().getByRole('list', { name: 'Technologies' })).toBeVisible();
     });
 
     test('the title links to the live subdomain and the icon links to the repo', async ({ page }) => {
@@ -199,8 +226,8 @@ test.describe('projects page @smoke', () => {
         };
 
         expect(await hrefAt(await centerOf(card.locator('picture')))).toBe(`${PROJECT.href}/`);
-        // The cover's last paragraph is the description.
-        expect(await hrefAt(await centerOf(card.locator('p').last()))).toBe(`${PROJECT.href}/`);
+        // The description sits under the stretched title link.
+        expect(await hrefAt(await centerOf(card.locator('[data-project-description]')))).toBe(`${PROJECT.href}/`);
         expect(await hrefAt(await centerOf(githubLink))).toBe(PROJECT.repo);
     });
 

@@ -1,6 +1,7 @@
 // The pure core of `npm run sync:projects` (scripts/sync-projects.ts does only I/O). Contract C3 is frozen here: the
 // CLI flags, the exit codes and the copy-validation errors. S2 adds the SHA-keyed capture plan to this module.
 import type { ProjectCopy } from './projectMeta';
+import { mapTopics } from './topicMap';
 
 /** Exit codes of `npm run sync:projects` (contract C3). */
 export const EXIT_OK = 0;
@@ -22,8 +23,15 @@ export interface SyncArgs {
  * throws with the offending argument named.
  */
 export function parseSyncArgs(argv: readonly string[]): SyncArgs {
-    void argv;
-    throw new Error('not implemented');
+    let force = false;
+    let check = false;
+    for (const arg of argv) {
+        if (arg === '--force' && !force) force = true;
+        else if (arg === '--check' && !check) check = true;
+        else if (arg === '--force' || arg === '--check') throw new Error(`Duplicate argument: ${arg}`);
+        else throw new Error(`Unknown argument: ${arg} (expected --force and/or --check)`);
+    }
+    return { force, check };
 }
 
 /** What GitHub says about one project's repo: the inputs of the card copy. */
@@ -53,8 +61,18 @@ export type CopyValidation =
  * trimmed, and the topics' display names in GitHub's order.
  */
 export function validateCopy(inputs: readonly RepoCopyInput[]): CopyValidation {
-    void inputs;
-    throw new Error('not implemented');
+    const errors: CopyError[] = [];
+    const copy: Record<string, ProjectCopy> = {};
+    for (const { slug, repo, description, topics } of inputs) {
+        const about = description?.trim() ?? '';
+        const { tech, unknown } = mapTopics(topics);
+        const before = errors.length;
+        if (about === '') errors.push({ repo, field: 'description' });
+        if (topics.length === 0) errors.push({ repo, field: 'topics' });
+        for (const topic of unknown) errors.push({ repo, topic });
+        if (errors.length === before) copy[slug] = { description: about, tech };
+    }
+    return errors.length > 0 ? { ok: false, errors } : { ok: true, copy };
 }
 
 /**
@@ -63,6 +81,8 @@ export function validateCopy(inputs: readonly RepoCopyInput[]): CopyValidation {
  * `https://github.com/tpetrus/x: topic "foo" is not in src/lib/topicMap.ts`.
  */
 export function formatCopyError(error: CopyError): string {
-    void error;
-    throw new Error('not implemented');
+    if ('topic' in error) return `${error.repo}: topic "${error.topic}" is not in src/lib/topicMap.ts`;
+    return error.field === 'description'
+        ? `${error.repo}: the GitHub About description is empty`
+        : `${error.repo}: the GitHub repo has no topics`;
 }

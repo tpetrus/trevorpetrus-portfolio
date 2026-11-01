@@ -3,17 +3,16 @@ import { describe, expect, it } from 'vitest';
 import { readProjectFrontmatter } from './projectSource';
 
 const frontmatter = `title: Demo
-description: A demo.
-tech: [TypeScript]
 status: live
 repo: https://github.com/tpetrus/demo
 subdomain: demo
-order: 1`;
+order: 1
+appSelector: '#app'`;
 
 describe('readProjectFrontmatter', () => {
     it('parses valid frontmatter', () => {
         const project = readProjectFrontmatter(`---\n${frontmatter}\n---\n\nBody\n`, 'demo.md');
-        expect(project).toMatchObject({ title: 'Demo', tech: ['TypeScript'], order: 1 });
+        expect(project).toMatchObject({ title: 'Demo', appSelector: '#app', order: 1 });
     });
 
     it('handles CRLF line endings and a file that ends at the closing fence', () => {

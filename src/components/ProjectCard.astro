@@ -99,7 +99,12 @@ const rowGrid = thumbnail
                         <span class="sr-only"> (opens in a new tab)</span>
                     </a>
                     <Fragment slot="byline">
-                        <ul role="list" aria-label="Technologies" class="flex flex-wrap gap-1.5 font-mono">
+                        <ul
+                            role="list"
+                            aria-label="Technologies"
+                            data-project-tech
+                            class="flex flex-wrap gap-1.5 font-mono"
+                        >
                             {tech.map((name) => (
                                 <li class="bg-paper-2 px-1.5 py-0.5 text-ink">{name}</li>
                             ))}
@@ -138,7 +143,9 @@ const rowGrid = thumbnail
                     </span>
                 </a>
             </div>
-            <p class="max-w-measure">{description}</p>
+            <p data-project-description class="max-w-measure">
+                {description}
+            </p>
         </div>
     </div>
     {!featured && <ProjectScreenshot {...screenshot} />}
