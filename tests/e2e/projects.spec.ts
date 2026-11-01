@@ -375,11 +375,14 @@ test.describe('GitHub icon tooltip', () => {
         const headerBottom = await page.evaluate(
             () => document.querySelector('header')!.getBoundingClientRect().bottom,
         );
+        // Focus first: focusing scrolls the link clear of the header (scroll-padding-top), so the scroll that puts the
+        // tooltip under the header comes after it. A mouse hover never scrolls, so this is where a pointer user can be.
+        await focusWithKeyboard(page);
         await link.evaluate((element, offset) => {
             window.scrollTo(0, window.scrollY + element.getBoundingClientRect().top - offset);
         }, headerBottom + 4);
-        await focusWithKeyboard(page);
         await expect(tooltip).toBeVisible();
+        expect(await tooltip.evaluate((element) => element.getBoundingClientRect().top)).toBeLessThan(headerBottom);
 
         const hit = await tooltip.evaluate((element) => {
             const rect = element.getBoundingClientRect();
