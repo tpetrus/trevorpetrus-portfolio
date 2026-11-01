@@ -22,7 +22,7 @@ function timeOf({ date }: Numberable): number | undefined {
  * - items with the same date are ordered by `key` (code-unit order);
  * - items without a valid date come after every dated item, ordered by `key`, so a missing date can never shift the
  *   numbers of dated items (it can shift undated ones, and an item that later gains a date moves to its dated place).
- * Returns the items in display order, highest number first, each with its `number`. Keys must be unique.
+ * Returns the items in number order, 1 first, each with its `number`. Keys must be unique.
  */
 export function numberItems<T extends Numberable>(items: readonly T[]): Numbered<T>[] {
     const keys = new Set(items.map(({ key }) => key));
@@ -37,7 +37,7 @@ export function numberItems<T extends Numberable>(items: readonly T[]): Numbered
         if (timeB === undefined) return -1;
         return timeA - timeB;
     });
-    return ascending.map((item, index) => ({ ...item, number: index + 1 })).reverse();
+    return ascending.map((item, index) => ({ ...item, number: index + 1 }));
 }
 
 /** The number as shown: zero-padded to at least two digits ("01", "12", "100"). */

@@ -72,8 +72,19 @@ const photos = await clusterFigures(Astro.props.entries);
         transition: opacity 0.2s;
     }
 
-    .photo:hover img {
-        opacity: 0.88;
+    /*
+     * The photo under the pointer or keyboard focus stays at full strength and the others fade, so the chosen one reads
+     * as lifted (dimming the chosen photo itself would say the opposite). Hover is gated by any-hover so a tap on a touch
+     * screen, which leaves :hover stuck on the tapped photo, does not leave the others dimmed.
+     */
+    @media (any-hover: hover) {
+        .cluster:has(.photo:hover) .photo:not(:hover) img {
+            opacity: 0.5;
+        }
+    }
+
+    .cluster:has(.photo:focus-visible) .photo:not(:focus-visible) img {
+        opacity: 0.5;
     }
 
     @media (prefers-reduced-motion: reduce) {

@@ -192,6 +192,65 @@ test.describe('home page', () => {
             expect(parseFloat(await first.evaluate((node) => getComputedStyle(node).outlineWidth))).toBeGreaterThan(0);
         });
 
+        test.describe('fading the other photos', () => {
+            test.skip(CLUSTER_COUNT < 2, 'Fading the others needs at least two photos.');
+
+            // Reduced motion removes the transition, so the computed opacity is the final value at once.
+            const opacities = (page: Page) =>
+                page
+                    .locator('[data-home-cluster] img')
+                    .evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).opacity));
+
+            test('leaves every photo at full opacity at rest, with no transition under reduced motion', async ({
+                page,
+            }) => {
+                await page.emulateMedia({ reducedMotion: 'reduce' });
+                await page.goto('/');
+
+                expect((await opacities(page)).every((opacity) => opacity === '1')).toBe(true);
+                const durations = await page
+                    .locator('[data-home-cluster] img')
+                    .evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).transitionDuration));
+                expect(durations.every((duration) => duration === '0s')).toBe(true);
+            });
+
+            test('keeps the hovered photo at full opacity and fades the others', async ({ page }) => {
+                await page.emulateMedia({ reducedMotion: 'reduce' });
+                await page.goto('/');
+                const canHover = await page.evaluate(() => matchMedia('(any-hover: hover)').matches);
+                test.skip(!canHover, 'The hover fade only applies on devices with hover.');
+
+                const links = page.locator('[data-home-cluster] a');
+                await links.first().scrollIntoViewIfNeeded();
+                await links.first().hover();
+
+                const hovered = await opacities(page);
+                expect(hovered[0]).toBe('1');
+                for (const opacity of hovered.slice(1)) expect(opacity).toBe('0.5');
+
+                await page.mouse.move(0, 0);
+                expect((await opacities(page)).every((opacity) => opacity === '1')).toBe(true);
+            });
+
+            test('keeps the keyboard-focused photo at full opacity and fades the others', async ({ page }) => {
+                await page.emulateMedia({ reducedMotion: 'reduce' });
+                await page.goto('/');
+
+                const first = page.locator('[data-home-cluster] a').first();
+                await first.scrollIntoViewIfNeeded();
+                // A key press first, so the programmatic focus counts as keyboard focus (:focus-visible) in every
+                // engine, including Safari, which does not Tab to links by default.
+                await page.keyboard.press('Shift');
+                await first.focus();
+
+                await expect(first).toBeFocused();
+                await expect(first).toHaveCSS('outline-style', 'solid');
+                const focused = await opacities(page);
+                expect(focused[0]).toBe('1');
+                for (const opacity of focused.slice(1)) expect(Number(opacity)).toBeLessThan(1);
+            });
+        });
+
         for (const width of [320, 390, 1280]) {
             test(`composes the three images as one overlapping cluster at ${width}px, without scrolling sideways`, async ({
                 page,

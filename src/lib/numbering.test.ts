@@ -6,13 +6,13 @@ const at = (key: string, date?: string) => ({ key, date: date ? new Date(date) :
 const numbersByKey = (items: ReturnType<typeof numberItems>) => Object.fromEntries(items.map((i) => [i.key, i.number]));
 
 describe('numberItems', () => {
-    it('numbers by date ascending and returns the highest number first', () => {
+    it('numbers by date ascending and returns the items in number order, 1 first', () => {
         const result = numberItems([at('b', '2025-01-01'), at('c', '2026-01-01'), at('a', '2024-01-01')]);
 
         expect(result.map(({ key, number }) => [key, number])).toEqual([
-            ['c', 3],
-            ['b', 2],
             ['a', 1],
+            ['b', 2],
+            ['c', 3],
         ]);
     });
 
@@ -36,6 +36,17 @@ describe('numberItems', () => {
         const result = numbersByKey(numberItems([at('z'), at('a'), at('m', '2030-01-01'), at('n', '2020-01-01')]));
 
         expect(result).toEqual({ n: 1, m: 2, a: 3, z: 4 });
+    });
+
+    it('returns undated items after the dated ones, still in number order', () => {
+        const result = numberItems([at('z'), at('m', '2030-01-01'), at('a'), at('n', '2020-01-01')]);
+
+        expect(result.map(({ key, number }) => [key, number])).toEqual([
+            ['n', 1],
+            ['m', 2],
+            ['a', 3],
+            ['z', 4],
+        ]);
     });
 
     it('places an undated item last whichever way round the two are compared', () => {
