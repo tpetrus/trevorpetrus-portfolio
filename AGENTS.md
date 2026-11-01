@@ -23,7 +23,7 @@ is real but pre-hero: the giant name, a short statement and, once photos exist, 
 | End-to-end tests (Playwright, 3 projects; the build must exist, served via wrangler) | `npm run test:e2e` (first time: `npm run test:e2e:install`) |
 | Smoke tests (Chromium projects only) against `BASE_URL`, default the site URL in `src/config/site.ts` | `npm run test:smoke` |
 | Lighthouse budget on all three pages, mobile then desktop (reads the existing build) | `npm run lighthouse` |
-| Refresh the generated project data by hand (GitHub dates, About text and topics, live-site screenshots; `--check` writes nothing and exits 2 when an output would change; `--force` is reserved for recapturing screenshots; see "Projects") | `npm run sync:projects [-- --check] [--force]` |
+| Refresh the generated project data by hand (GitHub dates, About text and topics, live-site screenshots; `--check` writes nothing and exits 2 when an output would change; `--force` is reserved for recapturing screenshots; see "Projects") | `npm run sync:projects -- [--check] [--force]` |
 | Publish a gallery collection by hand: processes JPEGs from `gallery-originals/<collection>` and, with `--upload`, uploads them to R2 and rewrites `src/data/gallery/<collection>.json`; a dry run without `--upload` (see "Gallery") | `npm run sync:gallery -- <collection> [--source <dir>] [--upload] [--bucket <name>] [--account <id>]` (the bucket defaults to `portfolio-photos`) |
 | Serve the build locally like production | `npm run preview` (builds, then `wrangler dev`) |
 
