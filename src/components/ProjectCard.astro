@@ -107,14 +107,28 @@ const rowGrid = thumbnail
                         )}
                     </Fragment>
                 </Caption>
+                {/* The icon is a quiet button at rest and a filled accent square on hover and keyboard focus, so it reads
+                    as the second, separate action next to the stretched title link. The fill only swaps colors (ink on
+                    accent is an approved pair), so the 36px box never moves. The tooltip names the destination for
+                    sighted users; it is aria-hidden because the aria-label already says it. It is a child of the link
+                    and flush against its top edge (no gap), so moving the pointer onto it keeps the link hovered
+                    (WCAG 1.4.13). It is right-aligned and grows leftward so it cannot run off the viewport's edge.
+                    tooltipDismiss.ts hides it on Escape through html[data-tooltip-dismissed]. */}
                 <a
                     href={repo}
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={`${title} on GitHub (opens in a new tab)`}
-                    class="relative z-10 -m-1 inline-flex size-9 shrink-0 items-center justify-center text-ink-muted hover:text-accent-deep"
+                    class="relative z-10 -m-1 inline-flex size-9 shrink-0 items-center justify-center text-ink-muted transition-colors hover:bg-accent hover:text-ink focus-visible:bg-accent focus-visible:text-ink motion-reduce:transition-none"
                 >
                     <GitHubIcon class="size-5" />
+                    <span
+                        data-tooltip
+                        aria-hidden="true"
+                        class="absolute right-0 bottom-full z-30 hidden border border-ink bg-paper px-2 py-1 font-mono text-step-n1 leading-none whitespace-nowrap text-ink"
+                    >
+                        View this project on my GitHub
+                    </span>
                 </a>
             </div>
             <p class="max-w-measure">{description}</p>
@@ -122,3 +136,23 @@ const rowGrid = thumbnail
     </div>
     {!featured && <ProjectScreenshot {...screenshot} />}
 </article>
+
+<style>
+    /* Hover sits inside the media query so a tap on a touch screen does not leave the tooltip stuck open. */
+    @media (hover: hover) {
+        a:hover > [data-tooltip] {
+            display: block;
+        }
+    }
+    a:focus-visible > [data-tooltip] {
+        display: block;
+    }
+    /* More specific than the two rules above, so Escape wins while the link stays hovered or focused. */
+    :global(html[data-tooltip-dismissed]) a[href] > [data-tooltip] {
+        display: none;
+    }
+</style>
+
+<script>
+    import '../scripts/tooltipDismiss';
+</script>

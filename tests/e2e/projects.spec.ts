@@ -250,3 +250,119 @@ test.describe('projects page @smoke', () => {
         await expect(githubLink).not.toHaveCSS('outline-style', 'none');
     });
 });
+
+// The GitHub icon's filled box and tooltip. Reduced motion drops the color transition, so computed styles are final.
+test.describe('GitHub icon tooltip', () => {
+    const TOOLTIP_TEXT = 'View this project on my GitHub';
+
+    test.beforeEach(async ({ page }) => {
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        await page.goto('/projects/');
+    });
+
+    const githubLink = (page: import('@playwright/test').Page) =>
+        page
+            .getByRole('article')
+            .first()
+            .getByRole('link', { name: /on GitHub \(opens in a new tab\)$/ });
+
+    const inkColor = (page: import('@playwright/test').Page) =>
+        page.evaluate(() => {
+            const probe = document.createElement('span');
+            probe.style.color = 'var(--color-ink)';
+            document.body.append(probe);
+            const color = getComputedStyle(probe).color;
+            probe.remove();
+            return color;
+        });
+
+    test('hovering fills the box with the accent and shows the tooltip without moving anything', async ({ page }) => {
+        const hasHover = await page.evaluate(() => matchMedia('(hover: hover)').matches);
+        test.skip(!hasHover, 'Touch devices have no hover.');
+        const link = githubLink(page);
+        const tooltip = link.locator('[data-tooltip]');
+        await link.scrollIntoViewIfNeeded();
+        await page.mouse.move(0, 0);
+        await expect(tooltip).toBeHidden();
+        const before = await link.boundingBox();
+
+        await link.hover();
+
+        await expect(link).toHaveCSS('background-color', ACCENT);
+        await expect(link.locator('svg')).toHaveCSS('color', await inkColor(page));
+        await expect(tooltip).toBeVisible();
+        await expect(tooltip).toHaveText(TOOLTIP_TEXT);
+        expect(await link.boundingBox()).toEqual(before);
+    });
+
+    test('moving the pointer from the icon onto the tooltip keeps it visible', async ({ page }) => {
+        const hasHover = await page.evaluate(() => matchMedia('(hover: hover)').matches);
+        test.skip(!hasHover, 'Touch devices have no hover.');
+        const link = githubLink(page);
+        const tooltip = link.locator('[data-tooltip]');
+        // Centered, so the tooltip above the icon is clear of the sticky header and the pointer can really reach it.
+        await link.evaluate((element) => element.scrollIntoView({ block: 'center' }));
+        await link.hover();
+        await expect(tooltip).toBeVisible();
+
+        const box = await tooltip.boundingBox();
+        if (!box) throw new Error('The tooltip has no layout box.');
+        // Straight up from the icon first (as a hand would), then along the tooltip: a diagonal from the icon's center
+        // to the tooltip's center would cross the paper beside the 36px icon, which is not part of either.
+        await page.mouse.move(box.x + box.width - 4, box.y + box.height / 2, { steps: 5 });
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 5 });
+
+        await expect(tooltip).toBeVisible();
+        await expect(link).toHaveCSS('background-color', ACCENT);
+    });
+
+    // A key press first makes the next programmatic focus() count as keyboard focus (:focus-visible) in every engine,
+    // including WebKit, which does not tab to links by default.
+    const focusWithKeyboard = async (page: import('@playwright/test').Page) => {
+        await page.mouse.move(0, 0);
+        await page.keyboard.press('Shift');
+        await githubLink(page).focus();
+    };
+
+    test('keyboard focus fills the box, shows the tooltip and keeps the focus ring', async ({ page }) => {
+        const link = githubLink(page);
+        await focusWithKeyboard(page);
+
+        await expect(link).toBeFocused();
+        await expect(link).toHaveCSS('background-color', ACCENT);
+        await expect(link.locator('[data-tooltip]')).toBeVisible();
+        await expect(link).not.toHaveCSS('outline-style', 'none');
+    });
+
+    test('Escape hides the tooltip without moving focus, and refocusing shows it again', async ({ page }) => {
+        const link = githubLink(page);
+        const tooltip = link.locator('[data-tooltip]');
+        await focusWithKeyboard(page);
+        await expect(tooltip).toBeVisible();
+
+        await page.keyboard.press('Escape');
+
+        await expect(tooltip).toBeHidden();
+        await expect(link).toBeFocused();
+
+        await link.blur();
+        await focusWithKeyboard(page);
+        await expect(link).toBeFocused();
+        await expect(tooltip).toBeVisible();
+    });
+
+    test('on a 320px screen the tooltip stays inside the viewport', async ({ page }) => {
+        await page.setViewportSize({ width: 320, height: 640 });
+        const link = githubLink(page);
+        const tooltip = link.locator('[data-tooltip]');
+        await focusWithKeyboard(page);
+        await expect(link).toBeFocused();
+        await expect(tooltip).toBeVisible();
+
+        const box = await tooltip.boundingBox();
+        if (!box) throw new Error('The tooltip has no layout box.');
+        expect(box.x).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width).toBeLessThanOrEqual(320);
+        expect(box.y).toBeGreaterThanOrEqual(0);
+    });
+});
