@@ -218,13 +218,13 @@ The Projects page is built from the `projects` content collection (`src/content/
 `src/lib/projects.ts`; a bad frontmatter file fails the build). The lowest `order` renders as the cover (the image,
 then the giant numeral and the caption, left-aligned; from `lg:` the image takes 3/5 of the column and the numeral and
 caption sit beside it); the rest are a numbered index (`SectionIndex`: a 1px rule, then the card, which draws its own
-number so the hover box encloses it, the caption stack, and the image on the right from `md:`), newest first. Each card
+number so the hover box encloses it, the caption stack, and the image on the right from `md:`), in ascending number order. Each card
 is a `Caption`: a bold caps status label in `accent-deep` after a decorative square (plain text, no chip), a bold caps
 title, and a byline with the tech chips (`paper-2`) and "Updated <date>". Numbers stay ink. **Numbers** come from `numberItems` in
 `src/lib/numbering.ts`: ascending by the repo's creation date (`created` in `project-meta.json`), so the oldest is 01, the
 newest has the highest number, and adding a project never renumbers another; ties on the same date go by slug, and a
 project with no recorded `created` is numbered after every dated one (by slug), so it still renders; run the sync to
-give it its place. The page shows them highest first. A card's main link is `projectUrl(subdomain)` when `subdomain` is set, otherwise the repo;
+give it its place. `numberItems` returns them in number order, so the rows under the cover follow on from it (02, 03, 04 under an 01 cover). A card's main link is `projectUrl(subdomain)` when `subdomain` is set, otherwise the repo;
 every card also has a GitHub icon link, and both open in a new tab (`target="_blank"`, announced by an sr-only note
 and the icon's label). On hover and keyboard focus a card draws a box-shadow that takes no space: a 1px `accent-deep`
 ring plus a 5 px `accent` offset to the bottom right, so it reads slightly 3D. Screenshots are

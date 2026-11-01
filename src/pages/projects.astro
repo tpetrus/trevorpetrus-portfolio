@@ -16,7 +16,8 @@ const projects = sortProjects((await getCollection('projects')).map(({ id, data 
 const numbered = numberItems(
     projects.map((project) => ({ ...project, key: project.id, date: createdFor(meta, project.id) })),
 );
-// The lowest `order` leads as the cover, so a lone project still looks intentional; the rest are the index, newest first.
+// The lowest `order` leads as the cover, so a lone project still looks intentional; the rest are the index in number order,
+// so the rows follow on from the cover (02, 03, 04 under an 01 cover).
 const coverId = projects[0]?.id;
 const cover = numbered.find(({ id }) => id === coverId);
 const rows = numbered.filter(({ id }) => id !== coverId);

@@ -162,7 +162,7 @@ test.describe('projects page @smoke', () => {
         );
     });
 
-    test('shows each project number as zero-padded text, highest first', async ({ page }) => {
+    test('shows each project number as zero-padded text, the index rows in ascending order', async ({ page }) => {
         const numbers = await page.locator('[data-index]').allTextContents();
         // Only the index rows are ordered; the cover is the lowest `order`, whatever its number is.
         const rowNumbers = await page
@@ -172,7 +172,7 @@ test.describe('projects page @smoke', () => {
 
         expect(numbers.length).toBeGreaterThan(0);
         for (const number of numbers) expect(number).toMatch(/^\d{2,}$/);
-        expect(rowNumbers.map(Number)).toEqual([...rowNumbers.map(Number)].sort((a, b) => b - a));
+        expect(rowNumbers.map(Number)).toEqual([...rowNumbers.map(Number)].sort((a, b) => a - b));
     });
 
     test('shows the status as plain bold text above the title', async ({ page }) => {
