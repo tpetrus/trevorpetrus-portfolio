@@ -151,6 +151,8 @@ src/
   scripts/sectionNav.ts  (src/scripts/) DOM glue for the Photography back-to-top links and section legend, imported by
                         SectionLegend.astro
   scripts/titleVideo.ts  (src/scripts/) DOM glue that plays and pauses the page-title video, imported by PageTitle.astro
+  scripts/tooltipDismiss.ts  (src/scripts/) DOM glue that hides the GitHub icon tooltip on Escape, imported by
+                        ProjectCard.astro
 public/                 static files served from / (favicon.svg; video/: the Photography title loop and its poster;
                         lychee.toml: makes the CI link check resolve /photography/#photo-* inside index.html)
 tests/e2e/              Playwright specs (smoke.spec.ts is tagged @smoke); its own tsconfig; lightbox.spec.ts skips while
@@ -202,7 +204,9 @@ Each image's `sizes` follows its span (`clusterSizes`), and `srcset` uses only `
 slot six columns or wider (`clusterSrcsetWidths`), so the cluster adds no new transformations. The cluster deliberately
 shows the photos without captions (each `img` inside a link, no `figure`; each keeps its alt text from the data as the
 link's accessible name). Each link goes to `photoPageHref(key)` (`/photography/#photo-<name>`, `src/lib/photoLink.ts`),
-and the lightbox glue opens that photo in the lightbox on arrival: the camera settings and the place live on the Photography page and its lightbox. The images carry an explicit `aspect-ratio`, so the cluster never shifts the page.
+and the lightbox glue opens that photo in the lightbox on arrival: the camera settings and the place live on the Photography page and its lightbox. The images carry an explicit `aspect-ratio`, so the cluster never shifts the page. Hovering (only on a device that can hover, `any-hover`, so a tap leaves nothing dimmed) or keyboard-focusing
+a photo keeps it at full strength and fades the other cluster photos to opacity 0.5 over 0.2 s (`:has()` in the
+component's style; no transition under reduced motion).
 
 In the three-photo composition on phones the widest images are about 36% to 38% of the viewport (`phoneImageWidth` in
 `src/lib/homeCluster.ts`; the third, four columns wide as on desktop, is about 29%). They are
@@ -227,7 +231,11 @@ project with no recorded `created` is numbered after every dated one (by slug), 
 give it its place. `numberItems` returns them in number order, so the rows under the cover follow on from it (02, 03, 04 under an 01 cover). A card's main link is `projectUrl(subdomain)` when `subdomain` is set, otherwise the repo;
 every card also has a GitHub icon link, and both open in a new tab (`target="_blank"`, announced by an sr-only note
 and the icon's label). On hover and keyboard focus a card draws a box-shadow that takes no space: a 1px `accent-deep`
-ring plus a 5 px `accent` offset to the bottom right, so it reads slightly 3D. Screenshots are
+ring plus a 5 px `accent` offset to the bottom right, so it reads slightly 3D. The GitHub icon link fills with `accent` (the icon turns ink) on
+hover and keyboard focus, and shows an `aria-hidden` tooltip, "View this project on my GitHub" (ink on paper, a 1px ink
+border, above the icon and right-aligned so it opens into the card); the link's `aria-label` already names the action.
+The tooltip is a child of the link, so the pointer can move onto it (WCAG 1.4.13), and Escape hides it:
+`src/scripts/tooltipDismiss.ts` sets `data-tooltip-dismissed` on `html` until the pointer or focus leaves the link. Screenshots are
 captured at 2x (CSS viewport 1280x800, a 2560x1600 image) and the cover offers widths up to 2560. The status is `live`, `in-progress` or `archived`. Tech tags and the description
 are curated by hand in the frontmatter; the sync script never rewrites them.
 

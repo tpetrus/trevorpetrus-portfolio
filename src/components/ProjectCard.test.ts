@@ -15,8 +15,9 @@ const PROJECT: CollectionEntry<'projects'>['data'] = {
     thumbnail,
 };
 
-// The title link's text; an sr-only "(opens in a new tab)" note follows it inside the link.
-const TITLE = 'Fixture Project<span class="sr-only">';
+// The title link's text; an sr-only "(opens in a new tab)" note follows it inside the link. The tag is left open
+// because the component's scoped style adds a `data-astro-cid-*` attribute after the class.
+const TITLE = 'Fixture Project<span class="sr-only"';
 
 async function render(featured: boolean): Promise<string> {
     const container = await AstroContainer.create();
