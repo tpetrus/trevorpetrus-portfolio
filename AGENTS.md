@@ -15,6 +15,8 @@ is real but pre-hero: the giant name, a short statement and, once photos exist, 
 | Type-check the app (`astro check`) and `tests/e2e/` (`tsc -p tests/e2e`) | `npm run typecheck` |
 | Unit tests (vitest, node environment) | `npm run test` |
 | Unit tests with coverage (fails under 95%) | `npm run test:coverage` |
+| Unit tests for the affected files only (Vitest's file filter: each argument matches spec paths by substring) | `npm run test -- <path...>`, e.g. `npm run test -- src/lib/topicMap scripts/sync-projects` |
+| Dependency audit of production dependencies (the local security check; CI's `security /` jobs are the gate) | `npm audit --omit=dev` |
 | Production build (static output to `dist/`) | `npm run build` |
 | Create starter alt-text sidecars for photos that lack one (`--dry-run` lists only; never overwrites, rejects hidden files; see "Gallery") | `npm run scaffold:gallery -- photography` |
 | Bundle-size budget (reads the existing build) | `npm run size` |

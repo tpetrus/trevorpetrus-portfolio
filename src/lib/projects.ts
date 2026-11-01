@@ -16,24 +16,38 @@ const STATUS_LABELS: Record<ProjectStatus, string> = {
 const GITHUB_REPO_URL = /^https:\/\/github\.com\/([A-Za-z0-9-]+\/[A-Za-z0-9._-]+)$/;
 
 /**
- * The frontmatter schema of a project. A factory because the thumbnail type differs by caller: the content collection
- * passes Astro's `image()` helper (which resolves the file for `astro:assets`), while tests and the sync script, which
- * cannot import `astro:content`, pass a plain `z.string()`.
+ * The frontmatter schema of a project (contract C2). A factory because the thumbnail type differs by caller: the content
+ * collection passes Astro's `image()` helper (which resolves the file for `astro:assets`), while tests and the sync
+ * script, which cannot import `astro:content`, pass a plain `z.string()`.
+ *
+ * The description and tech tags are not here: they come from the repo's GitHub About text and topics, through the sync,
+ * into src/data/project-meta.json. `appSelector` is a CSS selector for an element the app renders once it is ready; the
+ * screenshot waits for it to be visible, so it is required for every screenshot target (live, with a subdomain).
  */
 export function projectSchema<Thumbnail extends z.ZodType>(thumbnail: Thumbnail) {
-    return z.object({
-        title: z.string().min(1),
-        description: z.string().min(1),
-        tech: z.array(z.string().min(1)).min(1),
-        status: z.enum(PROJECT_STATUSES),
-        repo: z.string().regex(GITHUB_REPO_URL, 'Expected a URL like https://github.com/<owner>/<repo>'),
-        subdomain: z
-            .string()
-            .refine(isDnsLabel, 'Expected a lowercase DNS label such as "audio-visualizer"')
-            .optional(),
-        order: z.int(),
-        thumbnail: thumbnail.optional(),
-    });
+    return z
+        .object({
+            title: z.string().min(1),
+            status: z.enum(PROJECT_STATUSES),
+            repo: z.string().regex(GITHUB_REPO_URL, 'Expected a URL like https://github.com/<owner>/<repo>'),
+            subdomain: z
+                .string()
+                .refine(isDnsLabel, 'Expected a lowercase DNS label such as "audio-visualizer"')
+                .optional(),
+            order: z.int(),
+            thumbnail: thumbnail.optional(),
+            appSelector: z.string().trim().min(1).optional(),
+        })
+        .superRefine((project, context) => {
+            if (isScreenshotTarget(project) && project.appSelector === undefined) {
+                context.addIssue({
+                    code: 'custom',
+                    path: ['appSelector'],
+                    message:
+                        'A live project with a subdomain is screenshotted: set appSelector to an element the app renders when ready',
+                });
+            }
+        });
 }
 
 export interface ProjectLinks {

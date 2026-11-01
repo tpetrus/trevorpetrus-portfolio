@@ -3,6 +3,7 @@ import type { CollectionEntry } from 'astro:content';
 
 import { formatDate, isoDate } from '../lib/date';
 import { formatNumber } from '../lib/numbering';
+import type { ProjectCopy } from '../lib/projectMeta';
 import { projectHref, statusLabel } from '../lib/projects';
 import Caption from './Caption.astro';
 import GitHubIcon from './GitHubIcon.astro';
@@ -10,6 +11,8 @@ import ProjectScreenshot from './ProjectScreenshot.astro';
 
 interface Props {
     project: CollectionEntry<'projects'>['data'];
+    /** The description and tech chips, from the repo's GitHub About text and topics (src/data/project-meta.json). */
+    copy: ProjectCopy;
     /** When the newest commit landed; the date is omitted when the sync has not recorded one. */
     updated?: Date | undefined;
     /** The cover: a large image, then a giant numeral above the caption. Index rows are a number, text and image. */
@@ -20,8 +23,9 @@ interface Props {
     priority?: boolean;
 }
 
-const { project, updated, featured = false, number, priority = false } = Astro.props;
-const { title, description, tech, status, repo, thumbnail } = project;
+const { project, copy, updated, featured = false, number, priority = false } = Astro.props;
+const { title, status, repo, thumbnail } = project;
+const { description, tech } = copy;
 
 // From 1024px the cover's screenshot is the left 3fr of a 3fr/2fr grid, about 60% of the column (75vw), so 45vw; below
 // that it is full width. A row image sits in a 16rem column from `lg:` (18rem at `md:`) and is full width below it. The
