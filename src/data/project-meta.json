@@ -1,18 +1,53 @@
 {
   "audio-visualizer": {
-    "updated": "2026-10-26T22:15:56Z",
-    "created": "2026-10-12T23:34:12Z"
+    "created": "2026-10-12T23:34:12Z",
+    "description": "Fun, customizable visualizations for the audio coming through your computer.  Use it for a DJ set, a party... the options are endless!",
+    "tech": [
+      "JavaScript",
+      "React",
+      "three.js",
+      "TypeScript"
+    ],
+    "updated": "2026-11-01T01:01:22Z"
   },
   "ci-workflows": {
-    "updated": "2026-10-27T00:19:38Z",
-    "created": "2026-10-23T15:03:10Z"
+    "created": "2026-10-23T15:03:10Z",
+    "description": "Reusable CI/CD Template created so I don't have to keep rewriting/recreating CI/CD pipelines for my projects.  One source of truth.  Customizable per caller.",
+    "tech": [
+      "CI/CD",
+      "GitHub Actions",
+      "Lighthouse",
+      "Node.js",
+      "Playwright",
+      "TypeScript",
+      "Vitest",
+      "XML"
+    ],
+    "updated": "2026-10-27T00:19:38Z"
   },
   "claude-code-workflows": {
-    "updated": "2026-10-28T01:35:13Z",
-    "created": "2026-10-28T01:28:57Z"
+    "created": "2026-10-28T01:28:57Z",
+    "description": "Where I store all the workflows I've created and use in Claude Code.",
+    "tech": [
+      "Agentic coding",
+      "Agentic workflows",
+      "Claude agents",
+      "Claude Code",
+      "Claude skills"
+    ],
+    "updated": "2026-11-01T01:26:25Z"
   },
   "trevorpetrus-portfolio": {
-    "updated": "2026-10-28T16:45:10Z",
-    "created": "2026-10-23T21:25:38Z"
+    "created": "2026-10-23T21:25:38Z",
+    "description": "My personal portfolio site.  Built for mobile and desktop, with custom threejs visuals and DSAP animations (coming soon)",
+    "tech": [
+      "Astro",
+      "DSAP",
+      "JavaScript",
+      "React",
+      "three.js",
+      "TypeScript"
+    ],
+    "updated": "2026-11-01T22:41:42Z"
   }
 }

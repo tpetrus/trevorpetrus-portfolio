@@ -7,7 +7,7 @@ import SectionIndex from '../components/SectionIndex.astro';
 import projectMetaJson from '../data/project-meta.json';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { numberItems } from '../lib/numbering';
-import { createdFor, lastUpdatedFor, parseProjectMeta } from '../lib/projectMeta';
+import { copyFor, createdFor, lastUpdatedFor, parseProjectMeta } from '../lib/projectMeta';
 import { sortProjects } from '../lib/projects';
 
 const meta = parseProjectMeta(projectMetaJson);
@@ -30,6 +30,7 @@ const rows = numbered.filter(({ id }) => id !== coverId);
             <ProjectCard
                 project={cover}
                 number={cover.number}
+                copy={copyFor(meta, cover.id)}
                 updated={lastUpdatedFor(meta, cover.id)}
                 featured
                 priority
@@ -41,6 +42,7 @@ const rows = numbered.filter(({ id }) => id !== coverId);
                             <ProjectCard
                                 project={project}
                                 number={project.number}
+                                copy={copyFor(meta, project.id)}
                                 updated={lastUpdatedFor(meta, project.id)}
                             />
                         </Fragment>

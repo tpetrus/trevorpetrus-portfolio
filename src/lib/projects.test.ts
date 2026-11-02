@@ -14,12 +14,11 @@ import {
 
 const valid = {
     title: 'AudioVisualizer',
-    description: 'Fun visualizations.',
-    tech: ['TypeScript'],
     status: 'live',
     repo: 'https://github.com/tpetrus/AudioVisualizer',
     subdomain: 'audio-visualizer',
     order: 1,
+    appSelector: '#app',
 };
 
 const schema = projectSchema(z.string());
@@ -32,7 +31,7 @@ describe('projectSchema', () => {
     });
 
     it('accepts a project without a subdomain or thumbnail', () => {
-        const { subdomain: _subdomain, ...rest } = valid;
+        const { subdomain: _subdomain, appSelector: _selector, ...rest } = valid;
         const project = schema.parse(rest);
         expect(project.subdomain).toBeUndefined();
         expect(project.thumbnail).toBeUndefined();
@@ -40,8 +39,6 @@ describe('projectSchema', () => {
 
     it.each([
         ['an empty title', { title: '' }],
-        ['an empty description', { description: '' }],
-        ['no tech tags', { tech: [] }],
         ['an unknown status', { status: 'done' }],
         ['a non-GitHub repo', { repo: 'https://gitlab.com/tpetrus/x' }],
         ['a repo URL with a path', { repo: 'https://github.com/tpetrus/x/tree/main' }],
@@ -51,6 +48,26 @@ describe('projectSchema', () => {
         ['a fractional order', { order: 1.5 }],
     ])('rejects %s', (_name, override) => {
         expect(schema.safeParse({ ...valid, ...override }).success).toBe(false);
+    });
+});
+
+describe('appSelector', () => {
+    const { appSelector: _selector, ...withoutSelector } = valid;
+
+    it('is required for a live project with a subdomain', () => {
+        const result = schema.safeParse(withoutSelector);
+        expect(result.success).toBe(false);
+        expect(result.error?.issues[0]?.path).toEqual(['appSelector']);
+    });
+
+    it('is optional when the project is not live or has no subdomain', () => {
+        expect(schema.safeParse({ ...withoutSelector, status: 'archived' }).success).toBe(true);
+        const { subdomain: _subdomain, ...noSubdomain } = withoutSelector;
+        expect(schema.safeParse(noSubdomain).success).toBe(true);
+    });
+
+    it.each(['', '   '])('rejects a blank selector %j', (appSelector) => {
+        expect(schema.safeParse({ ...valid, appSelector }).success).toBe(false);
     });
 });
 

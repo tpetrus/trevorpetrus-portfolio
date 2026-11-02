@@ -7,8 +7,6 @@ import ProjectCard from './ProjectCard.astro';
 
 const PROJECT: CollectionEntry<'projects'>['data'] = {
     title: 'Fixture Project',
-    description: 'A fixture.',
-    tech: ['TypeScript'],
     status: 'live',
     repo: 'https://github.com/example/fixture',
     order: 1,
@@ -19,9 +17,12 @@ const PROJECT: CollectionEntry<'projects'>['data'] = {
 // because the component's scoped style adds a `data-astro-cid-*` attribute after the class.
 const TITLE = 'Fixture Project<span class="sr-only"';
 
+// The About text and topics, as the sync records them; the card shows these, not the frontmatter's.
+const COPY = { description: 'Copy from GitHub.', tech: ['Astro', 'three.js'] };
+
 async function render(featured: boolean): Promise<string> {
     const container = await AstroContainer.create();
-    return container.renderToString(ProjectCard, { props: { project: PROJECT, featured, number: 1 } });
+    return container.renderToString(ProjectCard, { props: { project: PROJECT, copy: COPY, featured, number: 1 } });
 }
 
 describe('ProjectCard reading order', () => {
@@ -56,5 +57,19 @@ describe('ProjectCard image widths', () => {
         expect(html).toMatch(/640w/);
         expect(html).not.toMatch(/480w/);
         expect(html).toContain('(min-width: 1024px) 45vw');
+    });
+});
+
+describe('ProjectCard copy', () => {
+    it.each([true, false])('shows the description and chips from the copy prop (featured: %s)', async (featured) => {
+        const html = await render(featured);
+
+        expect(html).toMatch(/<p data-project-description[^>]*>Copy from GitHub\.<\/p>/);
+        const list = html.match(/<ul role="list"[^>]*data-project-tech[^>]*>([\s\S]*?)<\/ul>/);
+        expect(list).not.toBeNull();
+        expect([...(list?.[1] ?? '').matchAll(/<li[^>]*>([^<]*)<\/li>/g)].map((match) => match[1])).toEqual([
+            'Astro',
+            'three.js',
+        ]);
     });
 });
