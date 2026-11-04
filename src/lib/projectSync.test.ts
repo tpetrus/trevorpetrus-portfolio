@@ -318,6 +318,26 @@ describe('formatSyncSummary', () => {
         );
     });
 
+    it('keeps a multi-line reason on one table row', () => {
+        const summary = formatSyncSummary(
+            [
+                {
+                    slug: 'x',
+                    copyChanged: false,
+                    datesChanged: false,
+                    screenshot: {
+                        kind: 'failed',
+                        reasons: ['locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n  - waiting'],
+                    },
+                },
+            ],
+            { check: false },
+        );
+        expect(summary.split('\n')[4]).toBe(
+            '| x | unchanged | unchanged | **failed**: locator.waitFor: Timeout 30000ms exceeded. Call log: - waiting |',
+        );
+    });
+
     it('marks check mode in the heading', () => {
         expect(formatSyncSummary([], { check: true }).split('\n')[0]).toBe('### Project sync (--check)');
     });

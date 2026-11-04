@@ -224,9 +224,10 @@ export function formatSyncSummary(reports: readonly ProjectReport[], options: { 
     ].join('\n');
 }
 
-// A `|` inside a table cell would start a new column.
+// A `|` inside a table cell would start a new column, and a line break would end the row: Playwright's timeout errors
+// span several lines (the call log), so every run of whitespace collapses to one space.
 function cell(text: string): string {
-    return text.replaceAll('|', '\\|');
+    return text.replace(/\s+/g, ' ').trim().replaceAll('|', '\\|');
 }
 
 function describeScreenshot(outcome: ScreenshotOutcome): string {
