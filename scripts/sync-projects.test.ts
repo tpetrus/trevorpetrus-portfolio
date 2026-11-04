@@ -373,7 +373,7 @@ describe('main', () => {
             it('rejects an unreadable image and reports the error message', async () => {
                 const run = withCapture({ png: Buffer.from('not an image'), status: 200 });
                 expect(await main([], run.deps)).toBe(EXIT_ERROR);
-                expectKept(run, /./);
+                expectKept(run, /unsupported image format/);
             });
 
             it('reports a capture that throws', async () => {

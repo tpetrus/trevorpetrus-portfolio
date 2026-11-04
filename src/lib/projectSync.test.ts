@@ -270,6 +270,12 @@ describe('formatCaptureFailure', () => {
             'app: screenshot not updated: the site answered 502; the pixels are nearly uniform',
         );
     });
+
+    it('puts a multi-line error on one line', () => {
+        expect(formatCaptureFailure('app', ['Timeout 30000ms exceeded.\n::error::Call log:\n  - waiting'])).toBe(
+            'app: screenshot not updated: Timeout 30000ms exceeded. ::error::Call log: - waiting',
+        );
+    });
 });
 
 describe('formatSyncSummary', () => {

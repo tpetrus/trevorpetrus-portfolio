@@ -231,9 +231,10 @@ number so the hover box encloses it, the caption stack, and the image on the rig
 is a `Caption`: a bold caps status label in `accent-deep` after a decorative square (plain text, no chip), a bold caps
 title, and a byline with the tech chips (`paper-2`) and "Updated <date>". Numbers stay ink. **Numbers** come from `numberItems` in
 `src/lib/numbering.ts`: ascending by the repo's creation date (`created` in `project-meta.json`), so the oldest is 01, the
-newest has the highest number, and adding a project never renumbers another; ties on the same date go by slug, and a
-project with no recorded `created` is numbered after every dated one (by slug), so it still renders; run the sync to
-give it its place. `numberItems` returns them in number order, so the rows under the cover follow on from it (02, 03, 04 under an 01 cover). A card's main link is `projectUrl(subdomain)` when `subdomain` is set, otherwise the repo;
+newest has the highest number, and adding a project never renumbers another; ties on the same date go by slug. Every project
+has a meta entry with a `created` date (`parseProjectMeta` requires it and `copyFor` fails the build without the entry),
+so run the sync right after adding a project. The sync never removes the entry of a deleted project: delete it from
+`src/data/project-meta.json` by hand. `numberItems` returns them in number order, so the rows under the cover follow on from it (02, 03, 04 under an 01 cover). A card's main link is `projectUrl(subdomain)` when `subdomain` is set, otherwise the repo;
 every card also has a GitHub icon link, and both open in a new tab (`target="_blank"`, announced by an sr-only note
 and the icon's label). On hover and keyboard focus a card draws a box-shadow that takes no space: a 1px `accent-deep`
 ring plus a 5 px `accent` offset to the bottom right, so it reads slightly 3D. The GitHub icon link fills with `accent` (the icon turns ink) on
@@ -280,7 +281,7 @@ changed).
   best-effort network-idle wait bounded at 10 s (the app may stream or poll), then the project's `appSelector` must be
   visible, fonts loaded and the on-screen images complete.
 - **Guard.** A capture is rejected when the navigation status is not 2xx, the image is not 2560x1600, the AVIF is under
-  20 kB (`MIN_CAPTURE_BYTES`; the blank capture of PR #20 was 5.8 kB at 1x, real ones 31 kB to 217 kB) or over 500 kB,
+  20 kB (`MIN_CAPTURE_BYTES`; the blank capture of PR #20 was 5.8 kB at 1x, real ones 31 kB to 247 kB) or over 500 kB,
   or no RGB channel varies enough (`MIN_CHANNEL_STDEV`). Thresholds were calibrated on the committed captures.
 - **One bad capture skips one project** (decision D12). A rejected or failed capture writes no screenshot and keeps that
   project's previous file and `capturedSha`; everything else is still written, the error line names the project and

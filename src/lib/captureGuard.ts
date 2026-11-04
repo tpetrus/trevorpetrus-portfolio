@@ -4,7 +4,7 @@
 
 /**
  * The smallest plausible screenshot, in bytes of the encoded AVIF (2560x1600, quality 80). Calibrated on the committed
- * AudioVisualizer captures: real ones measured 31 kB (1x) to 217 kB (2x); the blank capture of PR #20 was 5.8 kB at 1x.
+ * AudioVisualizer captures: real ones measured 31 kB (1x) to 247 kB (2x, the ubuntu trial); the blank capture of PR #20 was 5.8 kB at 1x.
  */
 export const MIN_CAPTURE_BYTES = 20 * 1024;
 
@@ -13,7 +13,7 @@ export const MAX_CAPTURE_BYTES = 500 * 1024;
 
 /**
  * The smallest standard deviation the most varied RGB channel of the PNG must reach. Real captures measured at least 24
- * on every channel; a blank or single-color page is near 0.
+ * on every channel (44 to 72 in the ubuntu trial); a blank or single-color page is near 0.
  */
 export const MIN_CHANNEL_STDEV = 8;
 

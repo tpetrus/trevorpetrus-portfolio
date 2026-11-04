@@ -392,7 +392,14 @@ export function realDeps(): SyncDeps & { close(): Promise<void> } {
 
 // Run only when executed directly (the bundle under node_modules/.cache), never when a spec imports this module. The
 // path is resolved through symlinks because Node reports `import.meta.url` as the real path.
-if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
+const isMain = process.argv[1] !== undefined && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href;
+// A path form the comparison does not expect (drive-letter case, 8.3 names) would otherwise make the bundle exit 0
+// having done nothing, which an unattended run would read as "nothing changed".
+if (!isMain && process.argv[1] !== undefined && basename(process.argv[1]) === 'sync-projects.mjs') {
+    console.error(`sync-projects: not running: ${import.meta.url} is not ${process.argv[1]}`);
+    process.exitCode = 1;
+}
+if (isMain) {
     const deps = realDeps();
     try {
         process.exitCode = await main(process.argv.slice(2), deps);

@@ -198,7 +198,9 @@ export interface ProjectReport {
  * `audio-visualizer: screenshot not updated: the site answered 502; the pixels are nearly uniform (...)`.
  */
 export function formatCaptureFailure(slug: string, reasons: readonly string[]): string {
-    return `${slug}: screenshot not updated: ${reasons.join('; ')}`;
+    // One line per project: Playwright's errors span several lines, and a later line starting with `::` would be read
+    // by the Actions runner as a workflow command.
+    return `${slug}: screenshot not updated: ${reasons.join('; ')}`.replace(/\s+/g, ' ').trim();
 }
 
 /**
