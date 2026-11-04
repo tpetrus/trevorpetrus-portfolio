@@ -32,7 +32,12 @@ const commitsResponseSchema = z
     .array(
         z.object({
             sha: z.string().regex(/^[0-9a-f]{40}$/),
-            commit: z.object({ committer: z.object({ date: z.iso.datetime() }) }),
+            // GitHub sends null when the commit's email matches no account.
+            author: z.object({ type: z.string() }).nullable().optional(),
+            commit: z.object({
+                message: z.string().optional(),
+                committer: z.object({ date: z.iso.datetime() }),
+            }),
         }),
     )
     .min(1, 'The repository has no commits');
@@ -127,8 +132,19 @@ export function commitsApiUrl(repo: string): string {
  * response is empty, malformed, or holds no commit that qualifies.
  */
 export function headFromCommits(response: unknown): HeadCommit {
-    const [newest] = commitsResponseSchema.parse(response);
-    return { sha: newest.sha, date: newest.commit.committer.date };
+    const commits = commitsResponseSchema.parse(response);
+    const mergeOfSyncBranch = new RegExp(`^Merge pull request #\\d+ from [^/\\s]+/${SYNC_BRANCH}$`);
+    const person = commits.find((entry) => {
+        if (entry.author?.type === 'Bot') return false;
+        const firstLine = (entry.commit.message ?? '').split('\n', 1)[0].trim();
+        return !firstLine.startsWith(SYNC_COMMIT_TITLE) && !mergeOfSyncBranch.test(firstLine);
+    });
+    if (!person) {
+        throw new Error(
+            `None of the newest ${commits.length} commits was made by a person (all are bot or sync commits)`,
+        );
+    }
+    return { sha: person.sha, date: person.commit.committer.date };
 }
 
 /** Returns a copy of `meta` with `slug` set to `entry`. */

@@ -1,6 +1,9 @@
 // The pure core of `npm run sync:projects` (scripts/sync-projects.ts does only I/O). Contract C3 is frozen here: the
 // CLI flags, the exit codes and the copy-validation errors. S2 adds the SHA-keyed capture plan and the run report.
+import { z } from 'astro/zod';
+
 import type { HeadCommit, ProjectCopy } from './projectMeta';
+import { repoPath } from './projects';
 import { mapTopics } from './topicMap';
 
 /** Exit codes of `npm run sync:projects` (contract C3). */
@@ -66,7 +69,10 @@ export function validateCopy(inputs: readonly RepoCopyInput[]): CopyValidation {
     const copy: Record<string, ProjectCopy> = {};
     for (const { slug, repo, description, topics } of inputs) {
         const about = description?.trim() ?? '';
-        const { tech, unknown } = mapTopics(topics);
+        // Sorted by code unit, never by locale, so the order is the same on every machine.
+        const sorted = [...topics].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+        const { tech: mapped, unknown } = mapTopics(sorted);
+        const tech = [...new Set(mapped)];
         const before = errors.length;
         if (about === '') errors.push({ repo, field: 'description' });
         if (topics.length === 0) errors.push({ repo, field: 'topics' });
@@ -108,14 +114,24 @@ export type DeployState = 'green' | 'pending' | 'failed' | 'none';
 
 /** `https://api.github.com/repos/<owner>/<repo>/commits/<sha>/check-runs?per_page=100`. */
 export function checkRunsApiUrl(repo: string, sha: string): string {
-    void [repo, sha];
-    throw new Error('S2: not implemented');
+    return `https://api.github.com/repos/${repoPath(repo)}/commits/${sha}/check-runs?per_page=100`;
 }
+
+const PASSING_CONCLUSIONS: ReadonlySet<string> = new Set(['success', 'neutral', 'skipped']);
+
+// `conclusion` is null while a run has not completed.
+const checkRunsSchema = z.object({
+    total_count: z.number().optional(),
+    check_runs: z.array(z.object({ status: z.string(), conclusion: z.string().nullable() })),
+});
 
 /** Reads a check-runs response (`{ total_count, check_runs: [{ status, conclusion }] }`); throws on any other shape. */
 export function deployStateFromCheckRuns(response: unknown): DeployState {
-    void response;
-    throw new Error('S2: not implemented');
+    const { check_runs } = checkRunsSchema.parse(response);
+    if (check_runs.length === 0) return 'none';
+    const completed = check_runs.filter((run) => run.status === 'completed');
+    if (completed.some((run) => !PASSING_CONCLUSIONS.has(run.conclusion ?? ''))) return 'failed';
+    return completed.length < check_runs.length ? 'pending' : 'green';
 }
 
 export interface CapturePlanInput {
@@ -144,8 +160,18 @@ export type CaptureDecision =
  * `SETTLE_HOURS` old (`settling` until then).
  */
 export function planCapture(input: CapturePlanInput): CaptureDecision {
-    void input;
-    throw new Error('S2: not implemented');
+    const { capturedSha, head, thumbnailExists, deploy, force, now } = input;
+    if (force) return { capture: true, reason: 'force' };
+    if (!thumbnailExists) return { capture: true, reason: 'missing-thumbnail' };
+    if (capturedSha === head.sha) return { capture: false, reason: 'up-to-date' };
+    if (deploy === 'green') return { capture: true, reason: 'new-commit' };
+    if (deploy === 'failed') return { capture: false, reason: 'deploy-failed' };
+    if (deploy === 'pending') return { capture: false, reason: 'deploy-pending' };
+    // No check runs to confirm the deploy: wait out the settle delay instead.
+    const ageMs = now.getTime() - Date.parse(head.date);
+    return ageMs >= SETTLE_HOURS * 3_600_000
+        ? { capture: true, reason: 'new-commit' }
+        : { capture: false, reason: 'settling' };
 }
 
 /** What happened to one project's screenshot in a run. */
@@ -172,8 +198,7 @@ export interface ProjectReport {
  * `audio-visualizer: screenshot not updated: the site answered 502; the pixels are nearly uniform (...)`.
  */
 export function formatCaptureFailure(slug: string, reasons: readonly string[]): string {
-    void [slug, reasons];
-    throw new Error('S2: not implemented');
+    return `${slug}: screenshot not updated: ${reasons.join('; ')}`;
 }
 
 /**
@@ -184,6 +209,35 @@ export function formatCaptureFailure(slug: string, reasons: readonly string[]): 
  * `**failed**: <reasons joined with "; ">`. Table cells escape `|`. Ends with a newline.
  */
 export function formatSyncSummary(reports: readonly ProjectReport[], options: { readonly check: boolean }): string {
-    void [reports, options];
-    throw new Error('S2: not implemented');
+    const rows = reports.map((report) => {
+        const copy = report.copyChanged ? 'changed' : 'unchanged';
+        const dates = report.datesChanged ? 'changed' : 'unchanged';
+        return `| ${cell(report.slug)} | ${copy} | ${dates} | ${cell(describeScreenshot(report.screenshot))} |`;
+    });
+    return [
+        `### Project sync${options.check ? ' (--check)' : ''}`,
+        '',
+        '| Project | Copy | Dates | Screenshot |',
+        '| --- | --- | --- | --- |',
+        ...rows,
+        '',
+    ].join('\n');
+}
+
+// A `|` inside a table cell would start a new column.
+function cell(text: string): string {
+    return text.replaceAll('|', '\\|');
+}
+
+function describeScreenshot(outcome: ScreenshotOutcome): string {
+    switch (outcome.kind) {
+        case 'not-a-target':
+            return '-';
+        case 'skipped':
+            return `skipped (${outcome.reason})`;
+        case 'captured':
+            return `captured (${outcome.reason})${outcome.changed ? '' : ', unchanged bytes'}`;
+        case 'failed':
+            return `**failed**: ${outcome.reasons.join('; ')}`;
+    }
 }

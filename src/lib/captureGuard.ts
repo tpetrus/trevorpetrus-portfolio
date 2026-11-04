@@ -42,6 +42,32 @@ export type CaptureVerdict = { readonly ok: true } | { readonly ok: false; reado
  * (for example `the site answered 502`, `the AVIF is 5.8 kB, under the 20.0 kB minimum (a nearly blank page?)`).
  */
 export function assessCapture(facts: CaptureFacts): CaptureVerdict {
-    void facts;
-    throw new Error('S2: not implemented');
+    const reasons: string[] = [];
+    const { status, width, height, expectedWidth, expectedHeight, bytes, channelStdev } = facts;
+    if (status === null) reasons.push('the navigation produced no response');
+    else if (status < 200 || status > 299) reasons.push(`the site answered ${status}`);
+    if (width !== expectedWidth || height !== expectedHeight) {
+        const got = width === undefined || height === undefined ? 'an unreadable image' : `${width}x${height}`;
+        reasons.push(`the screenshot is ${got}, expected ${expectedWidth}x${expectedHeight}`);
+    }
+    if (bytes < MIN_CAPTURE_BYTES) {
+        reasons.push(
+            `the AVIF is ${kilobytes(bytes)}, under the ${kilobytes(MIN_CAPTURE_BYTES)} minimum (a nearly blank page?)`,
+        );
+    }
+    if (bytes > MAX_CAPTURE_BYTES) {
+        reasons.push(`the AVIF is ${kilobytes(bytes)}, over the ${kilobytes(MAX_CAPTURE_BYTES)} maximum`);
+    }
+    // An empty list (sharp reported no channels) has no variation to show, so it is rejected like a flat page.
+    const mostVaried = channelStdev.length > 0 ? Math.max(...channelStdev) : 0;
+    if (mostVaried < MIN_CHANNEL_STDEV) {
+        reasons.push(
+            `the pixels are nearly uniform (the most varied color channel deviates by ${mostVaried.toFixed(1)}, under ${MIN_CHANNEL_STDEV})`,
+        );
+    }
+    return reasons.length === 0 ? { ok: true } : { ok: false, reasons };
+}
+
+function kilobytes(bytes: number): string {
+    return `${(bytes / 1024).toFixed(1)} kB`;
 }
