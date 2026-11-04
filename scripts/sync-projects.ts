@@ -56,15 +56,29 @@ export interface Project extends ProjectFrontmatter {
     slug: string;
 }
 
-/** Everything `main` does to the outside world. */
+/** A screenshot target as `capture` receives it: `appSelector` is required for targets by the schema (contract C2). */
+export type CaptureTarget = Project & { url: string; appSelector: string };
+
+/** What `capture` returns: the PNG and the HTTP status of the navigation response (`null` when there was none). */
+export interface Capture {
+    png: Buffer;
+    status: number | null;
+}
+
+/** Everything `main` does to the outside world (frozen in S2). */
 export interface SyncDeps {
     listProjects(): Project[];
+    /** GET with the GitHub headers; rejects on a non-2xx answer or after the request timeout. */
     fetchJson(url: string): Promise<unknown>;
     /** The file's bytes, or `undefined` when it does not exist. */
     readFile(path: string): Buffer | undefined;
     writeFile(path: string, data: Buffer): void;
-    /** Screenshots the live site and returns the PNG. */
-    capture(project: Project & { url: string }): Promise<Buffer>;
+    /** Screenshots the live site once `appSelector` is visible. Rejects when the page or the selector times out. */
+    capture(target: CaptureTarget): Promise<Capture>;
+    /** The current time, for the settle delay of `planCapture`. */
+    now(): Date;
+    /** Appends GitHub-flavored markdown to the job summary (`GITHUB_STEP_SUMMARY`); does nothing when it is unset. */
+    summary(markdown: string): void;
     log(line: string): void;
     error(line: string): void;
 }

@@ -101,14 +101,31 @@ export function factsFromRepo(response: unknown): RepoFacts {
 }
 
 /**
- * The URL of the repo's newest commit on its default branch. The commits endpoint, unlike the repo's `pushed_at`,
- * ignores pushes to other branches, and the version bot and Dependabot push PR branches all the time.
+ * The first line of the sync bot's commit on main (contract C4: the squash-merged bot PR's title, which GitHub follows
+ * with ` (#<number>)`). `headFromCommits` skips it.
+ */
+export const SYNC_COMMIT_TITLE = 'chore(projects): refresh project data';
+
+/** The sync bot's fixed branch (contract C4); a merge commit of it is skipped like the squash commit. */
+export const SYNC_BRANCH = 'bot/sync-projects';
+
+/**
+ * The URL of the repo's newest commits on its default branch (`per_page=30`, enough to look past the bot commits that
+ * `headFromCommits` skips). The commits endpoint, unlike the repo's `pushed_at`, ignores pushes to other branches, and
+ * the version bot and Dependabot push PR branches all the time.
  */
 export function commitsApiUrl(repo: string): string {
-    return `https://api.github.com/repos/${repoPath(repo)}/commits?per_page=1`;
+    return `https://api.github.com/repos/${repoPath(repo)}/commits?per_page=30`;
 }
 
-/** Extracts the newest commit's SHA and committer date from a `commits?per_page=1` response. */
+/**
+ * Extracts the SHA and committer date of the newest commit a person made from a `commits?per_page=30` response
+ * (S2, reviewer finding F1). It skips a commit whose GitHub `author` is a bot account (`type: "Bot"`, which covers the
+ * version bot, Dependabot and the sync App), a commit whose first message line starts with `SYNC_COMMIT_TITLE`, and a
+ * merge commit whose first line is `Merge pull request #<n> from <owner>/bot/sync-projects`. Without this, the bot
+ * PR merging into this repo would move this repo's own `updated` and open the next bot PR, forever. Throws when the
+ * response is empty, malformed, or holds no commit that qualifies.
+ */
 export function headFromCommits(response: unknown): HeadCommit {
     const [newest] = commitsResponseSchema.parse(response);
     return { sha: newest.sha, date: newest.commit.committer.date };
