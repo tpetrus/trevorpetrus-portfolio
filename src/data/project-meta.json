@@ -1,14 +1,15 @@
 {
   "audio-visualizer": {
+    "capturedSha": "145371758154b63263cd22283ea165221eae6fbf",
     "created": "2026-10-12T23:34:12Z",
-    "description": "Fun, customizable visualizations for the audio coming through your computer.  Use it for a DJ set, a party... the options are endless!",
+    "description": "Fun, customizable visualizations for the audio coming through your computer.  Originally intended to be used for DJ sets, but feel free to use it for whatever you'd like.",
     "tech": [
       "JavaScript",
       "React",
       "three.js",
       "TypeScript"
     ],
-    "updated": "2026-11-01T01:01:22Z"
+    "updated": "2026-11-02T02:21:23Z"
   },
   "ci-workflows": {
     "created": "2026-10-23T15:03:10Z",
@@ -48,6 +49,6 @@
       "three.js",
       "TypeScript"
     ],
-    "updated": "2026-11-01T22:41:42Z"
+    "updated": "2026-11-02T02:27:38Z"
   }
 }

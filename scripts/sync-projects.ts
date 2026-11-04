@@ -69,7 +69,9 @@ const LAUNCH_TIMEOUT_MS = 60_000;
 const FETCH_TIMEOUT_MS = 30_000;
 const NETWORK_IDLE_TIMEOUT_MS = 10_000;
 
-// The orchestrator pins the GL flags here after the ubuntu trial; do not guess them.
+// Extra Chromium flags. None are needed: the S2 trial on ubuntu-latest (GPU-less, run 41934146814) rendered the
+// AudioVisualizer's WebGL previews with the default software path, so the blank capture of PR #20 was a timing race,
+// which the appSelector wait and the guard now cover. Add GL flags here only if a runner change brings it back.
 export const CHROMIUM_ARGS: readonly string[] = [];
 
 /** A project's frontmatter plus its slug (the markdown file name). */
