@@ -14,6 +14,11 @@ on:
         description: Recapture every screenshot (--force), whatever its recorded capturedSha
         type: boolean
         default: false
+  # TEMPORARY (S2 ubuntu capture trial): workflow_dispatch only runs from the default branch, so the trial runs on this
+  # PR. Removed before merge.
+  pull_request:
+    paths:
+      - .github/workflows/sync-projects.yml
 
 permissions:
   contents: read
@@ -42,7 +47,7 @@ jobs:
         run: npm run sync:projects -- $FORCE_FLAG
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          FORCE_FLAG: ${{ inputs.force && '--force' || '' }}
+          FORCE_FLAG: ${{ (inputs.force || github.event_name == 'pull_request') && '--force' || '' }}
 
       - name: List changed outputs
         if: ${{ !cancelled() }}
