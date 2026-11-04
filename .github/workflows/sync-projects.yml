@@ -1,0 +1,60 @@
+name: Sync projects
+
+# Runs `npm run sync:projects` on a GitHub-hosted Ubuntu runner and uploads the generated project data (the meta file
+# and the screenshots) as an artifact. This is the read-only sync job of the planned daily bot (S2 of the projects ETL
+# plan, docs/plans/projects-daily-etl): it holds no write credential, persists none (the setup action's default), and
+# never commits, pushes or deploys. The publish job that turns the artifact into a bot PR comes separately (S3).
+#
+# Run it from the Actions tab (workflow_dispatch), optionally with `force` to recapture every screenshot. Download the
+# `project-sync` artifact to look at what an unattended run produces; commit nothing from it by hand without review.
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Recapture every screenshot (--force), whatever its recorded capturedSha
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-projects-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      # Checks out without leaving a credential on disk, sets up Node from .nvmrc, checks the lockfile, runs npm ci.
+      - uses: tpetrus/ci-workflows/actions/setup@v0.3.1
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      # GITHUB_TOKEN (contents: read) only lifts the unauthenticated rate limit: every project repo is public
+      # (decision D13), so it reads their About, topics, commits and check runs. Exit 1 (a copy or capture error) fails
+      # the job, which emails the owner; the job summary lists every project and the reason for any failure.
+      - name: Sync
+        run: npm run sync:projects -- $FORCE_FLAG
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          FORCE_FLAG: ${{ inputs.force && '--force' || '' }}
+
+      - name: List changed outputs
+        if: ${{ !cancelled() }}
+        run: git status --short -- src/data/project-meta.json src/assets/projects
+
+      # Uploaded even when the sync failed: a rejected capture is never written, so the artifact shows what was kept.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: project-sync
+          path: |
+            src/data/project-meta.json
+            src/assets/projects/*.avif
+          if-no-files-found: error
+          retention-days: 7
