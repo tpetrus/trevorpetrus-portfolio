@@ -308,10 +308,31 @@ changed).
   moves this repo's own date and opens the next one.
 - **Job summary.** In GitHub Actions the run appends a table to the job summary: per project, whether the copy and the
   dates changed and what happened to the screenshot (skipped and why, captured and why, or failed with the reasons).
-- **`.github/workflows/sync-projects.yml`** (workflow_dispatch only, optional `force` input) runs the sync on
-  ubuntu-latest with a read-only `GITHUB_TOKEN` (every project repo is public), persists no credential and uploads
-  `src/data/project-meta.json` and the screenshots as the `project-sync` artifact. It never commits or pushes; the
-  publish job that will open the bot PR is not built yet.
+- **`.github/workflows/sync-projects.yml`** (workflow_dispatch only for now, optional `force` input; the daily
+  06:00 UTC schedule is added once the trials below pass) has two jobs. Rollback: disable the workflow in the Actions
+  tab; `npm run sync:projects` keeps working by hand.
+  - **`sync`** runs the sync on ubuntu-latest with a read-only `GITHUB_TOKEN` (every project repo is public), persists
+    no credential, always uploads `src/data/project-meta.json` and the screenshots as the `project-sync` artifact, and
+    fails after the upload when the sync exited non-zero, so a failure emails the owner.
+  - **`publish`** runs only on `main` and only when the sync exited 0 or 1 (exit 1 still publishes what was written,
+    decision D12). It runs no npm script and no browser, and its `GITHUB_TOKEN` has no permissions: it works with a
+    token of the version-bot GitHub App (contents and pull requests write). It first checks that the repository allows
+    auto-merge and that the `main` rules require `ci / result`, `pr-checks / pr-title` and `pr-checks / version`, and
+    fails, naming what is missing, before any write. It accepts only `data/project-meta.json` and
+    `assets/projects/<slug>.avif` from the artifact (regular files, at most 2 MB, valid JSON), copies them onto the
+    commit the sync ran on and then (contract C4):
+    - outputs equal to that commit and the sync exited 0: closes the open bot PR and deletes `bot/sync-projects`;
+    - outputs changed: commits `chore(projects): refresh project data` (`SYNC_COMMIT_TITLE`) as the App's bot user on a
+      fresh `bot/sync-projects` and pushes it only if the branch is still at the commit it read (`--force-with-lease`),
+      so a commit it never saw is never overwritten; when the branch already holds the same outputs it is not pushed
+      at all, so its checks and the version bot's commit stay;
+    - sets the version in that same commit (the patch bump the `chore` title calls for, through the pinned
+      `tpetrus/ci-workflows` release CLI): the version bot ignores events its own App sends, so it never bumps this PR;
+    - opens the one bot PR (or keeps it) and enables squash auto-merge, so GitHub merges it when the required checks
+      pass and leaves it open when one fails. The squash title is what `headFromCommits` skips. It only ever looks up,
+      closes or auto-merges a PR from this repository's own `bot/sync-projects` that the App opened, never a fork's
+      branch of the same name.
+    - A bot PR open for more than 48 hours fails the job, so a PR stuck on red checks is not silent.
 
 The AudioVisualizer screenshot shows the landing view with its visualizer previews (v0.3.0 no longer opens the "Audio
 source" dialog that v0.2.7 showed). Look at a new screenshot before committing it. **Nothing checks external links**: CI's lychee runs `--offline` against `dist/`, so subdomain and github.com
