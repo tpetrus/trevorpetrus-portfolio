@@ -274,15 +274,21 @@ changed).
 - **Keyed by commit.** Each screenshot target's meta entry records `capturedSha`, the default-branch commit its
   screenshot was taken at. A screenshot is retaken with `--force`, or when the file is missing or the repo's head moved
   past `capturedSha`, and then only once the live site is known to serve the head: its deploy is green, or, for a commit
-  with no check runs, the file is missing or the commit is at least `SETTLE_HOURS` (6) old. A pending, failed or
-  unreadable deploy keeps the old screenshot (a missing one stays missing) and prints a `::warning::` naming the project,
-  which is not a failure; `--force` overrides it. So an unchanged repo never yields a new image, and `--check` launches
+  with no check runs, the file is missing or the commit is at least `SETTLE_HOURS` (6) old. (A missing file is filled at
+  once on purpose, even when the deploy may not be registered yet: a card with a slightly old image beats a card with
+  none, and the next head commit retakes it.) A pending, failed or unreadable deploy keeps the old screenshot (a missing
+  one stays missing) and prints a `::warning::` naming the project, which is not a failure; `--force` overrides it. When
+  no target's deploy could be read at all (every check-runs request failed, as with a token that cannot read check
+  runs), the run exits 1 after writing the other outputs, so the misconfiguration cannot skip every screenshot
+  silently. So an unchanged repo never yields a new image, and `--check` launches
   no browser then.
 - **Reading the deploy** (`deployStateFromCheckRuns`). The head commit's check runs are fetched only when the decision
   needs them, page by page (`filter=latest`, up to `MAX_CHECK_RUN_PAGES` of 100). Of the runs sharing a name only the
-  latest counts, so a rerun replaces a failed run. When any run is named `Workers Builds...` (Cloudflare's deploy), only
-  those decide, so an unrelated failing check never blocks a screenshot; otherwise every run must pass. A run still
-  incomplete `STALE_RUN_HOURS` (24) after it started is ignored, so a stuck run cannot block a screenshot forever. A
+  latest counts (a run listed twice, or with an unreadable start time, cannot beat a dated rerun), so a rerun replaces
+  a failed run. When any run is named `Workers Builds...` (Cloudflare's deploy), only those decide, so an unrelated
+  failing check never blocks a screenshot; otherwise every run must pass. A run still incomplete `STALE_RUN_HOURS` (24)
+  after it started is ignored, so a stuck run cannot block a screenshot forever; when that leaves none of the deploy
+  runs, the commit is treated as having no check runs and the sync prints a `::warning::` naming the project. A
   check-runs request that fails affects only that project's screenshot (`deploy-unknown`). Screenshots are written
   before `src/data/project-meta.json`, so a recorded `capturedSha` always has its image.
 - **Waits.** Fixed 1280x800 viewport at 2x, dark scheme, reduced motion, animations disabled; after the load event a

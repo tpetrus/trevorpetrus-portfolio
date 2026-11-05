@@ -1,7 +1,7 @@
 // The pure core of `npm run sync:projects` (scripts/sync-projects.ts does only I/O). Contract C3 is frozen here: the
 // CLI flags, the exit codes and the copy-validation errors. S2 adds the SHA-keyed capture plan and the run report;
 // S2R freezes the deploy-state reading (paginated, latest run per name, deploy runs only, stale runs ignored) and the
-// capture rule order.
+// capture rule order. S4 adds the stale-deploy warning and the exit 1 when no target's deploy could be read.
 import { z } from 'astro/zod';
 
 import type { HeadCommit, ProjectCopy } from './projectMeta';
@@ -10,7 +10,10 @@ import { mapTopics } from './topicMap';
 
 /** Exit codes of `npm run sync:projects` (contract C3). */
 export const EXIT_OK = 0;
-/** A copy error (nothing written) or a capture error (that project skipped, the rest written). */
+/**
+ * A copy error (nothing written), a capture error (that project skipped, the rest written) or no readable deploy for
+ * any target that needed one (`deployReadFailedEverywhere`; the rest written).
+ */
 export const EXIT_ERROR = 1;
 /** `--check` only: the outputs would change. Nothing is written. */
 export const EXIT_WOULD_CHANGE = 2;
@@ -212,8 +215,11 @@ export function nextCheckRunsPage(
 
 /**
  * Narrows a commit's check runs (every page together) and reads the deploy state, in this order:
+ * 0. duplicates: of the runs sharing an `id` (a run that moved between pages while they were read), only the first
+ *    counts;
  * 1. latest run per name: of the runs sharing a `name`, only the one with the greatest `startedAt` counts (a null
- *    `startedAt` is older than any date; ties go to the greater `id`), so a rerun supersedes the run it repeats;
+ *    `startedAt`, or one `Date.parse` cannot read, is older than any date; ties go to the greater `id`), so a rerun
+ *    supersedes the run it repeats whatever order the runs arrive in;
  * 2. deploy runs only: when any remaining run's name starts with `DEPLOY_CHECK_PREFIX`, every other run is dropped;
  * 3. stale runs: an incomplete run (`status` other than `completed`) whose `startedAt` is null or more than
  *    `STALE_RUN_HOURS` before `now` is dropped;
@@ -244,6 +250,17 @@ export function deployStateFromCheckRuns(runs: readonly CheckRun[], now: Date): 
 }
 
 const PASSING_CONCLUSIONS: ReadonlySet<string> = new Set(['success', 'neutral', 'skipped']);
+
+/**
+ * Whether the commit had deploy runs and step 3 of `deployStateFromCheckRuns` dropped every one of them as stale: after
+ * steps 0 and 1 at least one run's name starts with `DEPLOY_CHECK_PREFIX`, and none of those is either completed or
+ * started at most `STALE_RUN_HOURS` before `now`. `deployStateFromCheckRuns` then reads `none` (the other runs are not
+ * consulted), so `planCapture` decides by rule 5; the sync warns with `formatStaleDeployWarning`, so a stuck deploy
+ * neither blocks a screenshot nor passes silently. `false` when the commit has no deploy run at all.
+ */
+export function deployRunsAllStale(runs: readonly CheckRun[], now: Date): boolean {
+    throw new Error(`S4: not implemented ${runs.length} ${now.toISOString()}`);
+}
 
 export interface CapturePlanInput {
     /** The commit the committed screenshot was taken at, `undefined` before the first capture. */
@@ -319,6 +336,34 @@ export function formatDeploySkipWarning(slug: string, reason: SkipReason, detail
     const message = `${slug}: screenshot not retaken: ${meaning}${detail === undefined ? '' : `: ${detail}`}`;
     // One line, and `%` encoded as the workflow-command syntax expects.
     return `::warning::${message.replace(/%/g, '%25').replace(/\s+/g, ' ').trim()}`;
+}
+
+/**
+ * The GitHub Actions warning for a project whose deploy runs were all stale (`deployRunsAllStale`), encoded like
+ * `formatDeploySkipWarning`: `::warning::<slug>: every deploy check run of the head commit is stale (unfinished for
+ * over <STALE_RUN_HOURS> hours or never started), so the screenshot is decided as if the commit had no check runs`.
+ */
+export function formatStaleDeployWarning(slug: string): string {
+    throw new Error(`S4: not implemented ${slug} ${STALE_RUN_HOURS}`);
+}
+
+/**
+ * Whether the run must exit `EXIT_ERROR` because no deploy could be read: `true` when at least one screenshot target
+ * needed its check runs (`requested`, the slugs whose decision fell through `planCaptureWithoutDeploy`) and every one
+ * of them read `unknown` (`unknown`, a subset of `requested`). One unknown among readable deploys stays a warning (per-
+ * project isolation); all of them unknown is a misconfiguration (a token without the checks permission, a changed
+ * response shape) that would otherwise skip every screenshot forever with exit 0. The other outputs are still written.
+ */
+export function deployReadFailedEverywhere(requested: readonly string[], unknown: readonly string[]): boolean {
+    throw new Error(`S4: not implemented ${requested.length} ${unknown.length}`);
+}
+
+/**
+ * The error line for `deployReadFailedEverywhere`, one line: `No deploy state could be read for any screenshot target
+ * that needed one (<slugs joined by ", ">): check that the token can read check runs`.
+ */
+export function formatDeployReadError(unknown: readonly string[]): string {
+    throw new Error(`S4: not implemented ${unknown.join(', ')}`);
 }
 
 /** What happened to one project's screenshot in a run. */
