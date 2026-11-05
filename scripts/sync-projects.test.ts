@@ -95,18 +95,30 @@ interface Options {
     repos?: Record<string, unknown>;
     failUrl?: string;
     capture?: SyncDeps['capture'];
+    // One response for every request, or a function of the requested URL.
     checkRuns?: unknown;
     now?: string;
     headSha?: string;
 }
 
-const green = { total_count: 1, check_runs: [{ status: 'completed', conclusion: 'success' }] };
+const checkRun = (status: string, conclusion: string | null, id = 1) => ({
+    id,
+    name: 'Workers Builds: app',
+    status,
+    conclusion,
+    started_at: HEAD_DATE,
+});
+const runsPage = (...check_runs: ReturnType<typeof checkRun>[]) => ({ total_count: check_runs.length, check_runs });
+const green = runsPage(checkRun('completed', 'success'));
+const checkRunsUrl = (page: number, repo = 'app', sha = SHA) =>
+    `https://api.github.com/repos/tpetrus/${repo}/commits/${sha}/check-runs?filter=latest&per_page=100&page=${page}`;
 
 function setup(options: Options = {}) {
     const files = new Map(Object.entries(options.files ?? {}));
     const writes: string[] = [];
     const captures: string[] = [];
     const logs: string[] = [];
+    const fetched: string[] = [];
     const errors: string[] = [];
     const summaries: string[] = [];
     const repoResponse = (description: string | null, topics: string[]) => ({
@@ -117,8 +129,12 @@ function setup(options: Options = {}) {
     const deps: SyncDeps = {
         listProjects: () => options.projects ?? [archived],
         fetchJson(url) {
+            fetched.push(url);
             if (url === options.failUrl) return Promise.reject(new Error(`GitHub API answered 403 for ${url}`));
-            if (url.includes('/check-runs')) return Promise.resolve(options.checkRuns ?? green);
+            if (url.includes('/check-runs')) {
+                const answer = options.checkRuns ?? green;
+                return Promise.resolve(typeof answer === 'function' ? (answer as (u: string) => unknown)(url) : answer);
+            }
             if (url.includes('/commits')) {
                 return Promise.resolve([
                     {
@@ -148,7 +164,7 @@ function setup(options: Options = {}) {
         log: (line) => logs.push(line),
         error: (line) => errors.push(line),
     };
-    return { deps, files, writes, captures, logs, errors, summaries };
+    return { deps, files, writes, captures, logs, errors, summaries, fetched };
 }
 
 const metaOf = (files: Map<string, Buffer>) =>
@@ -232,7 +248,7 @@ describe('main', () => {
             const run = setup({ projects: [live] });
             expect(await main([], run.deps)).toBe(EXIT_OK);
             expect(run.captures).toEqual(['https://app.trevorpetr.us']);
-            expect(run.writes).toEqual([META, AVIF]);
+            expect(run.writes).toEqual([AVIF, META]);
             expect(metaOf(run.files).app.capturedSha).toBe(SHA);
             expect((await sharp(run.files.get(AVIF)).metadata()).format).toBe('heif');
             expect(
@@ -254,6 +270,15 @@ describe('main', () => {
             expect(again.summaries[0]).toContain('skipped (up-to-date)');
         }, 60_000);
 
+        const secondFiles = () => ({
+            [META]: Buffer.from(
+                JSON.stringify({
+                    app: entry({ capturedSha: OLD_SHA }),
+                    app2: entry({ capturedSha: OLD_SHA }),
+                }),
+            ),
+            'src/assets/projects/app2.avif': Buffer.from('old image'),
+        });
         const existingFiles = (over: Record<string, unknown> = {}) => ({
             [META]: metaFile('app', { capturedSha: OLD_SHA, ...over }),
             [AVIF]: Buffer.from('old image'),
@@ -264,12 +289,12 @@ describe('main', () => {
             expect(await main([], run.deps)).toBe(EXIT_OK);
             expect(run.captures).toHaveLength(1);
             expect(metaOf(run.files).app.capturedSha).toBe(SHA);
-            expect(run.writes).toEqual([META, AVIF]);
+            expect(run.writes).toEqual([AVIF, META]);
         }, 60_000);
 
         it.each([
-            ['pending', { total_count: 1, check_runs: [{ status: 'in_progress', conclusion: null }] }],
-            ['failed', { total_count: 1, check_runs: [{ status: 'completed', conclusion: 'failure' }] }],
+            ['pending', runsPage(checkRun('in_progress', null))],
+            ['failed', runsPage(checkRun('completed', 'failure'))],
         ])('does not capture a new commit whose deploy is %s, and keeps capturedSha', async (word, checkRuns) => {
             const run = setup({ projects: [live], files: existingFiles(), checkRuns });
             expect(await main([], run.deps)).toBe(EXIT_OK);
@@ -277,6 +302,9 @@ describe('main', () => {
             expect(run.files.get(AVIF)!.toString()).toBe('old image');
             expect(metaOf(run.files).app.capturedSha).toBe(OLD_SHA);
             expect(run.summaries[0]).toContain(`skipped (deploy-${word})`);
+            expect(run.logs.filter((line) => line.startsWith('::warning::app: screenshot not retaken: '))).toHaveLength(
+                1,
+            );
         });
 
         it('waits for a commit without check runs and captures it after six hours', async () => {
@@ -307,7 +335,7 @@ describe('main', () => {
             const run = setup({ projects: [live], files: { [META]: metaFile('app', { capturedSha: SHA }) } });
             expect(await main([], run.deps)).toBe(EXIT_OK);
             expect(run.captures).toHaveLength(1);
-            expect(run.writes).toEqual([META, AVIF]);
+            expect(run.writes).toEqual([AVIF, META]);
         }, 60_000);
 
         it('captures with --force even when everything is up to date', async () => {
@@ -326,6 +354,105 @@ describe('main', () => {
             expect(run.writes).toEqual([]);
             expect(run.summaries[0]).toContain('captured (force), unchanged bytes');
         }, 120_000);
+
+        it('asks for no check runs when the screenshot is up to date or --force is given', async () => {
+            const files = { [META]: metaFile('app', { capturedSha: SHA }), [AVIF]: Buffer.from('old image') };
+            const upToDate = setup({ projects: [live], files });
+            expect(await main([], upToDate.deps)).toBe(EXIT_OK);
+            expect(upToDate.fetched.some((url) => url.includes('/check-runs'))).toBe(false);
+            expect(upToDate.summaries[0]).toContain('skipped (up-to-date)');
+
+            const forced = setup({ projects: [live], files });
+            expect(await main(['--force'], forced.deps)).toBe(EXIT_OK);
+            expect(forced.fetched.some((url) => url.includes('/check-runs'))).toBe(false);
+        }, 60_000);
+
+        it('asks for no check runs for a project that is not a target', async () => {
+            const run = setup();
+            expect(await main([], run.deps)).toBe(EXIT_OK);
+            expect(run.fetched.some((url) => url.includes('/check-runs'))).toBe(false);
+        });
+
+        it('asks for the check runs of the head commit once when the deploy decides', async () => {
+            const run = setup({ projects: [live], files: existingFiles() });
+            await main([], run.deps);
+            expect(run.fetched.filter((url) => url.includes('/check-runs'))).toEqual([checkRunsUrl(1)]);
+        }, 60_000);
+
+        it('follows the pages of a commit with more than 100 check runs', async () => {
+            const full = Array.from({ length: 100 }, (_, index) => checkRun('completed', 'success', index + 1));
+            const run = setup({
+                projects: [live],
+                files: existingFiles(),
+                checkRuns: (url: string) =>
+                    url.endsWith('page=1')
+                        ? { total_count: 101, check_runs: full }
+                        : { total_count: 101, check_runs: [checkRun('completed', 'failure', 101)] },
+            });
+            expect(await main([], run.deps)).toBe(EXIT_OK);
+            expect(run.fetched.filter((url) => url.includes('/check-runs'))).toEqual([
+                checkRunsUrl(1),
+                checkRunsUrl(2),
+            ]);
+            // Run 101 shares the name of the others and starts at the same time, so the greater id (the failure) wins.
+            expect(run.summaries[0]).toContain('skipped (deploy-failed)');
+            expect(run.captures).toEqual([]);
+        });
+
+        describe('when the check runs cannot be read', () => {
+            const second: Project = {
+                ...live,
+                slug: 'app2',
+                subdomain: 'app2',
+                repo: 'https://github.com/tpetrus/app2',
+            };
+
+            it.each([
+                ['the request fails', { failUrl: checkRunsUrl(1) }, /answered 403/],
+                ['the response has the wrong shape', { checkRuns: { nope: true } }, /./],
+                [
+                    'there are more pages than the limit',
+                    {
+                        checkRuns: {
+                            total_count: 5000,
+                            check_runs: Array.from({ length: 100 }, (_, index) =>
+                                checkRun('completed', 'success', index),
+                            ),
+                        },
+                    },
+                    /5000/,
+                ],
+            ])(
+                'skips only that screenshot with a warning and exits 0: %s',
+                async (_name, over, detail) => {
+                    const run = setup({
+                        projects: [live, second],
+                        files: { ...existingFiles(), ...secondFiles() },
+                        ...(over as Partial<Options>),
+                    });
+                    // Only the first project's check runs fail; the second's answer is green.
+                    const inner = run.deps.fetchJson.bind(run.deps);
+                    run.deps.fetchJson = (url) =>
+                        url.includes('/tpetrus/app2/') && url.includes('/check-runs')
+                            ? Promise.resolve(green)
+                            : inner(url);
+                    expect(await main([], run.deps)).toBe(EXIT_OK);
+                    expect(run.errors).toEqual([]);
+                    const warnings = run.logs.filter((line) => line.startsWith('::warning::'));
+                    expect(warnings).toHaveLength(1);
+                    expect(warnings[0]).toMatch(
+                        /^::warning::app: screenshot not retaken: its check runs could not be read: /,
+                    );
+                    expect(warnings[0]).toMatch(detail);
+                    expect(run.summaries[0]).toContain('skipped (deploy-unknown)');
+                    expect(run.captures).toEqual(['https://app2.trevorpetr.us']);
+                    expect(run.writes).toEqual(['src/assets/projects/app2.avif', META]);
+                    expect(metaOf(run.files).app.capturedSha).toBe(OLD_SHA);
+                    expect(metaOf(run.files).app2.capturedSha).toBe(SHA);
+                },
+                60_000,
+            );
+        });
 
         describe('a rejected or failed capture', () => {
             const expectKept = (run: ReturnType<typeof setup>, reasonPattern: RegExp) => {
@@ -407,7 +534,7 @@ describe('main', () => {
                 });
                 expect(await main([], run.deps)).toBe(EXIT_ERROR);
                 expect(run.captures).toEqual(['https://app2.trevorpetr.us']);
-                expect(run.writes).toEqual([META, 'src/assets/projects/app2.avif']);
+                expect(run.writes).toEqual(['src/assets/projects/app2.avif', META]);
                 expect(metaOf(run.files).app.capturedSha).toBeUndefined();
                 expect(metaOf(run.files).app2.capturedSha).toBe(SHA);
                 expect(run.errors).toEqual(['app: screenshot not updated: boom']);
@@ -474,24 +601,6 @@ describe('main', () => {
         expect(run.errors[0]).toMatch(/^https:\/\/github\.com\/tpetrus\/old: GitHub API answered 403/);
         expect(run.writes).toEqual([]);
         expect(run.captures).toEqual([]);
-    });
-
-    it('returns 1 naming the repo when the check-runs request fails, and writes nothing', async () => {
-        const run = setup({
-            projects: [live],
-            failUrl: `https://api.github.com/repos/tpetrus/app/commits/${SHA}/check-runs?per_page=100`,
-        });
-        expect(await main([], run.deps)).toBe(EXIT_ERROR);
-        expect(run.errors).toHaveLength(1);
-        expect(run.errors[0]).toMatch(/^https:\/\/github\.com\/tpetrus\/app: GitHub API answered 403/);
-        expect(run.writes).toEqual([]);
-        expect(run.captures).toEqual([]);
-    });
-
-    it('returns 1 when the check-runs response has the wrong shape', async () => {
-        const run = setup({ projects: [live], checkRuns: { nope: true } });
-        expect(await main([], run.deps)).toBe(EXIT_ERROR);
-        expect(run.writes).toEqual([]);
     });
 
     it('returns 1 when every recent commit is a bot commit', async () => {

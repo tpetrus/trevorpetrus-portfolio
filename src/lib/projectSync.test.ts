@@ -2,15 +2,23 @@ import { describe, expect, it } from 'vitest';
 
 import {
     checkRunsApiUrl,
+    DEPLOY_CHECK_PREFIX,
     deployStateFromCheckRuns,
     formatCaptureFailure,
     formatCopyError,
+    formatDeploySkipWarning,
     formatSyncSummary,
+    MAX_CHECK_RUN_PAGES,
+    nextCheckRunsPage,
+    parseCheckRunsPage,
     parseSyncArgs,
     planCapture,
+    planCaptureWithoutDeploy,
     SETTLE_HOURS,
+    STALE_RUN_HOURS,
     validateCopy,
     type CapturePlanInput,
+    type CheckRun,
     type ProjectReport,
     type RepoCopyInput,
 } from './projectSync';
@@ -140,62 +148,186 @@ describe('validateCopy tech order', () => {
 });
 
 describe('checkRunsApiUrl', () => {
-    it('builds the check-runs URL of a commit', () => {
-        expect(checkRunsApiUrl('https://github.com/tpetrus/AudioVisualizer', 'a'.repeat(40))).toBe(
-            `https://api.github.com/repos/tpetrus/AudioVisualizer/commits/${'a'.repeat(40)}/check-runs?per_page=100`,
+    it('builds the check-runs URL of a commit page', () => {
+        expect(checkRunsApiUrl('https://github.com/tpetrus/AudioVisualizer', 'a'.repeat(40), 2)).toBe(
+            `https://api.github.com/repos/tpetrus/AudioVisualizer/commits/${'a'.repeat(40)}/check-runs?filter=latest&per_page=100&page=2`,
         );
     });
 
     it('rejects a URL that is not a GitHub repo', () => {
-        expect(() => checkRunsApiUrl('https://example.com/x', 'a')).toThrow(/Not a GitHub repo URL/);
+        expect(() => checkRunsApiUrl('https://example.com/x', 'a', 1)).toThrow(/Not a GitHub repo URL/);
     });
 });
 
-describe('deployStateFromCheckRuns', () => {
-    const runs = (...list: [string, string | null][]) => ({
-        total_count: list.length,
-        check_runs: list.map(([status, conclusion]) => ({ status, conclusion })),
+describe('parseCheckRunsPage', () => {
+    const raw = { id: 1, name: 'ci', status: 'completed', conclusion: 'success', started_at: '2026-10-05T12:00:00Z' };
+
+    it('reads the total and maps started_at to startedAt', () => {
+        expect(parseCheckRunsPage({ total_count: 3, check_runs: [{ ...raw, extra: true }], other: 1 })).toEqual({
+            totalCount: 3,
+            runs: [
+                { id: 1, name: 'ci', status: 'completed', conclusion: 'success', startedAt: '2026-10-05T12:00:00Z' },
+            ],
+        });
     });
 
-    it('is none without check runs', () => {
-        expect(deployStateFromCheckRuns(runs())).toBe('none');
-        expect(deployStateFromCheckRuns({ check_runs: [] })).toBe('none');
-    });
-
-    it('is green when every run passed, neutral or skipped', () => {
-        expect(
-            deployStateFromCheckRuns(
-                runs(['completed', 'success'], ['completed', 'neutral'], ['completed', 'skipped']),
-            ),
-        ).toBe('green');
-    });
-
-    it.each(['failure', 'cancelled', 'timed_out', 'action_required', 'stale'])('is failed for a %s run', (verdict) => {
-        expect(deployStateFromCheckRuns(runs(['completed', 'success'], ['completed', verdict]))).toBe('failed');
-    });
-
-    it('is failed for a completed run with no conclusion', () => {
-        expect(deployStateFromCheckRuns(runs(['completed', null]))).toBe('failed');
-    });
-
-    it('is pending when a run has not completed and none failed', () => {
-        expect(deployStateFromCheckRuns(runs(['completed', 'success'], ['in_progress', null]))).toBe('pending');
-        expect(deployStateFromCheckRuns(runs(['queued', null]))).toBe('pending');
-    });
-
-    it('is failed when one failed even while another is pending', () => {
-        expect(deployStateFromCheckRuns(runs(['in_progress', null], ['completed', 'failure']))).toBe('failed');
+    it('accepts a null or missing started_at as null', () => {
+        const { started_at: _omitted, ...without } = raw;
+        const page = parseCheckRunsPage({ total_count: 2, check_runs: [{ ...raw, started_at: null }, without] });
+        expect(page.runs.map((run) => run.startedAt)).toEqual([null, null]);
     });
 
     it.each([
         null,
         'x',
         {},
-        { check_runs: 'x' },
-        { check_runs: [{ status: 1, conclusion: null }] },
-        { check_runs: [{}] },
+        { check_runs: [] },
+        { total_count: 0 },
+        { total_count: 'a', check_runs: [] },
+        { total_count: 1, check_runs: 'x' },
+        { total_count: 1, check_runs: [{ ...raw, id: 'a' }] },
+        { total_count: 1, check_runs: [{ ...raw, name: 1 }] },
+        { total_count: 1, check_runs: [{ ...raw, conclusion: 1 }] },
+        { total_count: 1, check_runs: [{ status: 'completed' }] },
     ])('throws on the wrong shape %j', (response) => {
-        expect(() => deployStateFromCheckRuns(response)).toThrow();
+        expect(() => parseCheckRunsPage(response)).toThrow();
+    });
+});
+
+describe('nextCheckRunsPage', () => {
+    it('stops when every run has been read', () => {
+        expect(nextCheckRunsPage(1, 100, 100, 100)).toBeUndefined();
+        expect(nextCheckRunsPage(2, 100, 200, 150)).toBeUndefined();
+    });
+
+    it('stops after a short page', () => {
+        expect(nextCheckRunsPage(1, 99, 99, 500)).toBeUndefined();
+        expect(nextCheckRunsPage(1, 0, 0, 0)).toBeUndefined();
+    });
+
+    it('asks for the next page after a full one while runs are missing', () => {
+        expect(nextCheckRunsPage(1, 100, 100, 150)).toBe(2);
+        expect(nextCheckRunsPage(MAX_CHECK_RUN_PAGES - 1, 100, 900, 1000)).toBe(MAX_CHECK_RUN_PAGES);
+    });
+
+    it('throws, naming the total, when more than the page limit is needed', () => {
+        expect(() => nextCheckRunsPage(MAX_CHECK_RUN_PAGES, 100, 1000, 1234)).toThrow(/1234/);
+    });
+});
+
+describe('deployStateFromCheckRuns', () => {
+    const NOW = new Date('2026-10-05T12:00:00Z');
+    const ago = (hours: number) => new Date(NOW.getTime() - hours * 3_600_000).toISOString();
+    let nextId = 1;
+    const run = (over: Partial<CheckRun> = {}): CheckRun => ({
+        id: nextId++,
+        name: 'ci',
+        status: 'completed',
+        conclusion: 'success',
+        startedAt: ago(1),
+        ...over,
+    });
+    const state = (...runs: CheckRun[]) => deployStateFromCheckRuns(runs, NOW);
+
+    it('is none without check runs', () => {
+        expect(state()).toBe('none');
+    });
+
+    it('is green when every run passed, neutral or skipped', () => {
+        expect(
+            state(
+                run({ name: 'a' }),
+                run({ name: 'b', conclusion: 'neutral' }),
+                run({ name: 'c', conclusion: 'skipped' }),
+            ),
+        ).toBe('green');
+    });
+
+    it.each(['failure', 'cancelled', 'timed_out', 'action_required', 'stale'])('is failed for a %s run', (verdict) => {
+        expect(state(run({ name: 'a' }), run({ name: 'b', conclusion: verdict }))).toBe('failed');
+    });
+
+    it('is failed for a completed run with no conclusion', () => {
+        expect(state(run({ conclusion: null }))).toBe('failed');
+    });
+
+    it('is pending for a fresh incomplete run when none failed', () => {
+        expect(state(run({ name: 'a' }), run({ name: 'b', status: 'in_progress', conclusion: null }))).toBe('pending');
+        expect(state(run({ status: 'queued', conclusion: null }))).toBe('pending');
+    });
+
+    it('is failed when one failed even while another is pending', () => {
+        expect(
+            state(
+                run({ name: 'a', status: 'in_progress', conclusion: null }),
+                run({ name: 'b', conclusion: 'failure' }),
+            ),
+        ).toBe('failed');
+    });
+
+    it('lets a rerun supersede the failed run of the same name', () => {
+        expect(
+            state(run({ conclusion: 'failure', startedAt: ago(3) }), run({ conclusion: 'success', startedAt: ago(2) })),
+        ).toBe('green');
+        expect(
+            state(run({ conclusion: 'success', startedAt: ago(3) }), run({ conclusion: 'failure', startedAt: ago(2) })),
+        ).toBe('failed');
+    });
+
+    it('treats a null startedAt as older than any date', () => {
+        expect(state(run({ conclusion: 'failure', startedAt: null }), run({ startedAt: ago(30) }))).toBe('green');
+        expect(state(run({ startedAt: ago(30) }), run({ conclusion: 'failure', startedAt: null }))).toBe('green');
+    });
+
+    it('breaks a tie on startedAt by the greater id', () => {
+        const at = ago(2);
+        expect(
+            state(
+                run({ id: 20, conclusion: 'success', startedAt: at }),
+                run({ id: 10, conclusion: 'failure', startedAt: at }),
+            ),
+        ).toBe('green');
+        expect(
+            state(
+                run({ id: 10, conclusion: 'failure', startedAt: at }),
+                run({ id: 20, conclusion: 'success', startedAt: at }),
+            ),
+        ).toBe('green');
+        expect(
+            state(
+                run({ id: 5, conclusion: 'success', startedAt: null }),
+                run({ id: 6, conclusion: 'failure', startedAt: null }),
+            ),
+        ).toBe('failed');
+    });
+
+    it('lets only Workers Builds runs decide when there is one', () => {
+        expect(DEPLOY_CHECK_PREFIX).toBe('Workers Builds');
+        expect(state(run({ name: 'Workers Builds: site' }), run({ name: 'lint', conclusion: 'failure' }))).toBe(
+            'green',
+        );
+        expect(state(run({ name: 'Workers Builds: site', conclusion: 'failure' }), run({ name: 'lint' }))).toBe(
+            'failed',
+        );
+    });
+
+    it('lets every run decide when there is no Workers Builds run', () => {
+        expect(state(run({ name: 'build' }), run({ name: 'lint', conclusion: 'failure' }))).toBe('failed');
+    });
+
+    it('drops an incomplete run older than the stale limit, or without a start', () => {
+        expect(STALE_RUN_HOURS).toBe(24);
+        expect(state(run({ status: 'queued', conclusion: null, startedAt: ago(25) }))).toBe('none');
+        expect(state(run({ status: 'queued', conclusion: null, startedAt: null }))).toBe('none');
+        expect(
+            state(run({ name: 'a' }), run({ name: 'b', status: 'in_progress', conclusion: null, startedAt: ago(48) })),
+        ).toBe('green');
+        expect(state(run({ status: 'in_progress', conclusion: null, startedAt: ago(24) }))).toBe('pending');
+    });
+
+    it('keeps an old completed run', () => {
+        expect(state(run({ conclusion: 'failure', startedAt: ago(500) }))).toBe('failed');
+        expect(state(run({ conclusion: 'failure', startedAt: null }))).toBe('failed');
     });
 });
 
@@ -203,36 +335,30 @@ describe('planCapture', () => {
     const SHA_A = 'a'.repeat(40);
     const SHA_B = 'b'.repeat(40);
     const HEAD_DATE = '2026-10-05T12:00:00Z';
-    const plan = (over: Partial<CapturePlanInput> = {}) =>
-        planCapture({
-            capturedSha: SHA_A,
-            head: { sha: SHA_B, date: HEAD_DATE },
-            thumbnailExists: true,
-            deploy: 'green',
-            force: false,
-            now: new Date('2026-10-05T13:00:00Z'),
-            ...over,
-        });
+    const base: Omit<CapturePlanInput, 'deploy'> = {
+        capturedSha: SHA_A,
+        head: { sha: SHA_B, date: HEAD_DATE },
+        thumbnailExists: true,
+        force: false,
+        now: new Date('2026-10-05T13:00:00Z'),
+    };
+    const plan = (over: Partial<CapturePlanInput> = {}) => planCapture({ ...base, deploy: 'green', ...over });
 
     it('captures on --force, before every other rule', () => {
         expect(plan({ force: true, capturedSha: SHA_B, deploy: 'failed' })).toEqual({ capture: true, reason: 'force' });
     });
 
-    it('captures a missing file even when the SHA matches or the deploy failed', () => {
+    it('skips an unchanged head with a file whatever the deploy says', () => {
+        for (const deploy of ['green', 'pending', 'failed', 'none', 'unknown'] as const) {
+            expect(plan({ capturedSha: SHA_B, deploy })).toEqual({ capture: false, reason: 'up-to-date' });
+        }
+    });
+
+    it('does not call a missing file up to date', () => {
         expect(plan({ thumbnailExists: false, capturedSha: SHA_B })).toEqual({
             capture: true,
             reason: 'missing-thumbnail',
         });
-        expect(plan({ thumbnailExists: false, deploy: 'failed' })).toEqual({
-            capture: true,
-            reason: 'missing-thumbnail',
-        });
-    });
-
-    it('skips an unchanged head whatever the deploy says', () => {
-        for (const deploy of ['green', 'pending', 'failed', 'none'] as const) {
-            expect(plan({ capturedSha: SHA_B, deploy })).toEqual({ capture: false, reason: 'up-to-date' });
-        }
     });
 
     it('captures a new commit with a green deploy, and a first capture', () => {
@@ -240,9 +366,20 @@ describe('planCapture', () => {
         expect(plan({ capturedSha: undefined })).toEqual({ capture: true, reason: 'new-commit' });
     });
 
-    it('skips a new commit whose deploy failed or is pending', () => {
-        expect(plan({ deploy: 'failed' })).toEqual({ capture: false, reason: 'deploy-failed' });
-        expect(plan({ deploy: 'pending' })).toEqual({ capture: false, reason: 'deploy-pending' });
+    it('skips a failed, pending or unknown deploy, even when the file is missing', () => {
+        for (const thumbnailExists of [true, false]) {
+            expect(plan({ deploy: 'failed', thumbnailExists })).toEqual({ capture: false, reason: 'deploy-failed' });
+            expect(plan({ deploy: 'pending', thumbnailExists })).toEqual({ capture: false, reason: 'deploy-pending' });
+            expect(plan({ deploy: 'unknown', thumbnailExists })).toEqual({ capture: false, reason: 'deploy-unknown' });
+        }
+    });
+
+    it('captures a missing file when the deploy is green or there are no check runs', () => {
+        expect(plan({ thumbnailExists: false })).toEqual({ capture: true, reason: 'missing-thumbnail' });
+        expect(plan({ thumbnailExists: false, deploy: 'none', now: new Date(HEAD_DATE) })).toEqual({
+            capture: true,
+            reason: 'missing-thumbnail',
+        });
     });
 
     describe('without check runs', () => {
@@ -258,6 +395,52 @@ describe('planCapture', () => {
             expect(plan({ deploy: 'none', now: at(6) })).toEqual({ capture: true, reason: 'new-commit' });
             expect(plan({ deploy: 'none', now: at(48) })).toEqual({ capture: true, reason: 'new-commit' });
         });
+    });
+});
+
+describe('planCaptureWithoutDeploy', () => {
+    const head = { sha: 'b'.repeat(40), date: '2026-10-05T12:00:00Z' };
+    const base = { capturedSha: 'a'.repeat(40), head, thumbnailExists: true, force: false, now: new Date(head.date) };
+
+    it('decides force and up-to-date', () => {
+        expect(planCaptureWithoutDeploy({ ...base, force: true })).toEqual({ capture: true, reason: 'force' });
+        expect(planCaptureWithoutDeploy({ ...base, capturedSha: head.sha })).toEqual({
+            capture: false,
+            reason: 'up-to-date',
+        });
+    });
+
+    it('returns undefined when the deploy decides', () => {
+        expect(planCaptureWithoutDeploy(base)).toBeUndefined();
+        expect(planCaptureWithoutDeploy({ ...base, capturedSha: head.sha, thumbnailExists: false })).toBeUndefined();
+        expect(planCaptureWithoutDeploy({ ...base, capturedSha: undefined })).toBeUndefined();
+    });
+});
+
+describe('formatDeploySkipWarning', () => {
+    it.each([
+        ['deploy-failed', "the head commit's deploy failed"],
+        ['deploy-pending', "the head commit's deploy has not finished"],
+        ['deploy-unknown', 'its check runs could not be read'],
+    ] as const)('words %s', (reason, meaning) => {
+        expect(formatDeploySkipWarning('app', reason)).toBe(`::warning::app: screenshot not retaken: ${meaning}`);
+    });
+
+    it('appends the detail after a colon', () => {
+        expect(formatDeploySkipWarning('app', 'deploy-unknown', 'GET x answered 500')).toBe(
+            '::warning::app: screenshot not retaken: its check runs could not be read: GET x answered 500',
+        );
+    });
+
+    it('collapses whitespace and encodes percent signs', () => {
+        expect(formatDeploySkipWarning('app', 'deploy-unknown', 'line one\n\n  line  two 100%')).toBe(
+            '::warning::app: screenshot not retaken: its check runs could not be read: line one line two 100%25',
+        );
+    });
+
+    it('returns undefined for other reasons', () => {
+        expect(formatDeploySkipWarning('app', 'up-to-date')).toBeUndefined();
+        expect(formatDeploySkipWarning('app', 'settling', 'x')).toBeUndefined();
     });
 });
 

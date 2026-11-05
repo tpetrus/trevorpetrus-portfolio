@@ -137,7 +137,7 @@ export const STALE_RUN_HOURS = 24;
  * (`page` is 1-based). Throws on a repo URL that is not GitHub's.
  */
 export function checkRunsApiUrl(repo: string, sha: string, page: number): string {
-    throw new Error(`S2R: not implemented ${repoPath(repo)} ${sha} ${page}`);
+    return `https://api.github.com/repos/${repoPath(repo)}/commits/${sha}/check-runs?filter=latest&per_page=${CHECK_RUNS_PER_PAGE}&page=${page}`;
 }
 
 /** One check run as the sync reads it. */
@@ -163,8 +163,32 @@ export interface CheckRunsPage {
  * keys are ignored and `started_at` may be null or absent); throws on any other shape.
  */
 export function parseCheckRunsPage(response: unknown): CheckRunsPage {
-    throw new Error(`S2R: not implemented ${String(response)} ${String(z)}`);
+    const parsed = checkRunsPageSchema.parse(response);
+    return {
+        totalCount: parsed.total_count,
+        runs: parsed.check_runs.map((run) => ({
+            id: run.id,
+            name: run.name,
+            status: run.status,
+            conclusion: run.conclusion,
+            startedAt: run.started_at ?? null,
+        })),
+    };
 }
+
+// `conclusion` is null while a run has not completed; `started_at` is null or absent for a run GitHub has not started.
+const checkRunsPageSchema = z.object({
+    total_count: z.number(),
+    check_runs: z.array(
+        z.object({
+            id: z.number(),
+            name: z.string(),
+            status: z.string(),
+            conclusion: z.string().nullable(),
+            started_at: z.string().nullable().optional(),
+        }),
+    ),
+});
 
 /**
  * The next page to request after `pagesFetched` pages holding `runsSoFar` runs in total, the last of them
@@ -177,7 +201,13 @@ export function nextCheckRunsPage(
     runsSoFar: number,
     totalCount: number,
 ): number | undefined {
-    throw new Error(`S2R: not implemented ${pagesFetched} ${lastPageSize} ${runsSoFar} ${totalCount}`);
+    if (runsSoFar >= totalCount || lastPageSize < CHECK_RUNS_PER_PAGE) return undefined;
+    if (pagesFetched >= MAX_CHECK_RUN_PAGES) {
+        throw new Error(
+            `The commit has ${totalCount} check runs, more than ${MAX_CHECK_RUN_PAGES} pages of ${CHECK_RUNS_PER_PAGE}`,
+        );
+    }
+    return pagesFetched + 1;
 }
 
 /**
@@ -190,7 +220,27 @@ export function nextCheckRunsPage(
  * then `none`, `failed`, `pending` or `green` as `DeployState` describes. Never returns `unknown`.
  */
 export function deployStateFromCheckRuns(runs: readonly CheckRun[], now: Date): DeployState {
-    throw new Error(`S2R: not implemented ${runs.length} ${now.toISOString()} ${PASSING_CONCLUSIONS.size}`);
+    // A null start is older than any date; the greater id wins a tie.
+    const startOf = (run: CheckRun): number => (run.startedAt === null ? -Infinity : Date.parse(run.startedAt));
+    const newer = (a: CheckRun, b: CheckRun): boolean =>
+        startOf(a) > startOf(b) || (startOf(a) === startOf(b) && a.id > b.id);
+    const latest = new Map<string, CheckRun>();
+    for (const run of runs) {
+        const seen = latest.get(run.name);
+        if (seen === undefined || newer(run, seen)) latest.set(run.name, run);
+    }
+    let narrowed = [...latest.values()];
+    const deployRuns = narrowed.filter((run) => run.name.startsWith(DEPLOY_CHECK_PREFIX));
+    if (deployRuns.length > 0) narrowed = deployRuns;
+    const staleBefore = now.getTime() - STALE_RUN_HOURS * 3_600_000;
+    narrowed = narrowed.filter(
+        (run) => run.status === 'completed' || (run.startedAt !== null && startOf(run) >= staleBefore),
+    );
+
+    if (narrowed.length === 0) return 'none';
+    const completed = narrowed.filter((run) => run.status === 'completed');
+    if (completed.some((run) => !PASSING_CONCLUSIONS.has(run.conclusion ?? ''))) return 'failed';
+    return completed.length < narrowed.length ? 'pending' : 'green';
 }
 
 const PASSING_CONCLUSIONS: ReadonlySet<string> = new Set(['success', 'neutral', 'skipped']);
@@ -219,7 +269,9 @@ export type CaptureDecision =
  * decides. The caller fetches the check runs only when this returns `undefined`.
  */
 export function planCaptureWithoutDeploy(input: Omit<CapturePlanInput, 'deploy'>): CaptureDecision | undefined {
-    throw new Error(`S2R: not implemented ${input.head.sha}`);
+    if (input.force) return { capture: true, reason: 'force' };
+    if (input.thumbnailExists && input.capturedSha === input.head.sha) return { capture: false, reason: 'up-to-date' };
+    return undefined;
 }
 
 /**
@@ -233,8 +285,26 @@ export function planCaptureWithoutDeploy(input: Omit<CapturePlanInput, 'deploy'>
  *    once it is at least `SETTLE_HOURS` old and skips (`settling`) until then.
  */
 export function planCapture(input: CapturePlanInput): CaptureDecision {
-    throw new Error(`S2R: not implemented ${input.head.sha} ${SETTLE_HOURS}`);
+    const early = planCaptureWithoutDeploy(input);
+    if (early !== undefined) return early;
+    const { thumbnailExists, deploy, head, now } = input;
+    if (deploy === 'failed') return { capture: false, reason: 'deploy-failed' };
+    if (deploy === 'pending') return { capture: false, reason: 'deploy-pending' };
+    if (deploy === 'unknown') return { capture: false, reason: 'deploy-unknown' };
+    if (deploy === 'green') return { capture: true, reason: thumbnailExists ? 'new-commit' : 'missing-thumbnail' };
+    // No check runs to confirm the deploy: a missing file is captured now, a new commit once the settle delay passed.
+    if (!thumbnailExists) return { capture: true, reason: 'missing-thumbnail' };
+    const ageMs = now.getTime() - Date.parse(head.date);
+    return ageMs >= SETTLE_HOURS * 3_600_000
+        ? { capture: true, reason: 'new-commit' }
+        : { capture: false, reason: 'settling' };
 }
+
+const DEPLOY_SKIP_MEANINGS: Partial<Record<SkipReason, string>> = {
+    'deploy-failed': "the head commit's deploy failed",
+    'deploy-pending': "the head commit's deploy has not finished",
+    'deploy-unknown': 'its check runs could not be read',
+};
 
 /**
  * The GitHub Actions warning for a screenshot skipped because of its deploy (`deploy-failed`, `deploy-pending`,
@@ -244,7 +314,11 @@ export function planCapture(input: CapturePlanInput): CaptureDecision {
  * space and `%` is encoded as `%25`, so a multi-line error stays one annotation.
  */
 export function formatDeploySkipWarning(slug: string, reason: SkipReason, detail?: string): string | undefined {
-    throw new Error(`S2R: not implemented ${slug} ${reason} ${detail}`);
+    const meaning = DEPLOY_SKIP_MEANINGS[reason];
+    if (meaning === undefined) return undefined;
+    const message = `${slug}: screenshot not retaken: ${meaning}${detail === undefined ? '' : `: ${detail}`}`;
+    // One line, and `%` encoded as the workflow-command syntax expects.
+    return `::warning::${message.replace(/%/g, '%25').replace(/\s+/g, ' ').trim()}`;
 }
 
 /** What happened to one project's screenshot in a run. */
