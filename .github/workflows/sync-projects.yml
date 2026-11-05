@@ -1,12 +1,23 @@
 name: Sync projects
 
-# Runs `npm run sync:projects` on a GitHub-hosted Ubuntu runner and uploads the generated project data (the meta file
-# and the screenshots) as an artifact. This is the read-only sync job of the planned daily bot (S2 of the projects ETL
-# plan, docs/plans/projects-daily-etl): it holds no write credential, persists none (the setup action's default), and
-# never commits, pushes or deploys. The publish job that turns the artifact into a bot PR comes separately (S3).
+# Two jobs, split on purpose.
 #
-# Run it from the Actions tab (workflow_dispatch), optionally with `force` to recapture every screenshot. Download the
-# `project-sync` artifact to look at what an unattended run produces; commit nothing from it by hand without review.
+# `sync` runs `npm run sync:projects` on a GitHub-hosted Ubuntu runner. That executes this repository's code (npm
+# scripts, dependencies, a browser), so it holds only `contents: read` and no write credential, persists none (the
+# setup action's default), and uploads the generated project data (the meta file and the screenshots) as the
+# `project-sync` artifact. It reports the script's exit code as a job output instead of failing at once, so `publish`
+# can still use a partial result, and then fails itself on a non-zero code so the owner is emailed.
+#
+# `publish` holds the write credential (a GitHub App token), so it never runs the repository's code: no npm, no browser,
+# no repo script, only git, gh and shell over the artifact, which it validates as untrusted data first (the same
+# pattern as update-snapshots.yml in tpetrus/ci-workflows). It copies the outputs into a checkout of main, pushes them
+# as one commit to the branch `bot/sync-projects` and opens (or reuses) a pull request with auto-merge on, so the data
+# reaches main only through the required checks. When main already has the data it closes a leftover PR and branch.
+# The branch is pushed as the App because pushes made with GITHUB_TOKEN start no workflows, which would leave the
+# required checks pending forever.
+#
+# Run it from the Actions tab (workflow_dispatch), optionally with `force` to recapture every screenshot. A schedule
+# comes in a later change. Download the `project-sync` artifact to look at what a run produced.
 on:
   workflow_dispatch:
     inputs:
@@ -15,11 +26,13 @@ on:
         type: boolean
         default: false
 
-permissions:
-  contents: read
+# Every job below declares its own permissions, so nothing needs a workflow-level default.
+permissions: {}
 
+# One run at a time for the whole repository, whichever ref it was started on: they all share one bot branch. A queued
+# run waits instead of canceling the one that is pushing.
 concurrency:
-  group: sync-projects-${{ github.ref }}
+  group: sync-projects
   cancel-in-progress: false
 
 jobs:
@@ -28,6 +41,8 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
+    outputs:
+      exit-code: ${{ steps.sync.outputs.exit-code }}
     steps:
       # Checks out without leaving a credential on disk, sets up Node from .nvmrc, checks the lockfile, runs npm ci.
       - uses: tpetrus/ci-workflows/actions/setup@v0.3.1
@@ -36,10 +51,19 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       # GITHUB_TOKEN (contents: read) only lifts the unauthenticated rate limit: every project repo is public
-      # (decision D13), so it reads their About, topics, commits and check runs. Exit 1 (a copy or capture error) fails
-      # the job, which emails the owner; the job summary lists every project and the reason for any failure.
+      # (decision D13), so it reads their About, topics, commits and check runs. Exit 1 covers a copy error, a rejected
+      # capture and the deploy-read rule; the job summary lists every project and the reason. The step records the code
+      # and succeeds, so the later steps and the publish job see a partial result; the last step fails the job.
       - name: Sync
-        run: npm run sync:projects -- $FORCE_FLAG
+        id: sync
+        run: |
+          set +e
+          # FORCE_FLAG is empty or one flag, so it must be left unquoted to disappear when empty.
+          # shellcheck disable=SC2086
+          npm run sync:projects -- $FORCE_FLAG
+          code=$?
+          echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
         env:
           GITHUB_TOKEN: ${{ github.token }}
           FORCE_FLAG: ${{ inputs.force && '--force' || '' }}
@@ -49,6 +73,8 @@ jobs:
         run: git status --short -- src/data/project-meta.json src/assets/projects
 
       # Uploaded even when the sync failed: a rejected capture is never written, so the artifact shows what was kept.
+      # The two paths share the root `src/`, which upload-artifact drops, so the artifact holds
+      # `data/project-meta.json` and `assets/projects/<name>.avif`. The publish job validates against that layout.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ !cancelled() }}
         with:
@@ -58,3 +84,255 @@ jobs:
             src/assets/projects/*.avif
           if-no-files-found: error
           retention-days: 7
+
+      # Only reached after the sync step ran (a failed earlier step skips it), so a non-zero code is the script's own.
+      # Failing the job is what emails the owner.
+      - name: Fail when the sync failed
+        if: steps.sync.outputs.exit-code != '0'
+        run: |
+          echo "::error::npm run sync:projects exited with code $EXIT_CODE. See the job summary for the projects and reasons." >&2
+          exit "${EXIT_CODE:-1}"
+        env:
+          EXIT_CODE: ${{ steps.sync.outputs.exit-code }}
+
+  # Never executes the repo's code (see the header). It holds the push credential, so everything it reads from the
+  # artifact is treated as untrusted data and validated before it is copied anywhere. Exit code 0 is a clean sync and 1
+  # a partial one (one bad capture skips one project, decision D12): both publish what was written. Any other code, or a
+  # run that did not start the sync, publishes nothing.
+  publish:
+    needs: sync
+    if: ${{ !cancelled() && github.ref == 'refs/heads/main' && (needs.sync.outputs.exit-code == '0' || needs.sync.outputs.exit-code == '1') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Everything here uses the App token; the GITHUB_TOKEN is granted nothing.
+    permissions: {}
+    env:
+      REPO: ${{ github.repository }}
+      GH_REPO: ${{ github.repository }}
+      SYNC_BRANCH: bot/sync-projects
+      SYNC_COMMIT_TITLE: 'chore(projects): refresh project data'
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      # There is no GITHUB_TOKEN fallback: a GITHUB_TOKEN push would start no checks and a PR from it could not auto-merge.
+      # If RELEASE_APP_ID or RELEASE_APP_PRIVATE_KEY is missing, this step fails and nothing is written.
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: app
+        with:
+          client-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          # One branch push, and one pull request opened, set to auto-merge and closed.
+          permission-contents: write
+          permission-pull-requests: write
+
+      # Read-only checks, made before any write, that the PR can actually merge itself: auto-merge must be allowed on
+      # the repository and the main ruleset must require the three checks. Without the ruleset, auto-merge would merge
+      # a data PR at once, before any check ran. Every missing item is reported in one error.
+      - name: Check the repository can auto-merge
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+        run: |
+          set -euo pipefail
+          problems=()
+          allowed=$(gh api "repos/$REPO" --jq '.allow_auto_merge')
+          [ "$allowed" = "true" ] || problems+=("Allow auto-merge is off")
+          contexts=$(gh api "repos/$REPO/rules/branches/main" \
+            --jq '[.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context] | .[]')
+          for name in 'ci / result' 'pr-checks / pr-title' 'pr-checks / version'; do
+            grep -qxF -- "$name" <<<"$contexts" || problems+=("main does not require the check '$name'")
+          done
+          if [ "${#problems[@]}" -gt 0 ]; then
+            joined=$(printf '%s; ' "${problems[@]}")
+            echo "::error::Cannot publish the project data: ${joined%; }. Fix the repository settings and run the workflow again." >&2
+            exit 1
+          fi
+
+      # The commit the run was started on (main), which is the commit the sync job built from. The App token is
+      # persisted so the plain `git push` and `git fetch` below can use it. Nothing in this job runs the repo's code or
+      # uploads the workspace, so the credential is exposed to neither.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          token: ${{ steps.app.outputs.token }}
+          persist-credentials: true
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: project-sync
+          path: ${{ runner.temp }}/project-sync
+
+      # The artifact is data from a job that ran the repo's code, so it is checked before anything is copied. Its layout
+      # follows from the upload: the two upload paths (src/data/project-meta.json and src/assets/projects/*.avif) share
+      # the root `src/`, which upload-artifact drops, so the files are `data/project-meta.json` and
+      # `assets/projects/<name>.avif`, and nothing else is allowed. Symlinks and every other file type are refused, and
+      # the checkout's target directories must contain no symlink, so the copy cannot be redirected out of the workspace.
+      - name: Validate the sync artifact
+        env:
+          STAGE: ${{ runner.temp }}/project-sync
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$1" >&2; exit 1; }
+
+          # realpath -m follows symlinks and --no-symlinks does not, so the two differ exactly when a component of the
+          # path is a symlink. The find catches a link inside the directories, such as an existing screenshot.
+          for target in src/data src/assets/projects src/data/project-meta.json; do
+            [ "$(realpath -m -- "$target")" = "$(realpath -m --no-symlinks -- "$target")" ] ||
+              fail "'$target' contains a symlink in the checkout."
+          done
+          if [ -n "$(find src/data src/assets/projects -type l -print -quit 2>/dev/null)" ]; then
+            fail "src/data or src/assets/projects contains a symlink in the checkout."
+          fi
+
+          cd "$STAGE"
+          if [ -n "$(find . -mindepth 1 ! -type f ! -type d -print -quit)" ]; then
+            fail "The sync artifact contains something other than regular files and directories (a symlink?)."
+          fi
+          count=0
+          have_meta=false
+          while IFS= read -r -d '' file; do
+            count=$((count + 1))
+            relative=${file#./}
+            case "/$relative/" in
+              */../*) fail "Path traversal in the sync artifact: $relative" ;;
+            esac
+            if [ "$relative" = "data/project-meta.json" ]; then
+              have_meta=true
+              jq empty -- "$relative" || fail "data/project-meta.json is not valid JSON."
+            else
+              case "$relative" in
+                assets/projects/*.avif) ;;
+                *) fail "Unexpected file in the sync artifact: $relative" ;;
+              esac
+              name=$(basename "$relative" .avif)
+              [[ "$name" =~ ^[a-z0-9][a-z0-9-]*$ ]] || fail "Unexpected screenshot name in the sync artifact: $relative"
+              [ "$(dirname "$relative")" = "assets/projects" ] || fail "Screenshot below a subdirectory in the sync artifact: $relative"
+            fi
+            size=$(stat -c %s -- "$relative")
+            [ "$size" -le 2097152 ] || fail "File over 2 MB in the sync artifact: $relative ($size bytes)"
+          done < <(find . -type f -print0)
+          [ "$have_meta" = "true" ] || fail "The sync artifact has no data/project-meta.json."
+          echo "Validated $count file(s)."
+
+      # The artifact root maps to src/. Files are only added or overwritten, never deleted: a deleted project's entry and
+      # screenshot are removed by hand. A changed byte shows in git status, so an unchanged sync leaves it empty.
+      - name: Copy the outputs into place
+        id: copy
+        env:
+          STAGE: ${{ runner.temp }}/project-sync
+        run: |
+          set -euo pipefail
+          cp --no-dereference -R "$STAGE/." src/
+          if [ -n "$(git status --porcelain -- src/data/project-meta.json src/assets/projects)" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Main already has the data. A clean sync leaves nothing for a bot PR to do, so a leftover one is closed and its
+      # branch removed, and the run stops successfully. A partial sync (exit 1) may have kept old screenshots for
+      # projects that failed, so "no change" then says nothing about the PR, and it is left alone.
+      - name: Close the stale sync pull request
+        if: steps.copy.outputs.changed == 'false'
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          EXIT_CODE: ${{ needs.sync.outputs.exit-code }}
+        run: |
+          set -euo pipefail
+          if [ "$EXIT_CODE" != "0" ]; then
+            echo "::notice::The sync was partial (exit code $EXIT_CODE) and changed nothing, so the sync pull request and branch are left as they are."
+            echo "Publish: nothing to do. The sync was partial and changed nothing; the sync pull request and branch were left alone." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          result="no-op"
+          number=$(gh pr list --head "$SYNC_BRANCH" --base main --state open --json number --jq '.[0].number // empty')
+          if [ -n "$number" ]; then
+            gh pr close "$number" --delete-branch \
+              --comment "main already has this data, so this pull request is not needed. Closed by $RUN_URL."
+            result="closed pull request #$number and deleted the branch"
+          fi
+          # A branch can exist without an open PR (a closed one, or a failed run between the push and the PR).
+          if [ -n "$(git ls-remote origin "refs/heads/$SYNC_BRANCH")" ]; then
+            git push origin --delete "$SYNC_BRANCH"
+            if [ "$result" = "no-op" ]; then
+              result="deleted the branch $SYNC_BRANCH (no open pull request)"
+            fi
+          fi
+          echo "Publish: main already has the data. $result." >> "$GITHUB_STEP_SUMMARY"
+
+      # The author is the App's bot user, so the commit is attributed to it.
+      - name: Set the commit author
+        if: steps.copy.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          SLUG: ${{ steps.app.outputs.app-slug }}
+        run: |
+          set -euo pipefail
+          bot_id=$(gh api "/users/${SLUG}[bot]" --jq .id)
+          git config user.name "${SLUG}[bot]"
+          git config user.email "$bot_id+${SLUG}[bot]@users.noreply.github.com"
+
+      # If the bot branch already holds exactly these outputs, nothing is pushed: a push would replace the commit with a
+      # new one, drop the version bot's commit on top of it and restart the checks. Otherwise the branch is rebuilt from
+      # main with one commit. The lease names the SHA that was read (empty means the branch must not exist), so a branch
+      # that moved since is never overwritten; the next run retries.
+      - name: Commit and push the branch
+        id: push
+        if: steps.copy.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          paths=(src/data/project-meta.json src/assets/projects)
+          remote_sha=$(git ls-remote origin "refs/heads/$SYNC_BRANCH" | cut -f1)
+          # Staged first so a new screenshot counts in the comparison, which git diff alone ignores while untracked.
+          git add -- "${paths[@]}"
+          if [ -n "$remote_sha" ]; then
+            git fetch --no-tags --depth=1 origin "$remote_sha"
+            if git diff --cached --quiet "$remote_sha" -- "${paths[@]}"; then
+              echo "result=unchanged" >> "$GITHUB_OUTPUT"
+              echo "The branch $SYNC_BRANCH already has these outputs, so nothing is pushed."
+              exit 0
+            fi
+          fi
+          git switch -c "$SYNC_BRANCH"
+          git commit -m "$SYNC_COMMIT_TITLE" -m "Generated by the Sync projects workflow: $RUN_URL"
+          lease="refs/heads/$SYNC_BRANCH:$remote_sha"
+          if ! git push "--force-with-lease=$lease" origin "HEAD:refs/heads/$SYNC_BRANCH"; then
+            echo "::error::Could not push to '$SYNC_BRANCH'. It changed since this run read it, and the push is never forced over a newer branch. The next run tries again." >&2
+            exit 1
+          fi
+          echo "result=pushed" >> "$GITHUB_OUTPUT"
+
+      # Opens the PR when none is open, then asks for auto-merge on every run (asking again is harmless). It merges by
+      # itself once the required checks pass; the screenshots and the meta diff are what a person can review before then.
+      - name: Open the pull request and enable auto-merge
+        id: pr
+        if: steps.copy.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          PUSH_RESULT: ${{ steps.push.outputs.result }}
+        run: |
+          set -euo pipefail
+          number=$(gh pr list --head "$SYNC_BRANCH" --base main --state open --json number --jq '.[0].number // empty')
+          if [ -z "$number" ]; then
+            body="Generated by the Sync projects workflow: $RUN_URL"$'\n\n'"This pull request merges by itself once the required checks pass. The review is the screenshots and the diff of src/data/project-meta.json."
+            gh pr create --base main --head "$SYNC_BRANCH" --title "$SYNC_COMMIT_TITLE" --body "$body"
+            number=$(gh pr list --head "$SYNC_BRANCH" --base main --state open --json number --jq '.[0].number')
+          fi
+          gh pr merge "$number" --auto --squash
+          read -r url created_at < <(gh pr view "$number" --json url,createdAt --jq '[.url, .createdAt] | @tsv')
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "created-at=$created_at" >> "$GITHUB_OUTPUT"
+          echo "Publish: $PUSH_RESULT branch. Pull request: $url" >> "$GITHUB_STEP_SUMMARY"
+
+      # A data PR should merge within hours. One still open after 48 hours almost certainly has a red check, and nothing
+      # else would say so, so the run fails and the owner is emailed.
+      - name: Alert when the pull request is stale
+        if: steps.copy.outputs.changed == 'true'
+        env:
+          URL: ${{ steps.pr.outputs.url }}
+          CREATED_AT: ${{ steps.pr.outputs.created-at }}
+        run: |
+          set -euo pipefail
+          age=$(( $(date +%s) - $(date -d "$CREATED_AT" +%s) ))
+          if [ "$age" -gt 172800 ]; then
+            echo "::error::The sync pull request $URL has been open over 48 hours, most likely because a red check is blocking it. Look at its checks." >&2
+            exit 1
+          fi
