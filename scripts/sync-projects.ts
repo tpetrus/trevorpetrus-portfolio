@@ -15,9 +15,10 @@
 // keeps its previous file and `capturedSha`; the other outputs are still written and the run exits 1 (decision D12).
 // The copy comes from GitHub, so a repo with an empty About or an unmapped topic fails the whole run before anything is
 // written (see src/lib/projectSync.ts). The run also exits 1 when every target that needed its check runs could not
-// read them (a token or response-shape problem rather than one flaky project), after writing the other outputs. `--check` computes everything and writes nothing. Parsing, planning and
-// judging live in src/lib, so this file only does I/O: `main` takes its I/O as `SyncDeps`, which is how
-// scripts/sync-projects.test.ts drives it without a network or a browser.
+// read them (a token or response-shape problem rather than one flaky project), after writing the other outputs.
+// `--check` computes everything and writes nothing. Parsing, planning and judging live in src/lib, so this file only
+// does I/O: `main` takes its I/O as `SyncDeps`, which is how scripts/sync-projects.test.ts drives it without a network
+// or a browser.
 import { appendFileSync, mkdirSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -172,8 +173,6 @@ async function captureAndAssess(target: CaptureTarget, deps: SyncDeps): Promise<
     }
 }
 
-// Reads every page of a commit's latest check runs. Any failure (request, shape, too many pages) rejects, and the
-// caller treats that as an unknown deploy for this project only.
 // Makes one GitHub read, and one more after `GITHUB_RETRY_DELAY_MS` when the first failed transiently (a 5xx, a dropped
 // connection, a timeout). Only the request is retried: callers parse the answer outside it, so a shape error is final.
 async function fetchWithRetry(deps: SyncDeps, url: string): Promise<unknown> {
@@ -186,6 +185,8 @@ async function fetchWithRetry(deps: SyncDeps, url: string): Promise<unknown> {
     }
 }
 
+// Reads every page of a commit's latest check runs. Any failure (request, shape, too many pages) rejects, and the
+// caller treats that as an unknown deploy for this project only.
 async function fetchAllCheckRuns(repo: string, sha: string, deps: SyncDeps): Promise<CheckRun[]> {
     const runs: CheckRun[] = [];
     let page: number | undefined = 1;
