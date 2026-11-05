@@ -7,8 +7,9 @@ import { repoPath } from './projects';
 // date (the project's stable date, which orders the index numbers). Both are ISO 8601 UTC timestamps. `description` is
 // the repo's GitHub About text and `tech` its topics mapped to display names (src/lib/topicMap.ts), so the card copy
 // follows GitHub. `capturedSha` is the default-branch commit the committed screenshot was taken at; it is absent until a
-// project is first captured. Strict, so a stray key fails the build.
-const projectMetaEntrySchema = z.strictObject({
+// project is first captured. Strict, so a stray key fails the build. The publish job checks the same shape with jq
+// (.github/scripts/validate-project-meta.jq), and src/lib/projectMetaValidation.test.ts fails if a field changes here only.
+export const projectMetaEntrySchema = z.strictObject({
     created: z.iso.datetime(),
     updated: z.iso.datetime(),
     description: z.string().trim().min(1),
