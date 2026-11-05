@@ -2,7 +2,7 @@ import sharp from 'sharp';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { EXIT_ERROR, EXIT_OK, EXIT_WOULD_CHANGE } from '../src/lib/projectSync';
-import { main, type Capture, type Project, type SyncDeps } from './sync-projects';
+import { encodeAvif, main, type Capture, type Project, type SyncDeps } from './sync-projects';
 
 const SHA = 'b'.repeat(40);
 const OLD_SHA = 'c'.repeat(40);
@@ -58,6 +58,19 @@ function rawPng(fill: (x: number, y: number, channel: number) => number): Promis
     return sharp(data, { raw: { width: WIDTH, height: HEIGHT, channels: 3 } })
         .png()
         .toBuffer();
+}
+
+// The production encoder (effort 6) takes tens of seconds per image on a CI runner. The specs use effort 2, the fastest
+// that keeps the fixture under the 500 kB limit, and encode each fixture once: what they test is how main() treats the
+// bytes, not the encoder.
+const encoded = new WeakMap<Buffer, Promise<Buffer>>();
+function fastAvif(input: Buffer): Promise<Buffer> {
+    let avif = encoded.get(input);
+    if (!avif) {
+        avif = sharp(input).avif({ quality: 80, effort: 2 }).toBuffer();
+        encoded.set(input, avif);
+    }
+    return avif;
 }
 
 let png: Buffer;
@@ -129,6 +142,7 @@ function setup(options: Options = {}) {
                 captures.push(project.url);
                 return Promise.resolve({ png, status: 200 });
             }),
+        encodeAvif: fastAvif,
         now: () => new Date(options.now ?? '2026-10-05T13:00:00Z'),
         summary: (markdown) => summaries.push(markdown),
         log: (line) => logs.push(line),
@@ -518,5 +532,14 @@ describe('main', () => {
             expect(run.writes).toEqual([]);
             expect(run.logs).toContain(`${META}: unchanged`);
         });
+    });
+});
+
+describe('encodeAvif', () => {
+    it('encodes the committed AVIF format', async () => {
+        const small = await sharp({ create: { width: 64, height: 40, channels: 3, background: '#335577' } })
+            .png()
+            .toBuffer();
+        expect((await sharp(await encodeAvif(small)).metadata()).format).toBe('heif');
     });
 });

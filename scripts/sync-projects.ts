@@ -98,6 +98,8 @@ export interface SyncDeps {
     writeFile(path: string, data: Buffer): void;
     /** Screenshots the live site once `appSelector` is visible. Rejects when the page or the selector times out. */
     capture(target: CaptureTarget): Promise<Capture>;
+    /** Encodes a screenshot PNG as the committed AVIF (`encodeAvif` in production). */
+    encodeAvif(png: Buffer): Promise<Buffer>;
     /** The current time, for the settle delay of `planCapture`. */
     now(): Date;
     /** Appends GitHub-flavored markdown to the job summary (`GITHUB_STEP_SUMMARY`); does nothing when it is unset. */
@@ -120,6 +122,14 @@ interface Output {
     note: string;
 }
 
+/**
+ * The committed screenshot encoding. It is a dependency of `main` because effort 6 takes tens of seconds per 2560x1600
+ * image on a CI runner, which the specs cannot afford once per test; they inject a faster encoder.
+ */
+export function encodeAvif(png: Buffer): Promise<Buffer> {
+    return sharp(png).avif({ quality: AVIF_QUALITY, effort: 6 }).toBuffer();
+}
+
 type CaptureResult = { ok: true; avif: Buffer } | { ok: false; reasons: string[] };
 
 // Takes, measures and judges one screenshot. The guard sees the AVIF's length, so the encode happens here too.
@@ -128,7 +138,7 @@ async function captureAndAssess(target: CaptureTarget, deps: SyncDeps): Promise<
         const { png, status } = await deps.capture(target);
         const { width, height } = await sharp(png).metadata();
         const { channels } = await sharp(png).stats();
-        const avif = await sharp(png).avif({ quality: AVIF_QUALITY, effort: 6 }).toBuffer();
+        const avif = await deps.encodeAvif(png);
         const verdict = assessCapture({
             status,
             width,
@@ -377,6 +387,7 @@ export function realDeps(): SyncDeps & { close(): Promise<void> } {
             browser ??= chromium.launch({ args: [...CHROMIUM_ARGS], timeout: LAUNCH_TIMEOUT_MS });
             return screenshot(await browser, project.url, project.appSelector);
         },
+        encodeAvif,
         now: () => new Date(),
         summary(markdown) {
             const file = process.env.GITHUB_STEP_SUMMARY;
