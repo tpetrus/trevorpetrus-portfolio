@@ -1,7 +1,7 @@
 // The pure core of `npm run sync:projects` (scripts/sync-projects.ts does only I/O). Contract C3 is frozen here: the
 // CLI flags, the exit codes and the copy-validation errors. S2 adds the SHA-keyed capture plan and the run report;
 // S2R freezes the deploy-state reading (paginated, latest run per name, deploy runs only, stale runs ignored) and the
-// capture rule order.
+// capture rule order. S4 adds the stale-deploy warning and the exit 1 when no target's deploy could be read.
 import { z } from 'astro/zod';
 
 import type { HeadCommit, ProjectCopy } from './projectMeta';
@@ -10,7 +10,10 @@ import { mapTopics } from './topicMap';
 
 /** Exit codes of `npm run sync:projects` (contract C3). */
 export const EXIT_OK = 0;
-/** A copy error (nothing written) or a capture error (that project skipped, the rest written). */
+/**
+ * A copy error (nothing written), a capture error (that project skipped, the rest written) or no readable deploy for
+ * any target that needed one (`deployReadFailedEverywhere`; the rest written).
+ */
 export const EXIT_ERROR = 1;
 /** `--check` only: the outputs would change. Nothing is written. */
 export const EXIT_WOULD_CHANGE = 2;
@@ -212,38 +215,66 @@ export function nextCheckRunsPage(
 
 /**
  * Narrows a commit's check runs (every page together) and reads the deploy state, in this order:
+ * 0. duplicates: of the runs sharing an `id` (a run that moved between pages while they were read), only the first
+ *    counts;
  * 1. latest run per name: of the runs sharing a `name`, only the one with the greatest `startedAt` counts (a null
- *    `startedAt` is older than any date; ties go to the greater `id`), so a rerun supersedes the run it repeats;
+ *    `startedAt`, or one `Date.parse` cannot read, is older than any date; ties go to the greater `id`), so a rerun
+ *    supersedes the run it repeats whatever order the runs arrive in;
  * 2. deploy runs only: when any remaining run's name starts with `DEPLOY_CHECK_PREFIX`, every other run is dropped;
  * 3. stale runs: an incomplete run (`status` other than `completed`) whose `startedAt` is null or more than
  *    `STALE_RUN_HOURS` before `now` is dropped;
  * then `none`, `failed`, `pending` or `green` as `DeployState` describes. Never returns `unknown`.
  */
 export function deployStateFromCheckRuns(runs: readonly CheckRun[], now: Date): DeployState {
-    // A null start is older than any date; the greater id wins a tie.
-    const startOf = (run: CheckRun): number => (run.startedAt === null ? -Infinity : Date.parse(run.startedAt));
-    const newer = (a: CheckRun, b: CheckRun): boolean =>
-        startOf(a) > startOf(b) || (startOf(a) === startOf(b) && a.id > b.id);
-    const latest = new Map<string, CheckRun>();
-    for (const run of runs) {
-        const seen = latest.get(run.name);
-        if (seen === undefined || newer(run, seen)) latest.set(run.name, run);
-    }
-    let narrowed = [...latest.values()];
-    const deployRuns = narrowed.filter((run) => run.name.startsWith(DEPLOY_CHECK_PREFIX));
-    if (deployRuns.length > 0) narrowed = deployRuns;
-    const staleBefore = now.getTime() - STALE_RUN_HOURS * 3_600_000;
-    narrowed = narrowed.filter(
-        (run) => run.status === 'completed' || (run.startedAt !== null && startOf(run) >= staleBefore),
-    );
-
+    const { narrowed } = narrowCheckRuns(runs, now);
     if (narrowed.length === 0) return 'none';
     const completed = narrowed.filter((run) => run.status === 'completed');
     if (completed.some((run) => !PASSING_CONCLUSIONS.has(run.conclusion ?? ''))) return 'failed';
     return completed.length < narrowed.length ? 'pending' : 'green';
 }
 
+// Steps 0 to 3 of `deployStateFromCheckRuns`, shared with `deployRunsAllStale` so the two can never disagree about which
+// runs count. `hadDeploy` is whether step 2 found a deploy run, before step 3 removed stale ones.
+function narrowCheckRuns(runs: readonly CheckRun[], now: Date): { narrowed: CheckRun[]; hadDeploy: boolean } {
+    // A page boundary can move while the pages are read, listing one run twice; the first copy stands.
+    const byId = new Map<number, CheckRun>();
+    for (const run of runs) if (!byId.has(run.id)) byId.set(run.id, run);
+
+    // A null or unreadable start is older than any date, so arrival order never decides; the greater id wins a tie.
+    const startOf = (run: CheckRun): number => {
+        const time = run.startedAt === null ? Number.NaN : Date.parse(run.startedAt);
+        return Number.isNaN(time) ? -Infinity : time;
+    };
+    const newer = (a: CheckRun, b: CheckRun): boolean =>
+        startOf(a) > startOf(b) || (startOf(a) === startOf(b) && a.id > b.id);
+    const latest = new Map<string, CheckRun>();
+    for (const run of byId.values()) {
+        const seen = latest.get(run.name);
+        if (seen === undefined || newer(run, seen)) latest.set(run.name, run);
+    }
+    let narrowed = [...latest.values()];
+    const deployRuns = narrowed.filter((run) => run.name.startsWith(DEPLOY_CHECK_PREFIX));
+    const hadDeploy = deployRuns.length > 0;
+    if (hadDeploy) narrowed = deployRuns;
+    const staleBefore = now.getTime() - STALE_RUN_HOURS * 3_600_000;
+    // -Infinity (no usable start) is never at or after the cutoff, so such an incomplete run is dropped as stale.
+    narrowed = narrowed.filter((run) => run.status === 'completed' || startOf(run) >= staleBefore);
+    return { narrowed, hadDeploy };
+}
+
 const PASSING_CONCLUSIONS: ReadonlySet<string> = new Set(['success', 'neutral', 'skipped']);
+
+/**
+ * Whether the commit had deploy runs and step 3 of `deployStateFromCheckRuns` dropped every one of them as stale: after
+ * steps 0 and 1 at least one run's name starts with `DEPLOY_CHECK_PREFIX`, and none of those is either completed or
+ * started at most `STALE_RUN_HOURS` before `now`. `deployStateFromCheckRuns` then reads `none` (the other runs are not
+ * consulted), so `planCapture` decides by rule 5; the sync warns with `formatStaleDeployWarning`, so a stuck deploy
+ * neither blocks a screenshot nor passes silently. `false` when the commit has no deploy run at all.
+ */
+export function deployRunsAllStale(runs: readonly CheckRun[], now: Date): boolean {
+    const { narrowed, hadDeploy } = narrowCheckRuns(runs, now);
+    return hadDeploy && narrowed.length === 0;
+}
 
 export interface CapturePlanInput {
     /** The commit the committed screenshot was taken at, `undefined` before the first capture. */
@@ -319,6 +350,35 @@ export function formatDeploySkipWarning(slug: string, reason: SkipReason, detail
     const message = `${slug}: screenshot not retaken: ${meaning}${detail === undefined ? '' : `: ${detail}`}`;
     // One line, and `%` encoded as the workflow-command syntax expects.
     return `::warning::${message.replace(/%/g, '%25').replace(/\s+/g, ' ').trim()}`;
+}
+
+/**
+ * The GitHub Actions warning for a project whose deploy runs were all stale (`deployRunsAllStale`), encoded like
+ * `formatDeploySkipWarning`: `::warning::<slug>: every deploy check run of the head commit is stale (unfinished for
+ * over <STALE_RUN_HOURS> hours or never started), so the screenshot is decided as if the commit had no check runs`.
+ */
+export function formatStaleDeployWarning(slug: string): string {
+    const message = `${slug}: every deploy check run of the head commit is stale (unfinished for over ${STALE_RUN_HOURS} hours or never started), so the screenshot is decided as if the commit had no check runs`;
+    return `::warning::${message.replace(/%/g, '%25').replace(/\s+/g, ' ').trim()}`;
+}
+
+/**
+ * Whether the run must exit `EXIT_ERROR` because no deploy could be read: `true` when at least one screenshot target
+ * needed its check runs (`requested`, the slugs whose decision fell through `planCaptureWithoutDeploy`) and every one
+ * of them read `unknown` (`unknown`, a subset of `requested`). One unknown among readable deploys stays a warning (per-
+ * project isolation); all of them unknown is a misconfiguration (a token without the checks permission, a changed
+ * response shape) that would otherwise skip every screenshot forever with exit 0. The other outputs are still written.
+ */
+export function deployReadFailedEverywhere(requested: readonly string[], unknown: readonly string[]): boolean {
+    return requested.length > 0 && requested.every((slug) => unknown.includes(slug));
+}
+
+/**
+ * The error line for `deployReadFailedEverywhere`, one line: `No deploy state could be read for any screenshot target
+ * that needed one (<slugs joined by ", ">): check that the token can read check runs`.
+ */
+export function formatDeployReadError(unknown: readonly string[]): string {
+    return `No deploy state could be read for any screenshot target that needed one (${unknown.join(', ')}): check that the token can read check runs`;
 }
 
 /** What happened to one project's screenshot in a run. */

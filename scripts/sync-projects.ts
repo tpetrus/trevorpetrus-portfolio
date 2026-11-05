@@ -42,7 +42,11 @@ import { readProjectFrontmatter, type ProjectFrontmatter } from '../src/lib/proj
 import { isScreenshotTarget, thumbnailFile, thumbnailFrontmatter } from '../src/lib/projects.ts';
 import {
     checkRunsApiUrl,
+    deployReadFailedEverywhere,
+    deployRunsAllStale,
     deployStateFromCheckRuns,
+    formatDeployReadError,
+    formatStaleDeployWarning,
     formatDeploySkipWarning,
     nextCheckRunsPage,
     parseCheckRunsPage,
@@ -215,6 +219,10 @@ export async function main(argv: readonly string[], deps: SyncDeps): Promise<Syn
         const reports: ProjectReport[] = [];
         const screenshots: Output[] = [];
         const failures: string[] = [];
+        // Slugs whose check runs were requested, and those among them whose read threw: when they are the same set,
+        // no deploy could be read at all and the run exits 1 after writing everything else.
+        const requested: string[] = [];
+        const unknown: string[] = [];
         let meta = oldMeta;
         for (const [index, current] of projects.entries()) {
             const { repoFacts, head } = facts[index];
@@ -240,11 +248,16 @@ export async function main(argv: readonly string[], deps: SyncDeps): Promise<Syn
                 let unknownDetail: string | undefined;
                 if (decision === undefined) {
                     let deploy: DeployState;
+                    requested.push(current.slug);
                     try {
-                        deploy = deployStateFromCheckRuns(await fetchAllCheckRuns(current.repo, head.sha, deps), now);
+                        const runs = await fetchAllCheckRuns(current.repo, head.sha, deps);
+                        deploy = deployStateFromCheckRuns(runs, now);
+                        // A stuck deploy reads as `none`; say so, or it would pass silently.
+                        if (deployRunsAllStale(runs, now)) deps.log(formatStaleDeployWarning(current.slug));
                     } catch (error) {
                         deploy = 'unknown';
                         unknownDetail = messageOf(error);
+                        unknown.push(current.slug);
                     }
                     decision = planCapture({ ...planInput, deploy });
                 }
@@ -320,7 +333,10 @@ export async function main(argv: readonly string[], deps: SyncDeps): Promise<Syn
         for (const line of failures) deps.error(line);
         deps.summary(formatSyncSummary(reports, { check: args.check }));
 
-        if (failures.length > 0) return EXIT_ERROR;
+        // Every deploy read failing is a misconfiguration (token, response shape), not one flaky project.
+        const deployUnreadable = deployReadFailedEverywhere(requested, unknown);
+        if (deployUnreadable) deps.error(formatDeployReadError(unknown));
+        if (failures.length > 0 || deployUnreadable) return EXIT_ERROR;
         return args.check && anyChange ? EXIT_WOULD_CHANGE : EXIT_OK;
     } catch (error) {
         deps.error(project ? `${project.repo}: ${messageOf(error)}` : messageOf(error));
