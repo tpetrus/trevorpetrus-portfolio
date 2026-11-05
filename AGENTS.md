@@ -272,11 +272,19 @@ changed).
 
 **The capture** (`scripts/sync-projects.ts`, decisions in `src/lib/projectSync.ts` and `src/lib/captureGuard.ts`).
 - **Keyed by commit.** Each screenshot target's meta entry records `capturedSha`, the default-branch commit its
-  screenshot was taken at. A screenshot is retaken only with `--force`, when the file is missing, or when the repo's head
-  moved past `capturedSha` and the live site is known to serve it: every check run of the head commit has passed
-  (Cloudflare's "Workers Builds" run among them), or, for a commit with no check runs, it is at least `SETTLE_HOURS` (6)
-  old. A pending or failed deploy keeps the old screenshot. So an unchanged repo never yields a new image, and `--check`
-  launches no browser then.
+  screenshot was taken at. A screenshot is retaken with `--force`, or when the file is missing or the repo's head moved
+  past `capturedSha`, and then only once the live site is known to serve the head: its deploy is green, or, for a commit
+  with no check runs, the file is missing or the commit is at least `SETTLE_HOURS` (6) old. A pending, failed or
+  unreadable deploy keeps the old screenshot (a missing one stays missing) and prints a `::warning::` naming the project,
+  which is not a failure; `--force` overrides it. So an unchanged repo never yields a new image, and `--check` launches
+  no browser then.
+- **Reading the deploy** (`deployStateFromCheckRuns`). The head commit's check runs are fetched only when the decision
+  needs them, page by page (`filter=latest`, up to `MAX_CHECK_RUN_PAGES` of 100). Of the runs sharing a name only the
+  latest counts, so a rerun replaces a failed run. When any run is named `Workers Builds...` (Cloudflare's deploy), only
+  those decide, so an unrelated failing check never blocks a screenshot; otherwise every run must pass. A run still
+  incomplete `STALE_RUN_HOURS` (24) after it started is ignored, so a stuck run cannot block a screenshot forever. A
+  check-runs request that fails affects only that project's screenshot (`deploy-unknown`). Screenshots are written
+  before `src/data/project-meta.json`, so a recorded `capturedSha` always has its image.
 - **Waits.** Fixed 1280x800 viewport at 2x, dark scheme, reduced motion, animations disabled; after the load event a
   best-effort network-idle wait bounded at 10 s (the app may stream or poll), then the project's `appSelector` must be
   visible, fonts loaded and the on-screen images complete.

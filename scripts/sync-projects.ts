@@ -43,6 +43,11 @@ import { isScreenshotTarget, thumbnailFile, thumbnailFrontmatter } from '../src/
 import {
     checkRunsApiUrl,
     deployStateFromCheckRuns,
+    formatDeploySkipWarning,
+    nextCheckRunsPage,
+    parseCheckRunsPage,
+    planCaptureWithoutDeploy,
+    type CheckRun,
     EXIT_ERROR,
     EXIT_OK,
     EXIT_WOULD_CHANGE,
@@ -154,6 +159,21 @@ async function captureAndAssess(target: CaptureTarget, deps: SyncDeps): Promise<
     }
 }
 
+// Reads every page of a commit's latest check runs. Any failure (request, shape, too many pages) rejects, and the
+// caller treats that as an unknown deploy for this project only.
+async function fetchAllCheckRuns(repo: string, sha: string, deps: SyncDeps): Promise<CheckRun[]> {
+    const runs: CheckRun[] = [];
+    let page: number | undefined = 1;
+    let pagesFetched = 0;
+    while (page !== undefined) {
+        const parsed = parseCheckRunsPage(await deps.fetchJson(checkRunsApiUrl(repo, sha, page)));
+        runs.push(...parsed.runs);
+        pagesFetched += 1;
+        page = nextCheckRunsPage(pagesFetched, parsed.runs.length, runs.length, parsed.totalCount);
+    }
+    return runs;
+}
+
 export async function main(argv: readonly string[], deps: SyncDeps): Promise<SyncExitCode> {
     let args;
     try {
@@ -169,15 +189,12 @@ export async function main(argv: readonly string[], deps: SyncDeps): Promise<Syn
         const existing = deps.readFile(META_FILE);
         const oldMeta: ProjectMeta = existing ? parseProjectMeta(JSON.parse(existing.toString('utf8'))) : {};
 
-        const facts: { repoFacts: RepoFacts; head: HeadCommit; deploy: DeployState | undefined }[] = [];
+        const facts: { repoFacts: RepoFacts; head: HeadCommit }[] = [];
         const inputs: RepoCopyInput[] = [];
         for (project of projects) {
             const repoFacts = factsFromRepo(await deps.fetchJson(repoApiUrl(project.repo)));
             const head = headFromCommits(await deps.fetchJson(commitsApiUrl(project.repo)));
-            const deploy = isScreenshotTarget(project)
-                ? deployStateFromCheckRuns(await deps.fetchJson(checkRunsApiUrl(project.repo, head.sha)))
-                : undefined;
-            facts.push({ repoFacts, head, deploy });
+            facts.push({ repoFacts, head });
             inputs.push({
                 slug: project.slug,
                 repo: project.repo,
@@ -200,7 +217,7 @@ export async function main(argv: readonly string[], deps: SyncDeps): Promise<Syn
         const failures: string[] = [];
         let meta = oldMeta;
         for (const [index, current] of projects.entries()) {
-            const { repoFacts, head, deploy } = facts[index];
+            const { repoFacts, head } = facts[index];
             const copy = validation.copy[current.slug];
             const old = oldMeta[current.slug];
             // A project keeps its recorded commit unless a capture below passes, so a skipped or failed screenshot
@@ -208,18 +225,34 @@ export async function main(argv: readonly string[], deps: SyncDeps): Promise<Syn
             let capturedSha = old?.capturedSha;
             let screenshot: ScreenshotOutcome = { kind: 'not-a-target' };
 
-            if (deploy !== undefined) {
+            if (isScreenshotTarget(current)) {
                 const output = thumbnailFile(current.slug);
-                const decision = planCapture({
+                const planInput = {
                     capturedSha,
                     head,
                     thumbnailExists: deps.readFile(output) !== undefined,
-                    deploy,
                     force: args.force,
                     now,
-                });
+                };
+                // The check runs are fetched only when the deploy can change the decision: an up-to-date or forced
+                // screenshot never asks GitHub for them. A failed read is not fatal; it skips this one screenshot.
+                let decision = planCaptureWithoutDeploy(planInput);
+                let unknownDetail: string | undefined;
+                if (decision === undefined) {
+                    let deploy: DeployState;
+                    try {
+                        deploy = deployStateFromCheckRuns(await fetchAllCheckRuns(current.repo, head.sha, deps), now);
+                    } catch (error) {
+                        deploy = 'unknown';
+                        unknownDetail = messageOf(error);
+                    }
+                    decision = planCapture({ ...planInput, deploy });
+                }
                 if (!decision.capture) {
                     screenshot = { kind: 'skipped', reason: decision.reason };
+                    // A deploy skip is a warning, not a failure: it leaves the exit code alone.
+                    const warning = formatDeploySkipWarning(current.slug, decision.reason, unknownDetail);
+                    if (warning !== undefined) deps.log(warning);
                 } else {
                     const target: CaptureTarget = {
                         ...current,
@@ -271,9 +304,10 @@ export async function main(argv: readonly string[], deps: SyncDeps): Promise<Syn
 
         // Nothing is written until every fetch, validation and capture has finished, and only when the bytes differ,
         // so unchanged output keeps its timestamp and git sees no change.
+        // The screenshots go first: the meta file records each `capturedSha`, so it must never land before its image.
         const outputs: Output[] = [
-            { path: META_FILE, data: Buffer.from(serializeProjectMeta(meta)), note: '' },
             ...screenshots,
+            { path: META_FILE, data: Buffer.from(serializeProjectMeta(meta)), note: '' },
         ];
         let anyChange = false;
         for (const { path, data, note } of outputs) {
