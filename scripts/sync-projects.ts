@@ -388,7 +388,7 @@ function readIfPresent(path: string): Buffer | undefined {
     }
 }
 
-async function fetchGitHub(url: string): Promise<unknown> {
+export async function fetchGitHub(url: string): Promise<unknown> {
     const token = process.env.GITHUB_TOKEN;
     const response = await fetch(url, {
         headers: {
@@ -399,6 +399,9 @@ async function fetchGitHub(url: string): Promise<unknown> {
         signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
     if (!response.ok) {
+        // The error body is never read, so cancel it to release the connection at once. A failed cancel must not hide the
+        // HTTP error below, which callers classify by its status.
+        await response.body?.cancel().catch(() => undefined);
         // A rate limit looks like a plain 403 or 429; these headers tell the two apart and say when it lifts.
         const remaining = response.headers.get('x-ratelimit-remaining');
         const reset = response.headers.get('x-ratelimit-reset');
