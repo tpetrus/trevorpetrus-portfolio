@@ -318,14 +318,18 @@ changed).
     decision D12). It runs no npm script and no browser, and its `GITHUB_TOKEN` has no permissions: it works with a
     token of the version-bot GitHub App (contents and pull requests write). It first checks that the repository allows
     auto-merge and that the `main` rules require `ci / result`, `pr-checks / pr-title` and `pr-checks / version`, and
-    fails, naming what is missing, before any write. It accepts only `data/project-meta.json` and
-    `assets/projects/<slug>.avif` from the artifact (regular files, at most 2 MB, valid JSON), copies them onto the
-    commit the sync ran on and then (contract C4):
-    - outputs equal to that commit and the sync exited 0: closes the open bot PR and deletes `bot/sync-projects`;
+    fails, naming what is missing, before any write. If `main` moved after the run started, it publishes nothing
+    (the next run starts from fresh data). It treats the artifact as untrusted data and accepts at most 50 regular
+    files of at most 2,000,000 bytes: `data/project-meta.json`, one JSON object with exactly one entry per
+    `src/content/projects/*.md` slug in the meta schema's shape (length-capped), and `assets/projects/<slug>.avif` for
+    a known slug with the AVIF signature. It copies them onto the commit the sync ran on and then (contract C4):
+    - outputs equal to that commit and the sync exited 0: closes the open bot PR and deletes `bot/sync-projects`
+      (kept when someone else's PR uses the branch); an exit-1 run with no change leaves an open bot PR alone;
     - outputs changed: commits `chore(projects): refresh project data` (`SYNC_COMMIT_TITLE`) as the App's bot user on a
       fresh `bot/sync-projects` and pushes it only if the branch is still at the commit it read (`--force-with-lease`),
-      so a commit it never saw is never overwritten; when the branch already holds the same outputs it is not pushed
-      at all, so its checks and the version bot's commit stay;
+      so a commit it never saw is never overwritten; when the branch already holds the same outputs and is based on
+      current `main`, it is not pushed at all, so its checks stay (a branch on an older `main` is rebuilt, or its
+      version check would stay red);
     - sets the version in that same commit (the patch bump the `chore` title calls for, through the pinned
       `tpetrus/ci-workflows` release CLI): the version bot ignores events its own App sends, so it never bumps this PR;
     - opens the one bot PR (or keeps it) and enables squash auto-merge, so GitHub merges it when the required checks
@@ -333,6 +337,7 @@ changed).
       closes or auto-merges a PR from this repository's own `bot/sync-projects` that the App opened, never a fork's
       branch of the same name.
     - A bot PR open for more than 48 hours fails the job, so a PR stuck on red checks is not silent.
+    - A bot PR closed by hand comes back with the next run that has changes; to stop the bot, disable the workflow.
 
 The AudioVisualizer screenshot shows the landing view with its visualizer previews (v0.3.0 no longer opens the "Audio
 source" dialog that v0.2.7 showed). Look at a new screenshot before committing it. **Nothing checks external links**: CI's lychee runs `--offline` against `dist/`, so subdomain and github.com
@@ -622,8 +627,9 @@ exits. To replace the generated notes, add `.github/release-notes/v<version>.md`
    `RELEASE_APP_PRIVATE_KEY`, in both Settings -> Secrets -> Actions and Settings -> Secrets -> Dependabot. (The App and secrets exist, since
    `version-bump / bump-pr` passes; the Issues permission is the part to confirm.)
 3. In the `main` ruleset, require `ci / result`, `pr-checks / pr-title` and `pr-checks / version` (the observed names;
-   add the `security /` and `codeql /` checks if wanted) and require branches to be up to date before merging. Not
-   confirmed done.
+   add the `security /` and `codeql /` checks if wanted). Done: the "protect main" ruleset requires those three, the
+   `security /` and both `codeql /` checks, without the up-to-date rule. Settings -> General -> "Allow auto-merge" is
+   on too; the sync's publish job checks both before it writes.
 4. Connect the repository to Cloudflare Workers Builds for the Worker `trevorpetrus-portfolio` (done; production branch
    `main`, build command `npm run build`; the deploy and preview commands are Cloudflare's defaults, `wrangler deploy`
    and `wrangler preview`).
