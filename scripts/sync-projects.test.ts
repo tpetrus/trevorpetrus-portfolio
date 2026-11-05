@@ -6,10 +6,10 @@ import {
     EXIT_OK,
     EXIT_WOULD_CHANGE,
     formatDeployReadError,
+    formatStaleDeployWarning,
     GITHUB_RETRY_DELAY_MS,
     GitHubHttpError,
     isTransientGitHubError,
-    formatStaleDeployWarning,
 } from '../src/lib/projectSync';
 import { encodeAvif, fetchGitHub, main, type Capture, type Project, type SyncDeps } from './sync-projects';
 
