@@ -245,16 +245,16 @@ jobs:
           result="no-op"
           number=$(gh pr list --head "$SYNC_BRANCH" --base main --state open --json number --jq '.[0].number // empty')
           if [ -n "$number" ]; then
-            gh pr close "$number" --delete-branch \
+            # The branch is deleted below with git, not with `gh pr close --delete-branch`, which also tries to delete
+            # a local branch that this detached checkout does not have.
+            gh pr close "$number" \
               --comment "main already has this data, so this pull request is not needed. Closed by $RUN_URL."
-            result="closed pull request #$number and deleted the branch"
+            result="closed pull request #$number"
           fi
           # A branch can exist without an open PR (a closed one, or a failed run between the push and the PR).
           if [ -n "$(git ls-remote origin "refs/heads/$SYNC_BRANCH")" ]; then
             git push origin --delete "$SYNC_BRANCH"
-            if [ "$result" = "no-op" ]; then
-              result="deleted the branch $SYNC_BRANCH (no open pull request)"
-            fi
+            result="$result; deleted the branch $SYNC_BRANCH"
           fi
           echo "Publish: main already has the data. $result." >> "$GITHUB_STEP_SUMMARY"
 
