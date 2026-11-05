@@ -278,8 +278,8 @@ changed).
   once on purpose, even when the deploy may not be registered yet: a card with a slightly old image beats a card with
   none, and the next head commit retakes it.) A pending, failed or unreadable deploy keeps the old screenshot (a missing
   one stays missing) and prints a `::warning::` naming the project, which is not a failure; `--force` overrides it. When
-  no target's deploy could be read at all (every check-runs request failed, as with a token that cannot read check
-  runs), the run exits 1 after writing the other outputs, so the misconfiguration cannot skip every screenshot
+  every target that needed its check runs could not read them (a request, the response shape or the page limit, as
+  with a token that cannot read check runs), the run exits 1 after writing the other outputs, so the misconfiguration cannot skip every screenshot
   silently. So an unchanged repo never yields a new image, and `--check` launches
   no browser then.
 - **Reading the deploy** (`deployStateFromCheckRuns`). The head commit's check runs are fetched only when the decision
@@ -289,7 +289,10 @@ changed).
   failing check never blocks a screenshot; otherwise every run must pass. A run still incomplete `STALE_RUN_HOURS` (24)
   after it started is ignored, so a stuck run cannot block a screenshot forever; when that leaves none of the deploy
   runs, the commit is treated as having no check runs and the sync prints a `::warning::` naming the project. A
-  check-runs request that fails affects only that project's screenshot (`deploy-unknown`). Screenshots are written
+  check-runs request that fails affects only that project's screenshot (`deploy-unknown`). Every GitHub request of the
+  sync (repo, commits, check runs) is retried once, after 2 s, when it failed for a reason that may pass: a 5xx
+  answer, a network failure or the request timeout (`isTransientGitHubError`). A 4xx (auth, permission, rate limit), a
+  response of the wrong shape or the page limit fails at once, so a misconfigured token still exits 1. Screenshots are written
   before `src/data/project-meta.json`, so a recorded `capturedSha` always has its image.
 - **Waits.** Fixed 1280x800 viewport at 2x, dark scheme, reduced motion, animations disabled; after the load event a
   best-effort network-idle wait bounded at 10 s (the app may stream or poll), then the project's `appSelector` must be

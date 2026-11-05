@@ -100,8 +100,13 @@ export interface Capture {
 /** Everything `main` does to the outside world (frozen in S2). */
 export interface SyncDeps {
     listProjects(): Project[];
-    /** GET with the GitHub headers; rejects on a non-2xx answer or after the request timeout. */
+    /**
+     * GET with the GitHub headers; rejects with a `GitHubHttpError` on a non-2xx answer and with the `fetch` error on a
+     * network failure or the request timeout. `main` retries a transient failure once (`isTransientGitHubError`).
+     */
     fetchJson(url: string): Promise<unknown>;
+    /** Resolves after `ms` milliseconds (the wait before a retry; instant in the tests). */
+    sleep(ms: number): Promise<void>;
     /** The file's bytes, or `undefined` when it does not exist. */
     readFile(path: string): Buffer | undefined;
     writeFile(path: string, data: Buffer): void;
