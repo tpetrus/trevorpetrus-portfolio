@@ -326,8 +326,12 @@ changed).
       fresh `bot/sync-projects` and pushes it only if the branch is still at the commit it read (`--force-with-lease`),
       so a commit it never saw is never overwritten; when the branch already holds the same outputs it is not pushed
       at all, so its checks and the version bot's commit stay;
+    - sets the version in that same commit (the patch bump the `chore` title calls for, through the pinned
+      `tpetrus/ci-workflows` release CLI): the version bot ignores events its own App sends, so it never bumps this PR;
     - opens the one bot PR (or keeps it) and enables squash auto-merge, so GitHub merges it when the required checks
-      pass and leaves it open when one fails. The squash title is what `headFromCommits` skips.
+      pass and leaves it open when one fails. The squash title is what `headFromCommits` skips. It only ever looks up,
+      closes or auto-merges a PR from this repository's own `bot/sync-projects` that the App opened, never a fork's
+      branch of the same name.
     - A bot PR open for more than 48 hours fails the job, so a PR stuck on red checks is not silent.
 
 The AudioVisualizer screenshot shows the landing view with its visualizer previews (v0.3.0 no longer opens the "Audio
