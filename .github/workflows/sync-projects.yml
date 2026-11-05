@@ -18,9 +18,13 @@ name: Sync projects
 # nothing. Its checkout keeps no credential: the token is handed to each git command that talks to GitHub, so the
 # release CLI that runs in the job cannot read it from the git config.
 #
-# Run it from the Actions tab (workflow_dispatch), optionally with `force` to recapture every screenshot. A schedule
-# comes in a later change. Download the `project-sync` artifact to look at what a run produced.
+# It runs every day at 06:00 UTC, after the daily production smoke run, and from the Actions tab (workflow_dispatch),
+# optionally with `force` to recapture every screenshot (a scheduled run never forces). Download the `project-sync`
+# artifact to look at what a run produced. To stop the bot, disable the workflow in the Actions tab.
 on:
+  # GitHub may start a scheduled run some minutes late; nothing here depends on the exact time.
+  schedule:
+    - cron: '0 6 * * *'
   workflow_dispatch:
     inputs:
       force:
