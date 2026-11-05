@@ -227,6 +227,10 @@ describe('isTransientGitHubError', () => {
         ['a TypeError', new TypeError('fetch failed')],
         ['a TimeoutError', named('TimeoutError')],
         ['an AbortError', named('AbortError')],
+        ['a TimeoutError DOMException', new DOMException('x', 'TimeoutError')],
+        ['an AbortError DOMException', new DOMException('x', 'AbortError')],
+        // An already aborted signal's reason is an AbortError DOMException, deterministically (no timer to wait for).
+        ['the reason of an aborted signal', AbortSignal.abort().reason],
     ])('retries %s', (_name, error) => {
         expect(isTransientGitHubError(error)).toBe(true);
     });

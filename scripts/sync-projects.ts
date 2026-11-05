@@ -43,34 +43,34 @@ import {
 import { readProjectFrontmatter, type ProjectFrontmatter } from '../src/lib/projectSource.ts';
 import { isScreenshotTarget, thumbnailFile, thumbnailFrontmatter } from '../src/lib/projects.ts';
 import {
+    type CheckRun,
     checkRunsApiUrl,
     deployReadFailedEverywhere,
     deployRunsAllStale,
+    type DeployState,
     deployStateFromCheckRuns,
-    formatDeployReadError,
-    formatStaleDeployWarning,
-    formatDeploySkipWarning,
-    nextCheckRunsPage,
-    parseCheckRunsPage,
-    planCaptureWithoutDeploy,
-    type CheckRun,
     EXIT_ERROR,
     EXIT_OK,
-    GITHUB_RETRY_DELAY_MS,
-    GitHubHttpError,
-    isTransientGitHubError,
     EXIT_WOULD_CHANGE,
     formatCaptureFailure,
     formatCopyError,
+    formatDeployReadError,
+    formatDeploySkipWarning,
+    formatStaleDeployWarning,
     formatSyncSummary,
+    GITHUB_RETRY_DELAY_MS,
+    GitHubHttpError,
+    isTransientGitHubError,
+    nextCheckRunsPage,
+    parseCheckRunsPage,
     parseSyncArgs,
     planCapture,
-    validateCopy,
-    type DeployState,
+    planCaptureWithoutDeploy,
     type ProjectReport,
     type RepoCopyInput,
     type ScreenshotOutcome,
     type SyncExitCode,
+    validateCopy,
 } from '../src/lib/projectSync.ts';
 
 const PROJECTS_DIRECTORY = 'src/content/projects';
@@ -388,7 +388,7 @@ function readIfPresent(path: string): Buffer | undefined {
     }
 }
 
-async function fetchGitHub(url: string): Promise<unknown> {
+export async function fetchGitHub(url: string): Promise<unknown> {
     const token = process.env.GITHUB_TOKEN;
     const response = await fetch(url, {
         headers: {
@@ -399,6 +399,9 @@ async function fetchGitHub(url: string): Promise<unknown> {
         signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
     if (!response.ok) {
+        // The error body is never read, so cancel it to release the connection at once. A failed cancel must not hide the
+        // HTTP error below, which callers classify by its status.
+        await response.body?.cancel().catch(() => undefined);
         // A rate limit looks like a plain 403 or 429; these headers tell the two apart and say when it lifts.
         const remaining = response.headers.get('x-ratelimit-remaining');
         const reset = response.headers.get('x-ratelimit-reset');

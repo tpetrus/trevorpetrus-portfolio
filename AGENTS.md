@@ -310,7 +310,9 @@ changed).
   dates changed and what happened to the screenshot (skipped and why, captured and why, or failed with the reasons).
 - **`.github/workflows/sync-projects.yml`** runs daily at 06:23 UTC (after the 06:17 production smoke run, off the busy top of the hour) and by hand
   (workflow_dispatch, optional `force` input; a scheduled run never forces). It has two jobs. Rollback: disable the workflow in the Actions
-  tab; `npm run sync:projects` keeps working by hand.
+  tab; `npm run sync:projects` keeps working by hand. GitHub turns off the schedules of a public repository after 60
+  days without repository activity and emails the owner; if the daily sync (or "Smoke (production)") stops running,
+  re-enable it in the Actions tab.
   - **`sync`** runs the sync on ubuntu-latest with a read-only `GITHUB_TOKEN` (every project repo is public), persists
     no credential, always uploads `src/data/project-meta.json` and the screenshots as the `project-sync` artifact, and
     fails after the upload when the sync exited non-zero, so a failure emails the owner.

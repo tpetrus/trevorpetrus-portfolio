@@ -1,16 +1,17 @@
 import sharp from 'sharp';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import {
     EXIT_ERROR,
     EXIT_OK,
     EXIT_WOULD_CHANGE,
     formatDeployReadError,
+    formatStaleDeployWarning,
     GITHUB_RETRY_DELAY_MS,
     GitHubHttpError,
-    formatStaleDeployWarning,
+    isTransientGitHubError,
 } from '../src/lib/projectSync';
-import { encodeAvif, main, type Capture, type Project, type SyncDeps } from './sync-projects';
+import { encodeAvif, fetchGitHub, main, type Capture, type Project, type SyncDeps } from './sync-projects';
 
 const SHA = 'b'.repeat(40);
 const OLD_SHA = 'c'.repeat(40);
@@ -959,5 +960,77 @@ describe('encodeAvif', () => {
             .png()
             .toBuffer();
         expect((await sharp(await encodeAvif(small)).metadata()).format).toBe('heif');
+    });
+});
+
+describe('fetchGitHub', () => {
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.unstubAllEnvs();
+    });
+
+    const answer = (status: number, statusText: string, headers: Record<string, string> = {}) => {
+        const cancel = vi.fn(() => Promise.resolve());
+        const body = new ReadableStream({ cancel });
+        return { response: new Response(body, { status, statusText, headers }), cancel };
+    };
+    const stubFetch = (response: Response) => {
+        const fetchMock = vi.fn(() => Promise.resolve(response));
+        vi.stubGlobal('fetch', fetchMock);
+        return fetchMock;
+    };
+
+    it('rejects a 502 with a GitHubHttpError and cancels the body', async () => {
+        const { response, cancel } = answer(502, 'Bad Gateway');
+        stubFetch(response);
+        const error = await fetchGitHub('https://api.github.com/x').catch((e: unknown) => e);
+        expect(error).toBeInstanceOf(GitHubHttpError);
+        expect((error as GitHubHttpError).status).toBe(502);
+        expect((error as Error).message).toBe('GitHub API answered 502 Bad Gateway for https://api.github.com/x');
+        expect(cancel).toHaveBeenCalledTimes(1);
+    });
+
+    it('puts the rate-limit headers in the message of a 403', async () => {
+        const { response } = answer(403, 'Forbidden', {
+            'x-ratelimit-remaining': '0',
+            'x-ratelimit-reset': '1700000000',
+        });
+        stubFetch(response);
+        const error = await fetchGitHub('https://api.github.com/y').catch((e: unknown) => e);
+        expect(error).toBeInstanceOf(GitHubHttpError);
+        expect((error as GitHubHttpError).status).toBe(403);
+        expect((error as Error).message).toBe(
+            'GitHub API answered 403 Forbidden for https://api.github.com/y (x-ratelimit-remaining 0, x-ratelimit-reset 1700000000)',
+        );
+    });
+
+    it('returns the parsed JSON of a 200', async () => {
+        stubFetch(Response.json({ ok: 1 }));
+        await expect(fetchGitHub('https://api.github.com/z')).resolves.toEqual({ ok: 1 });
+    });
+
+    it('sends the Authorization header only when GITHUB_TOKEN is set', async () => {
+        vi.stubEnv('GITHUB_TOKEN', 'tok');
+        const withToken = stubFetch(Response.json({}));
+        await fetchGitHub('https://api.github.com/a');
+        const sent = (withToken.mock.calls[0] as unknown as [string, RequestInit])[1].headers as Record<string, string>;
+        expect(sent.Authorization).toBe('Bearer tok');
+
+        vi.stubEnv('GITHUB_TOKEN', '');
+        const without = stubFetch(Response.json({}));
+        await fetchGitHub('https://api.github.com/b');
+        const bare = (without.mock.calls[0] as unknown as [string, RequestInit])[1].headers as Record<string, string>;
+        expect('Authorization' in bare).toBe(false);
+    });
+
+    it('lets a timeout propagate as an error the retry logic accepts', async () => {
+        const reason = new DOMException('timed out', 'TimeoutError');
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(() => Promise.reject(reason)),
+        );
+        const error = await fetchGitHub('https://api.github.com/t').catch((e: unknown) => e);
+        expect(error).toBe(reason);
+        expect(isTransientGitHubError(error)).toBe(true);
     });
 });
