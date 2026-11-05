@@ -1,7 +1,13 @@
 import sharp from 'sharp';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { EXIT_ERROR, EXIT_OK, EXIT_WOULD_CHANGE } from '../src/lib/projectSync';
+import {
+    EXIT_ERROR,
+    EXIT_OK,
+    EXIT_WOULD_CHANGE,
+    formatDeployReadError,
+    formatStaleDeployWarning,
+} from '../src/lib/projectSync';
 import { encodeAvif, main, type Capture, type Project, type SyncDeps } from './sync-projects';
 
 const SHA = 'b'.repeat(40);
@@ -449,6 +455,140 @@ describe('main', () => {
                     expect(run.writes).toEqual(['src/assets/projects/app2.avif', META]);
                     expect(metaOf(run.files).app.capturedSha).toBe(OLD_SHA);
                     expect(metaOf(run.files).app2.capturedSha).toBe(SHA);
+                },
+                60_000,
+            );
+        });
+
+        describe('the deploy runs are stale', () => {
+            it('decides by the no-check-runs rule and warns once', async () => {
+                const stuck = {
+                    total_count: 1,
+                    check_runs: [{ ...checkRun('in_progress', null), started_at: '2026-10-01T00:00:00Z' }],
+                };
+                const run = setup({
+                    projects: [live],
+                    files: existingFiles(),
+                    checkRuns: stuck,
+                    now: '2026-10-06T13:00:00Z',
+                });
+                expect(await main([], run.deps)).toBe(EXIT_OK);
+                expect(run.captures).toHaveLength(1);
+                expect(run.summaries[0]).toContain('captured (new-commit)');
+                const warnings = run.logs.filter((line) => line.startsWith('::warning::'));
+                expect(warnings).toEqual([formatStaleDeployWarning('app')]);
+            }, 60_000);
+        });
+
+        describe('when no deploy can be read for any target', () => {
+            const second: Project = {
+                ...live,
+                slug: 'app2',
+                subdomain: 'app2',
+                repo: 'https://github.com/tpetrus/app2',
+            };
+
+            it('exits 1 after writing the other outputs', async () => {
+                const run = setup({ projects: [live], files: existingFiles(), failUrl: checkRunsUrl(1) });
+                expect(await main([], run.deps)).toBe(EXIT_ERROR);
+                expect(run.writes).toEqual([META]);
+                expect(run.errors).toEqual([formatDeployReadError(['app'])]);
+                expect(run.summaries).toHaveLength(1);
+            });
+
+            it('lets --check report the error ahead of would-change', async () => {
+                const run = setup({ projects: [live], files: existingFiles(), failUrl: checkRunsUrl(1) });
+                expect(await main(['--check'], run.deps)).toBe(EXIT_ERROR);
+                expect(run.writes).toEqual([]);
+                expect(run.logs).toContain(`${META}: would change`);
+            });
+
+            it('names every target when all of them fail', async () => {
+                const run = setup({
+                    projects: [live, second],
+                    files: { ...existingFiles(), ...secondFiles() },
+                    checkRuns: () => {
+                        throw new Error('boom');
+                    },
+                });
+                expect(await main([], run.deps)).toBe(EXIT_ERROR);
+                expect(run.errors).toEqual([formatDeployReadError(['app', 'app2'])]);
+            });
+
+            it('stays a warning when another target read fine, and --check still exits 2', async () => {
+                const make = () => {
+                    const run = setup({
+                        projects: [live, second],
+                        files: { ...existingFiles(), ...secondFiles() },
+                        failUrl: checkRunsUrl(1),
+                    });
+                    const inner = run.deps.fetchJson.bind(run.deps);
+                    run.deps.fetchJson = (url) =>
+                        url.includes('/tpetrus/app2/') && url.includes('/check-runs')
+                            ? Promise.resolve(green)
+                            : inner(url);
+                    return run;
+                };
+                const real = make();
+                expect(await main([], real.deps)).toBe(EXIT_OK);
+                expect(real.errors).toEqual([]);
+                const check = make();
+                expect(await main(['--check'], check.deps)).toBe(EXIT_WOULD_CHANGE);
+                expect(check.errors).toEqual([]);
+            }, 60_000);
+
+            it('does not fail when no target needed its check runs', async () => {
+                const files = {
+                    [META]: Buffer.from(
+                        JSON.stringify({
+                            app: entry({ capturedSha: SHA }),
+                            app2: entry({ capturedSha: SHA }),
+                        }),
+                    ),
+                    [AVIF]: Buffer.from('old image'),
+                    'src/assets/projects/app2.avif': Buffer.from('old image'),
+                };
+                const run = setup({ projects: [live, second], files, failUrl: checkRunsUrl(1) });
+                expect(await main([], run.deps)).toBe(EXIT_OK);
+                expect(run.fetched.some((url) => url.includes('/check-runs'))).toBe(false);
+                expect(run.errors).toEqual([]);
+            });
+        });
+
+        describe('check-run pagination edges', () => {
+            const many = (from: number, count: number) =>
+                Array.from({ length: count }, (_, index) => checkRun('completed', 'success', from + index));
+            const pagesOf = (pages: Record<string, unknown>) => (url: string) => pages[url.slice(-6)];
+
+            it.each([
+                [
+                    'total_count grows between pages',
+                    {
+                        'page=1': { total_count: 150, check_runs: many(1, 100) },
+                        'page=2': { total_count: 250, check_runs: many(101, 50) },
+                    },
+                ],
+                [
+                    'total_count shrinks between pages',
+                    {
+                        'page=1': { total_count: 200, check_runs: many(1, 100) },
+                        'page=2': { total_count: 100, check_runs: many(101, 100) },
+                    },
+                ],
+                [
+                    'an empty page arrives while runs are still missing',
+                    {
+                        'page=1': { total_count: 300, check_runs: many(1, 100) },
+                        'page=2': { total_count: 300, check_runs: [] },
+                    },
+                ],
+            ])(
+                'terminates when %s',
+                async (_name, pages) => {
+                    const run = setup({ projects: [live], files: existingFiles(), checkRuns: pagesOf(pages) });
+                    expect(await main([], run.deps)).toBe(EXIT_OK);
+                    expect(run.fetched.filter((url) => url.includes('/check-runs'))).toHaveLength(2);
+                    expect(run.summaries[0]).toContain('captured (new-commit)');
                 },
                 60_000,
             );

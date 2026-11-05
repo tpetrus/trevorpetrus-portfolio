@@ -226,27 +226,40 @@ export function nextCheckRunsPage(
  * then `none`, `failed`, `pending` or `green` as `DeployState` describes. Never returns `unknown`.
  */
 export function deployStateFromCheckRuns(runs: readonly CheckRun[], now: Date): DeployState {
-    // A null start is older than any date; the greater id wins a tie.
-    const startOf = (run: CheckRun): number => (run.startedAt === null ? -Infinity : Date.parse(run.startedAt));
+    const { narrowed } = narrowCheckRuns(runs, now);
+    if (narrowed.length === 0) return 'none';
+    const completed = narrowed.filter((run) => run.status === 'completed');
+    if (completed.some((run) => !PASSING_CONCLUSIONS.has(run.conclusion ?? ''))) return 'failed';
+    return completed.length < narrowed.length ? 'pending' : 'green';
+}
+
+// Steps 0 to 3 of `deployStateFromCheckRuns`, shared with `deployRunsAllStale` so the two can never disagree about which
+// runs count. `hadDeploy` is whether step 2 found a deploy run, before step 3 removed stale ones.
+function narrowCheckRuns(runs: readonly CheckRun[], now: Date): { narrowed: CheckRun[]; hadDeploy: boolean } {
+    // A page boundary can move while the pages are read, listing one run twice; the first copy stands.
+    const byId = new Map<number, CheckRun>();
+    for (const run of runs) if (!byId.has(run.id)) byId.set(run.id, run);
+
+    // A null or unreadable start is older than any date, so arrival order never decides; the greater id wins a tie.
+    const startOf = (run: CheckRun): number => {
+        const time = run.startedAt === null ? Number.NaN : Date.parse(run.startedAt);
+        return Number.isNaN(time) ? -Infinity : time;
+    };
     const newer = (a: CheckRun, b: CheckRun): boolean =>
         startOf(a) > startOf(b) || (startOf(a) === startOf(b) && a.id > b.id);
     const latest = new Map<string, CheckRun>();
-    for (const run of runs) {
+    for (const run of byId.values()) {
         const seen = latest.get(run.name);
         if (seen === undefined || newer(run, seen)) latest.set(run.name, run);
     }
     let narrowed = [...latest.values()];
     const deployRuns = narrowed.filter((run) => run.name.startsWith(DEPLOY_CHECK_PREFIX));
-    if (deployRuns.length > 0) narrowed = deployRuns;
+    const hadDeploy = deployRuns.length > 0;
+    if (hadDeploy) narrowed = deployRuns;
     const staleBefore = now.getTime() - STALE_RUN_HOURS * 3_600_000;
-    narrowed = narrowed.filter(
-        (run) => run.status === 'completed' || (run.startedAt !== null && startOf(run) >= staleBefore),
-    );
-
-    if (narrowed.length === 0) return 'none';
-    const completed = narrowed.filter((run) => run.status === 'completed');
-    if (completed.some((run) => !PASSING_CONCLUSIONS.has(run.conclusion ?? ''))) return 'failed';
-    return completed.length < narrowed.length ? 'pending' : 'green';
+    // -Infinity (no usable start) is never at or after the cutoff, so such an incomplete run is dropped as stale.
+    narrowed = narrowed.filter((run) => run.status === 'completed' || startOf(run) >= staleBefore);
+    return { narrowed, hadDeploy };
 }
 
 const PASSING_CONCLUSIONS: ReadonlySet<string> = new Set(['success', 'neutral', 'skipped']);
@@ -259,7 +272,8 @@ const PASSING_CONCLUSIONS: ReadonlySet<string> = new Set(['success', 'neutral', 
  * neither blocks a screenshot nor passes silently. `false` when the commit has no deploy run at all.
  */
 export function deployRunsAllStale(runs: readonly CheckRun[], now: Date): boolean {
-    throw new Error(`S4: not implemented ${runs.length} ${now.toISOString()}`);
+    const { narrowed, hadDeploy } = narrowCheckRuns(runs, now);
+    return hadDeploy && narrowed.length === 0;
 }
 
 export interface CapturePlanInput {
@@ -344,7 +358,8 @@ export function formatDeploySkipWarning(slug: string, reason: SkipReason, detail
  * over <STALE_RUN_HOURS> hours or never started), so the screenshot is decided as if the commit had no check runs`.
  */
 export function formatStaleDeployWarning(slug: string): string {
-    throw new Error(`S4: not implemented ${slug} ${STALE_RUN_HOURS}`);
+    const message = `${slug}: every deploy check run of the head commit is stale (unfinished for over ${STALE_RUN_HOURS} hours or never started), so the screenshot is decided as if the commit had no check runs`;
+    return `::warning::${message.replace(/%/g, '%25').replace(/\s+/g, ' ').trim()}`;
 }
 
 /**
@@ -355,7 +370,7 @@ export function formatStaleDeployWarning(slug: string): string {
  * response shape) that would otherwise skip every screenshot forever with exit 0. The other outputs are still written.
  */
 export function deployReadFailedEverywhere(requested: readonly string[], unknown: readonly string[]): boolean {
-    throw new Error(`S4: not implemented ${requested.length} ${unknown.length}`);
+    return requested.length > 0 && requested.every((slug) => unknown.includes(slug));
 }
 
 /**
@@ -363,7 +378,7 @@ export function deployReadFailedEverywhere(requested: readonly string[], unknown
  * that needed one (<slugs joined by ", ">): check that the token can read check runs`.
  */
 export function formatDeployReadError(unknown: readonly string[]): string {
-    throw new Error(`S4: not implemented ${unknown.join(', ')}`);
+    return `No deploy state could be read for any screenshot target that needed one (${unknown.join(', ')}): check that the token can read check runs`;
 }
 
 /** What happened to one project's screenshot in a run. */

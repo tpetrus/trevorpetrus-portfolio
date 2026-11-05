@@ -3,7 +3,11 @@ import { describe, expect, it } from 'vitest';
 import {
     checkRunsApiUrl,
     DEPLOY_CHECK_PREFIX,
+    deployReadFailedEverywhere,
+    deployRunsAllStale,
     deployStateFromCheckRuns,
+    formatDeployReadError,
+    formatStaleDeployWarning,
     formatCaptureFailure,
     formatCopyError,
     formatDeploySkipWarning,
@@ -328,6 +332,107 @@ describe('deployStateFromCheckRuns', () => {
     it('keeps an old completed run', () => {
         expect(state(run({ conclusion: 'failure', startedAt: ago(500) }))).toBe('failed');
         expect(state(run({ conclusion: 'failure', startedAt: null }))).toBe('failed');
+    });
+
+    it('treats an unreadable startedAt as older than any date, whatever the order', () => {
+        const dated = run({ conclusion: 'success', startedAt: ago(30) });
+        const garbled = run({ conclusion: 'failure', startedAt: 'not a date' });
+        expect(state(dated, garbled)).toBe('green');
+        expect(state(garbled, dated)).toBe('green');
+    });
+
+    it('drops an incomplete run whose start cannot be read as stale', () => {
+        expect(state(run({ status: 'queued', conclusion: null, startedAt: 'not a date' }))).toBe('none');
+    });
+
+    it('counts a run listed twice once', () => {
+        const failed = run({ id: 7, conclusion: 'failure', startedAt: ago(3) });
+        const rerun = run({ id: 8, conclusion: 'success', startedAt: ago(2) });
+        expect(state(failed, rerun, failed)).toBe('green');
+        expect(state(rerun, failed, { ...failed })).toBe('green');
+    });
+
+    it('lets a deploy run of any worker decide, not only this one', () => {
+        expect(state(run({ name: 'Workers Builds: some-other-worker', conclusion: 'failure' }), run())).toBe('failed');
+    });
+});
+
+describe('deployRunsAllStale', () => {
+    const NOW = new Date('2026-10-05T12:00:00Z');
+    const ago = (hours: number) => new Date(NOW.getTime() - hours * 3_600_000).toISOString();
+    let nextId = 1000;
+    const deploy = (over: Partial<CheckRun> = {}): CheckRun => ({
+        id: nextId++,
+        name: 'Workers Builds: site',
+        status: 'in_progress',
+        conclusion: null,
+        startedAt: ago(48),
+        ...over,
+    });
+    const stale = (...runs: CheckRun[]) => deployRunsAllStale(runs, NOW);
+
+    it('is false without deploy runs, whatever else is stale', () => {
+        expect(stale()).toBe(false);
+        expect(stale(deploy({ name: 'lint' }))).toBe(false);
+    });
+
+    it('is true when every deploy run is incomplete and stale or never started', () => {
+        expect(stale(deploy())).toBe(true);
+        expect(stale(deploy(), deploy({ name: 'Workers Builds: other', startedAt: null }))).toBe(true);
+        expect(stale(deploy({ startedAt: 'not a date' }))).toBe(true);
+    });
+
+    it('is false when a deploy run is completed or fresh', () => {
+        const finished = deploy({ name: 'Workers Builds: b', status: 'completed', conclusion: 'failure' });
+        expect(stale(deploy(), finished)).toBe(false);
+        expect(stale(deploy(), deploy({ name: 'Workers Builds: b', startedAt: ago(1) }))).toBe(false);
+        expect(stale(deploy({ startedAt: ago(24) }))).toBe(false);
+    });
+
+    it('ignores runs that are not deploys', () => {
+        expect(stale(deploy(), deploy({ name: 'lint', status: 'completed', conclusion: 'success' }))).toBe(true);
+    });
+
+    it('looks at the latest run of a name only', () => {
+        const old = deploy({ conclusion: 'failure', status: 'completed', startedAt: ago(50) });
+        expect(stale(old, deploy({ startedAt: ago(30) }))).toBe(true);
+        expect(stale(deploy({ startedAt: ago(30) }), old)).toBe(true);
+    });
+});
+
+describe('formatStaleDeployWarning', () => {
+    it('words the warning with the stale limit', () => {
+        expect(formatStaleDeployWarning('app')).toBe(
+            `::warning::app: every deploy check run of the head commit is stale (unfinished for over ${STALE_RUN_HOURS} hours or never started), so the screenshot is decided as if the commit had no check runs`,
+        );
+    });
+
+    it('collapses whitespace and encodes percent signs in the slug', () => {
+        expect(formatStaleDeployWarning('a\n b%')).toMatch(/^::warning::a b%25: every deploy/);
+    });
+});
+
+describe('deployReadFailedEverywhere', () => {
+    it('is false when nothing needed a deploy', () => {
+        expect(deployReadFailedEverywhere([], [])).toBe(false);
+    });
+
+    it('is true when every requested read failed', () => {
+        expect(deployReadFailedEverywhere(['a'], ['a'])).toBe(true);
+        expect(deployReadFailedEverywhere(['a', 'b'], ['b', 'a'])).toBe(true);
+    });
+
+    it('is false when any requested read succeeded', () => {
+        expect(deployReadFailedEverywhere(['a', 'b'], ['a'])).toBe(false);
+        expect(deployReadFailedEverywhere(['a'], [])).toBe(false);
+    });
+});
+
+describe('formatDeployReadError', () => {
+    it('names the slugs on one line', () => {
+        expect(formatDeployReadError(['a', 'b'])).toBe(
+            'No deploy state could be read for any screenshot target that needed one (a, b): check that the token can read check runs',
+        );
     });
 });
 
