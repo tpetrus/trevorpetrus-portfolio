@@ -1,5 +1,7 @@
 // The pure core of `npm run sync:projects` (scripts/sync-projects.ts does only I/O). Contract C3 is frozen here: the
-// CLI flags, the exit codes and the copy-validation errors. S2 adds the SHA-keyed capture plan and the run report.
+// CLI flags, the exit codes and the copy-validation errors. S2 adds the SHA-keyed capture plan and the run report;
+// S2R freezes the deploy-state reading (paginated, latest run per name, deploy runs only, stale runs ignored) and the
+// capture rule order.
 import { z } from 'astro/zod';
 
 import type { HeadCommit, ProjectCopy } from './projectMeta';
@@ -106,33 +108,92 @@ export function formatCopyError(error: CopyError): string {
 export const SETTLE_HOURS = 6;
 
 /**
- * What the head commit's check runs say about its deploy: `green` when there is at least one run and every run
- * completed as `success`, `neutral` or `skipped`; `failed` when any completed run has another conclusion; `pending`
- * when none failed but one has not completed; `none` when the commit has no check runs.
+ * What the head commit's deploy looks like from its check runs, after `deployStateFromCheckRuns` has narrowed them:
+ * `green` when at least one run is left and every one completed as `success`, `neutral` or `skipped`; `failed` when
+ * any completed run has another conclusion (a null conclusion on a completed run counts as failed); `pending` when none
+ * failed but one has not completed; `none` when no run is left; `unknown` when the check runs could not be read (set by
+ * the caller when a fetch or a parse throws, never returned by `deployStateFromCheckRuns`).
  */
-export type DeployState = 'green' | 'pending' | 'failed' | 'none';
+export type DeployState = 'green' | 'pending' | 'failed' | 'none' | 'unknown';
 
-/** `https://api.github.com/repos/<owner>/<repo>/commits/<sha>/check-runs?per_page=100`. */
-export function checkRunsApiUrl(repo: string, sha: string): string {
-    return `https://api.github.com/repos/${repoPath(repo)}/commits/${sha}/check-runs?per_page=100`;
+/** Page size of the check-runs requests. */
+export const CHECK_RUNS_PER_PAGE = 100;
+/** The most check-runs pages one commit may need; `nextCheckRunsPage` throws beyond it. */
+export const MAX_CHECK_RUN_PAGES = 10;
+/**
+ * Check runs whose name starts with this are the deploy (Cloudflare names them `Workers Builds: <worker>`). When a
+ * commit has at least one, only those runs decide its deploy state, so an unrelated failing check never blocks a
+ * screenshot.
+ */
+export const DEPLOY_CHECK_PREFIX = 'Workers Builds';
+/**
+ * An incomplete run that started more than this many hours before `now`, or that has no `startedAt`, is ignored, so a
+ * run stuck in `queued` or `in_progress` cannot keep a screenshot pending forever.
+ */
+export const STALE_RUN_HOURS = 24;
+
+/**
+ * `https://api.github.com/repos/<owner>/<repo>/commits/<sha>/check-runs?filter=latest&per_page=100&page=<page>`
+ * (`page` is 1-based). Throws on a repo URL that is not GitHub's.
+ */
+export function checkRunsApiUrl(repo: string, sha: string, page: number): string {
+    throw new Error(`S2R: not implemented ${repoPath(repo)} ${sha} ${page}`);
+}
+
+/** One check run as the sync reads it. */
+export interface CheckRun {
+    readonly id: number;
+    readonly name: string;
+    readonly status: string;
+    /** `null` while the run has not completed. */
+    readonly conclusion: string | null;
+    /** ISO 8601; `null` when GitHub has not started it. */
+    readonly startedAt: string | null;
+}
+
+/** One parsed check-runs response. */
+export interface CheckRunsPage {
+    /** `total_count` of the response: the runs across every page. */
+    readonly totalCount: number;
+    readonly runs: readonly CheckRun[];
+}
+
+/**
+ * Reads one check-runs response (`{ total_count, check_runs: [{ id, name, status, conclusion, started_at }] }`; extra
+ * keys are ignored and `started_at` may be null or absent); throws on any other shape.
+ */
+export function parseCheckRunsPage(response: unknown): CheckRunsPage {
+    throw new Error(`S2R: not implemented ${String(response)} ${String(z)}`);
+}
+
+/**
+ * The next page to request after `pagesFetched` pages holding `runsSoFar` runs in total, the last of them
+ * `lastPageSize` runs, or `undefined` when `runsSoFar >= totalCount` or `lastPageSize < CHECK_RUNS_PER_PAGE`. Throws,
+ * naming `totalCount`, when another page is needed but `pagesFetched` is already `MAX_CHECK_RUN_PAGES`.
+ */
+export function nextCheckRunsPage(
+    pagesFetched: number,
+    lastPageSize: number,
+    runsSoFar: number,
+    totalCount: number,
+): number | undefined {
+    throw new Error(`S2R: not implemented ${pagesFetched} ${lastPageSize} ${runsSoFar} ${totalCount}`);
+}
+
+/**
+ * Narrows a commit's check runs (every page together) and reads the deploy state, in this order:
+ * 1. latest run per name: of the runs sharing a `name`, only the one with the greatest `startedAt` counts (a null
+ *    `startedAt` is older than any date; ties go to the greater `id`), so a rerun supersedes the run it repeats;
+ * 2. deploy runs only: when any remaining run's name starts with `DEPLOY_CHECK_PREFIX`, every other run is dropped;
+ * 3. stale runs: an incomplete run (`status` other than `completed`) whose `startedAt` is null or more than
+ *    `STALE_RUN_HOURS` before `now` is dropped;
+ * then `none`, `failed`, `pending` or `green` as `DeployState` describes. Never returns `unknown`.
+ */
+export function deployStateFromCheckRuns(runs: readonly CheckRun[], now: Date): DeployState {
+    throw new Error(`S2R: not implemented ${runs.length} ${now.toISOString()} ${PASSING_CONCLUSIONS.size}`);
 }
 
 const PASSING_CONCLUSIONS: ReadonlySet<string> = new Set(['success', 'neutral', 'skipped']);
-
-// `conclusion` is null while a run has not completed.
-const checkRunsSchema = z.object({
-    total_count: z.number().optional(),
-    check_runs: z.array(z.object({ status: z.string(), conclusion: z.string().nullable() })),
-});
-
-/** Reads a check-runs response (`{ total_count, check_runs: [{ status, conclusion }] }`); throws on any other shape. */
-export function deployStateFromCheckRuns(response: unknown): DeployState {
-    const { check_runs } = checkRunsSchema.parse(response);
-    if (check_runs.length === 0) return 'none';
-    const completed = check_runs.filter((run) => run.status === 'completed');
-    if (completed.some((run) => !PASSING_CONCLUSIONS.has(run.conclusion ?? ''))) return 'failed';
-    return completed.length < check_runs.length ? 'pending' : 'green';
-}
 
 export interface CapturePlanInput {
     /** The commit the committed screenshot was taken at, `undefined` before the first capture. */
@@ -147,31 +208,43 @@ export interface CapturePlanInput {
 }
 
 export type CaptureReason = 'force' | 'missing-thumbnail' | 'new-commit';
-export type SkipReason = 'up-to-date' | 'deploy-pending' | 'deploy-failed' | 'settling';
+export type SkipReason = 'up-to-date' | 'deploy-pending' | 'deploy-failed' | 'deploy-unknown' | 'settling';
 
 export type CaptureDecision =
     | { readonly capture: true; readonly reason: CaptureReason }
     | { readonly capture: false; readonly reason: SkipReason };
 
 /**
- * Decides whether to retake one screenshot target, first rule that applies: `--force` captures; a missing screenshot
- * file captures; `capturedSha` equal to the head SHA skips (`up-to-date`); otherwise the deploy decides: `green`
- * captures (`new-commit`), `failed` and `pending` skip, and `none` captures once the head commit is at least
- * `SETTLE_HOURS` old (`settling` until then).
+ * The rules of `planCapture` that need no deploy state (1 and 2): their decision, or `undefined` when the deploy
+ * decides. The caller fetches the check runs only when this returns `undefined`.
+ */
+export function planCaptureWithoutDeploy(input: Omit<CapturePlanInput, 'deploy'>): CaptureDecision | undefined {
+    throw new Error(`S2R: not implemented ${input.head.sha}`);
+}
+
+/**
+ * Decides whether to retake one screenshot target, first rule that applies:
+ * 1. `--force` captures (`force`);
+ * 2. an existing screenshot file whose `capturedSha` equals the head SHA skips (`up-to-date`);
+ * 3. deploy `failed`, `pending` or `unknown` skips (`deploy-failed`, `deploy-pending`, `deploy-unknown`), even when the
+ *    file is missing;
+ * 4. deploy `green` captures: `missing-thumbnail` when the file is missing, otherwise `new-commit`;
+ * 5. deploy `none`: a missing file captures (`missing-thumbnail`); otherwise the head commit captures (`new-commit`)
+ *    once it is at least `SETTLE_HOURS` old and skips (`settling`) until then.
  */
 export function planCapture(input: CapturePlanInput): CaptureDecision {
-    const { capturedSha, head, thumbnailExists, deploy, force, now } = input;
-    if (force) return { capture: true, reason: 'force' };
-    if (!thumbnailExists) return { capture: true, reason: 'missing-thumbnail' };
-    if (capturedSha === head.sha) return { capture: false, reason: 'up-to-date' };
-    if (deploy === 'green') return { capture: true, reason: 'new-commit' };
-    if (deploy === 'failed') return { capture: false, reason: 'deploy-failed' };
-    if (deploy === 'pending') return { capture: false, reason: 'deploy-pending' };
-    // No check runs to confirm the deploy: wait out the settle delay instead.
-    const ageMs = now.getTime() - Date.parse(head.date);
-    return ageMs >= SETTLE_HOURS * 3_600_000
-        ? { capture: true, reason: 'new-commit' }
-        : { capture: false, reason: 'settling' };
+    throw new Error(`S2R: not implemented ${input.head.sha} ${SETTLE_HOURS}`);
+}
+
+/**
+ * The GitHub Actions warning for a screenshot skipped because of its deploy (`deploy-failed`, `deploy-pending`,
+ * `deploy-unknown`), or `undefined` for any other skip reason. One line:
+ * `::warning::<slug>: screenshot not retaken: <what the reason means>`, then `: <detail>` when a detail is given (the
+ * error that made the deploy `unknown`). In the message after `::warning::` every run of whitespace collapses to one
+ * space and `%` is encoded as `%25`, so a multi-line error stays one annotation.
+ */
+export function formatDeploySkipWarning(slug: string, reason: SkipReason, detail?: string): string | undefined {
+    throw new Error(`S2R: not implemented ${slug} ${reason} ${detail}`);
 }
 
 /** What happened to one project's screenshot in a run. */
