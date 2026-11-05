@@ -6,6 +6,8 @@ import {
     EXIT_OK,
     EXIT_WOULD_CHANGE,
     formatDeployReadError,
+    GITHUB_RETRY_DELAY_MS,
+    GitHubHttpError,
     formatStaleDeployWarning,
 } from '../src/lib/projectSync';
 import { encodeAvif, main, type Capture, type Project, type SyncDeps } from './sync-projects';
@@ -100,6 +102,8 @@ interface Options {
     files?: Record<string, Buffer>;
     repos?: Record<string, unknown>;
     failUrl?: string;
+    // Errors a URL rejects with, one per request in order, before it answers normally (the retry specs).
+    failures?: Record<string, Error[]>;
     capture?: SyncDeps['capture'];
     // One response for every request, or a function of the requested URL.
     checkRuns?: unknown;
@@ -127,6 +131,8 @@ function setup(options: Options = {}) {
     const fetched: string[] = [];
     const errors: string[] = [];
     const summaries: string[] = [];
+    const sleeps: number[] = [];
+    const failures = new Map(Object.entries(options.failures ?? {}).map(([url, errors]) => [url, [...errors]]));
     const repoResponse = (description: string | null, topics: string[]) => ({
         created_at: '2025-01-02T03:04:05Z',
         description,
@@ -136,6 +142,8 @@ function setup(options: Options = {}) {
         listProjects: () => options.projects ?? [archived],
         fetchJson(url) {
             fetched.push(url);
+            const queued = failures.get(url)?.shift();
+            if (queued) return Promise.reject(queued);
             if (url === options.failUrl) return Promise.reject(new Error(`GitHub API answered 403 for ${url}`));
             if (url.includes('/check-runs')) {
                 const answer = options.checkRuns ?? green;
@@ -152,6 +160,10 @@ function setup(options: Options = {}) {
             }
             const repo = url.replace('https://api.github.com/repos/', 'https://github.com/');
             return Promise.resolve(options.repos?.[repo] ?? repoResponse('About it.', ['typescript', 'react']));
+        },
+        sleep(ms) {
+            sleeps.push(ms);
+            return Promise.resolve();
         },
         readFile: (path) => files.get(path),
         writeFile(path, data) {
@@ -170,7 +182,7 @@ function setup(options: Options = {}) {
         log: (line) => logs.push(line),
         error: (line) => errors.push(line),
     };
-    return { deps, files, writes, captures, logs, errors, summaries, fetched };
+    return { deps, files, writes, captures, logs, errors, summaries, fetched, sleeps };
 }
 
 const metaOf = (files: Map<string, Buffer>) =>
@@ -553,6 +565,163 @@ describe('main', () => {
                 expect(run.fetched.some((url) => url.includes('/check-runs'))).toBe(false);
                 expect(run.errors).toEqual([]);
             });
+        });
+
+        describe('retrying a GitHub request', () => {
+            const second: Project = {
+                ...live,
+                slug: 'app2',
+                subdomain: 'app2',
+                repo: 'https://github.com/tpetrus/app2',
+            };
+            const repoUrl = 'https://api.github.com/repos/tpetrus/app';
+            const commitsUrl = 'https://api.github.com/repos/tpetrus/app/commits?per_page=30';
+            const bad502 = () => new GitHubHttpError(502, 'GitHub API answered 502 Bad Gateway');
+            const requests: [string, string][] = [
+                ['repo', repoUrl],
+                ['commits', commitsUrl],
+                ['check runs', checkRunsUrl(1)],
+            ];
+            const kinds: [string, () => Error][] = [
+                ['a 502', bad502],
+                ['a TypeError', () => new TypeError('fetch failed')],
+            ];
+
+            describe.each(requests)('%s', (_name, url) => {
+                it.each(kinds)(
+                    'behaves as if %s had not happened',
+                    async (_kind, make) => {
+                        const clean = setup({ projects: [live], files: existingFiles() });
+                        const flaky = setup({
+                            projects: [live],
+                            files: existingFiles(),
+                            failures: { [url]: [make()] },
+                        });
+                        expect(await main([], clean.deps)).toBe(EXIT_OK);
+                        expect(await main([], flaky.deps)).toBe(EXIT_OK);
+                        expect(flaky.sleeps).toEqual([GITHUB_RETRY_DELAY_MS]);
+                        expect(clean.sleeps).toEqual([]);
+                        expect(flaky.errors).toEqual([]);
+                        expect(flaky.logs).toEqual(clean.logs);
+                        expect(flaky.writes).toEqual(clean.writes);
+                        expect(flaky.captures).toEqual(clean.captures);
+                        expect(flaky.fetched.filter((fetchedUrl) => fetchedUrl === url)).toHaveLength(2);
+                    },
+                    120_000,
+                );
+            });
+
+            it('reads a check runs page as unknown after two transient failures in a row', async () => {
+                const run = setup({
+                    projects: [live, second],
+                    files: { ...existingFiles(), ...secondFiles() },
+                    failures: { [checkRunsUrl(1)]: [bad502(), bad502()] },
+                });
+                const inner = run.deps.fetchJson.bind(run.deps);
+                run.deps.fetchJson = (url) =>
+                    url.includes('/tpetrus/app2/') && url.includes('/check-runs') ? Promise.resolve(green) : inner(url);
+                expect(await main([], run.deps)).toBe(EXIT_OK);
+                expect(run.sleeps).toEqual([GITHUB_RETRY_DELAY_MS]);
+                expect(run.summaries[0]).toContain('skipped (deploy-unknown)');
+                expect(run.logs.filter((line) => line.includes('check runs could not be read'))).toHaveLength(1);
+            }, 60_000);
+
+            it('still exits 1 when the only target fails twice', async () => {
+                const run = setup({
+                    projects: [live],
+                    files: existingFiles(),
+                    failures: { [checkRunsUrl(1)]: [bad502(), bad502()] },
+                });
+                expect(await main([], run.deps)).toBe(EXIT_ERROR);
+                expect(run.errors).toEqual([formatDeployReadError(['app'])]);
+                expect(run.sleeps).toEqual([GITHUB_RETRY_DELAY_MS]);
+            });
+
+            it('exits 1 when the repo request fails twice', async () => {
+                const run = setup({ projects: [live], failures: { [repoUrl]: [bad502(), bad502()] } });
+                expect(await main([], run.deps)).toBe(EXIT_ERROR);
+                expect(run.errors).toEqual([`https://github.com/tpetrus/app: ${bad502().message}`]);
+                expect(run.sleeps).toEqual([GITHUB_RETRY_DELAY_MS]);
+                expect(run.writes).toEqual([]);
+            });
+
+            it('does not retry a 403 on the check runs', async () => {
+                const forbidden = new GitHubHttpError(403, 'GitHub API answered 403 Forbidden');
+                const run = setup({
+                    projects: [live],
+                    files: existingFiles(),
+                    failures: { [checkRunsUrl(1)]: [forbidden] },
+                });
+                await main([], run.deps);
+                expect(run.fetched.filter((url) => url.includes('/check-runs'))).toHaveLength(1);
+                expect(run.sleeps).toEqual([]);
+            });
+
+            it('does not retry a response of the wrong shape', async () => {
+                const run = setup({ projects: [live], files: existingFiles(), checkRuns: { nope: true } });
+                await main([], run.deps);
+                expect(run.fetched.filter((url) => url.includes('/check-runs'))).toHaveLength(1);
+                expect(run.sleeps).toEqual([]);
+            });
+
+            it('keeps a readable deploy readable when logging its stale warning throws', async () => {
+                const stuck = {
+                    total_count: 1,
+                    check_runs: [{ ...checkRun('in_progress', null), started_at: '2026-10-01T00:00:00Z' }],
+                };
+                const run = setup({
+                    projects: [live],
+                    files: existingFiles(),
+                    checkRuns: stuck,
+                    now: '2026-10-06T13:00:00Z',
+                });
+                run.deps.log = (line) => {
+                    run.logs.push(line);
+                    if (line === formatStaleDeployWarning('app')) throw new Error('log broke');
+                };
+                // The throw is not swallowed: it reaches main's outer catch, which reports it and exits 1. What
+                // matters is that the deploy was not recorded as unknown.
+                expect(await main([], run.deps)).toBe(EXIT_ERROR);
+                expect(run.errors).toEqual(['log broke']);
+                expect(run.logs.some((line) => line.includes('check runs could not be read'))).toBe(false);
+                expect(run.captures).toEqual([]);
+            });
+
+            it('asks for no check runs with --force even when their URL would fail', async () => {
+                const files = { [META]: metaFile('app', { capturedSha: SHA }), [AVIF]: Buffer.from('old image') };
+                const run = setup({
+                    projects: [live],
+                    files,
+                    failures: { [checkRunsUrl(1)]: [bad502(), bad502()] },
+                });
+                expect(await main(['--force'], run.deps)).toBe(EXIT_OK);
+                expect(run.fetched.some((url) => url.includes('/check-runs'))).toBe(false);
+                expect(run.sleeps).toEqual([]);
+            }, 60_000);
+
+            it('counts only the requested target: one up to date and one unreadable exits 1', async () => {
+                const files = {
+                    [META]: Buffer.from(
+                        JSON.stringify({ app: entry({ capturedSha: SHA }), app2: entry({ capturedSha: OLD_SHA }) }),
+                    ),
+                    [AVIF]: Buffer.from('old image'),
+                    'src/assets/projects/app2.avif': Buffer.from('old image'),
+                };
+                const run = setup({
+                    projects: [live, second],
+                    files,
+                    failures: { [checkRunsUrl(1, 'app2')]: [bad502(), bad502()] },
+                });
+                expect(await main([], run.deps)).toBe(EXIT_ERROR);
+                expect(run.errors).toEqual([formatDeployReadError(['app2'])]);
+                expect(run.fetched.filter((url) => url.includes('/check-runs'))).toHaveLength(2);
+            });
+
+            it('never requests the check runs of a project that is not a target', async () => {
+                const run = setup({ projects: [archived, live], files: existingFiles() });
+                await main([], run.deps);
+                expect(run.fetched.filter((url) => url.includes('/check-runs'))).toEqual([checkRunsUrl(1)]);
+            }, 60_000);
         });
 
         describe('check-run pagination edges', () => {

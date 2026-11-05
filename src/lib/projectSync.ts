@@ -1,7 +1,8 @@
 // The pure core of `npm run sync:projects` (scripts/sync-projects.ts does only I/O). Contract C3 is frozen here: the
 // CLI flags, the exit codes and the copy-validation errors. S2 adds the SHA-keyed capture plan and the run report;
 // S2R freezes the deploy-state reading (paginated, latest run per name, deploy runs only, stale runs ignored) and the
-// capture rule order. S4 adds the stale-deploy warning and the exit 1 when no target's deploy could be read.
+// capture rule order. S4 adds the stale-deploy warning and the exit 1 when no target's deploy could be read; S4b the
+// one retry of a GitHub request that failed for a reason that may pass.
 import { z } from 'astro/zod';
 
 import type { HeadCommit, ProjectCopy } from './projectMeta';
@@ -103,6 +104,36 @@ export function formatCopyError(error: CopyError): string {
 // S2: the SHA-keyed capture plan. A screenshot is retaken only when the repo's head moved past the recorded
 // `capturedSha` and the live site is known to serve the new commit, so an unchanged repo never yields a new image
 // (and AVIF bytes that differ between machines never open a bot PR).
+
+/**
+ * A GitHub API answer that was not 2xx. The message names the status and the URL (and the rate-limit headers when
+ * GitHub sent them), so it can be printed as it is.
+ */
+export class GitHubHttpError extends Error {
+    readonly status: number;
+
+    constructor(status: number, message: string) {
+        super(message);
+        this.name = 'GitHubHttpError';
+        this.status = status;
+    }
+}
+
+/** Milliseconds the sync waits before its one retry of a GitHub request that failed transiently. */
+export const GITHUB_RETRY_DELAY_MS = 2_000;
+
+/**
+ * Whether a failed GitHub request may pass if made again, so the sync retries it once (after
+ * `GITHUB_RETRY_DELAY_MS`): a `GitHubHttpError` with a 5xx status, a `TypeError` (what `fetch` throws when the
+ * connection fails or the body cannot be read), or an error named `TimeoutError` or `AbortError` (the request
+ * timeout). Everything else is final: a 4xx (an auth, permission, not-found or rate-limit answer will not change in two
+ * seconds), a response of the wrong shape, the check-runs page limit, or a non-error value.
+ */
+export function isTransientGitHubError(error: unknown): boolean {
+    if (error instanceof GitHubHttpError) return error.status >= 500;
+    if (error instanceof TypeError) return true;
+    return error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError');
+}
 
 /**
  * Hours a new head commit must have aged before its screenshot is retaken, when the commit has no check runs that
