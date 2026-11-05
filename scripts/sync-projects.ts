@@ -14,7 +14,8 @@
 // outside its byte limits or a flat image is rejected. A rejected or failed capture affects only its project, which
 // keeps its previous file and `capturedSha`; the other outputs are still written and the run exits 1 (decision D12).
 // The copy comes from GitHub, so a repo with an empty About or an unmapped topic fails the whole run before anything is
-// written (see src/lib/projectSync.ts). `--check` computes everything and writes nothing. Parsing, planning and
+// written (see src/lib/projectSync.ts). The run also exits 1 when every target that needed its check runs could not
+// read them (a token or response-shape problem rather than one flaky project), after writing the other outputs. `--check` computes everything and writes nothing. Parsing, planning and
 // judging live in src/lib, so this file only does I/O: `main` takes its I/O as `SyncDeps`, which is how
 // scripts/sync-projects.test.ts drives it without a network or a browser.
 import { appendFileSync, mkdirSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
@@ -54,6 +55,9 @@ import {
     type CheckRun,
     EXIT_ERROR,
     EXIT_OK,
+    GITHUB_RETRY_DELAY_MS,
+    GitHubHttpError,
+    isTransientGitHubError,
     EXIT_WOULD_CHANGE,
     formatCaptureFailure,
     formatCopyError,
@@ -170,12 +174,24 @@ async function captureAndAssess(target: CaptureTarget, deps: SyncDeps): Promise<
 
 // Reads every page of a commit's latest check runs. Any failure (request, shape, too many pages) rejects, and the
 // caller treats that as an unknown deploy for this project only.
+// Makes one GitHub read, and one more after `GITHUB_RETRY_DELAY_MS` when the first failed transiently (a 5xx, a dropped
+// connection, a timeout). Only the request is retried: callers parse the answer outside it, so a shape error is final.
+async function fetchWithRetry(deps: SyncDeps, url: string): Promise<unknown> {
+    try {
+        return await deps.fetchJson(url);
+    } catch (error) {
+        if (!isTransientGitHubError(error)) throw error;
+        await deps.sleep(GITHUB_RETRY_DELAY_MS);
+        return deps.fetchJson(url);
+    }
+}
+
 async function fetchAllCheckRuns(repo: string, sha: string, deps: SyncDeps): Promise<CheckRun[]> {
     const runs: CheckRun[] = [];
     let page: number | undefined = 1;
     let pagesFetched = 0;
     while (page !== undefined) {
-        const parsed = parseCheckRunsPage(await deps.fetchJson(checkRunsApiUrl(repo, sha, page)));
+        const parsed = parseCheckRunsPage(await fetchWithRetry(deps, checkRunsApiUrl(repo, sha, page)));
         runs.push(...parsed.runs);
         pagesFetched += 1;
         page = nextCheckRunsPage(pagesFetched, parsed.runs.length, runs.length, parsed.totalCount);
@@ -201,8 +217,8 @@ export async function main(argv: readonly string[], deps: SyncDeps): Promise<Syn
         const facts: { repoFacts: RepoFacts; head: HeadCommit }[] = [];
         const inputs: RepoCopyInput[] = [];
         for (project of projects) {
-            const repoFacts = factsFromRepo(await deps.fetchJson(repoApiUrl(project.repo)));
-            const head = headFromCommits(await deps.fetchJson(commitsApiUrl(project.repo)));
+            const repoFacts = factsFromRepo(await fetchWithRetry(deps, repoApiUrl(project.repo)));
+            const head = headFromCommits(await fetchWithRetry(deps, commitsApiUrl(project.repo)));
             facts.push({ repoFacts, head });
             inputs.push({
                 slug: project.slug,
@@ -253,17 +269,20 @@ export async function main(argv: readonly string[], deps: SyncDeps): Promise<Syn
                 let unknownDetail: string | undefined;
                 if (decision === undefined) {
                     let deploy: DeployState;
+                    let stale = false;
                     requested.push(current.slug);
                     try {
                         const runs = await fetchAllCheckRuns(current.repo, head.sha, deps);
                         deploy = deployStateFromCheckRuns(runs, now);
-                        // A stuck deploy reads as `none`; say so, or it would pass silently.
-                        if (deployRunsAllStale(runs, now)) deps.log(formatStaleDeployWarning(current.slug));
+                        stale = deployRunsAllStale(runs, now);
                     } catch (error) {
                         deploy = 'unknown';
                         unknownDetail = messageOf(error);
                         unknown.push(current.slug);
                     }
+                    // A stuck deploy reads as `none`; say so, or it would pass silently. The log is outside the try so a
+                    // throwing logger can never turn a readable deploy into `unknown`.
+                    if (stale) deps.log(formatStaleDeployWarning(current.slug));
                     decision = planCapture({ ...planInput, deploy });
                 }
                 if (!decision.capture) {
@@ -386,7 +405,8 @@ async function fetchGitHub(url: string): Promise<unknown> {
             remaining === null ? '' : `x-ratelimit-remaining ${remaining}`,
             reset === null ? '' : `x-ratelimit-reset ${reset}`,
         ].filter(Boolean);
-        throw new Error(
+        throw new GitHubHttpError(
+            response.status,
             `GitHub API answered ${response.status} ${response.statusText} for ${url}${limit.length > 0 ? ` (${limit.join(', ')})` : ''}`,
         );
     }
@@ -433,6 +453,7 @@ export function realDeps(): SyncDeps & { close(): Promise<void> } {
     return {
         listProjects: readProjects,
         fetchJson: fetchGitHub,
+        sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
         readFile: readIfPresent,
         writeFile(path, data) {
             mkdirSync(dirname(path), { recursive: true });

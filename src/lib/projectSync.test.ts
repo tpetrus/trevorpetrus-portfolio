@@ -12,6 +12,8 @@ import {
     formatCopyError,
     formatDeploySkipWarning,
     formatSyncSummary,
+    GitHubHttpError,
+    isTransientGitHubError,
     MAX_CHECK_RUN_PAGES,
     nextCheckRunsPage,
     parseCheckRunsPage,
@@ -195,6 +197,53 @@ describe('parseCheckRunsPage', () => {
         { total_count: 1, check_runs: [{ status: 'completed' }] },
     ])('throws on the wrong shape %j', (response) => {
         expect(() => parseCheckRunsPage(response)).toThrow();
+    });
+});
+
+describe('GitHubHttpError', () => {
+    it('keeps its status and message and names itself', () => {
+        const error = new GitHubHttpError(502, 'GitHub API answered 502');
+        expect(error).toBeInstanceOf(Error);
+        expect(error.status).toBe(502);
+        expect(error.message).toBe('GitHub API answered 502');
+        expect(error.name).toBe('GitHubHttpError');
+    });
+});
+
+describe('isTransientGitHubError', () => {
+    const named = (name: string) => Object.assign(new Error('x'), { name });
+    const shapeError = () => {
+        try {
+            parseCheckRunsPage({ nope: true });
+        } catch (error) {
+            return error;
+        }
+        throw new Error('expected the page to be rejected');
+    };
+
+    it.each([
+        ['a 500', new GitHubHttpError(500, 'x')],
+        ['a 503', new GitHubHttpError(503, 'x')],
+        ['a TypeError', new TypeError('fetch failed')],
+        ['a TimeoutError', named('TimeoutError')],
+        ['an AbortError', named('AbortError')],
+    ])('retries %s', (_name, error) => {
+        expect(isTransientGitHubError(error)).toBe(true);
+    });
+
+    it.each([
+        ['a 404', new GitHubHttpError(404, 'x')],
+        ['a 403', new GitHubHttpError(403, 'x')],
+        ['a 429', new GitHubHttpError(429, 'x')],
+        ['a plain Error', new Error('boom')],
+        ['a string', 'boom'],
+        ['undefined', undefined],
+    ])('does not retry %s', (_name, error) => {
+        expect(isTransientGitHubError(error)).toBe(false);
+    });
+
+    it('does not retry a response of the wrong shape', () => {
+        expect(isTransientGitHubError(shapeError())).toBe(false);
     });
 });
 

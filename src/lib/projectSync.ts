@@ -130,7 +130,9 @@ export const GITHUB_RETRY_DELAY_MS = 2_000;
  * seconds), a response of the wrong shape, the check-runs page limit, or a non-error value.
  */
 export function isTransientGitHubError(error: unknown): boolean {
-    throw new Error(`S4b: not implemented ${String(error)}`);
+    if (error instanceof GitHubHttpError) return error.status >= 500;
+    if (error instanceof TypeError) return true;
+    return error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError');
 }
 
 /**
