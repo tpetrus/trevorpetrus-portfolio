@@ -308,7 +308,7 @@ changed).
   moves this repo's own date and opens the next one.
 - **Job summary.** In GitHub Actions the run appends a table to the job summary: per project, whether the copy and the
   dates changed and what happened to the screenshot (skipped and why, captured and why, or failed with the reasons).
-- **`.github/workflows/sync-projects.yml`** runs daily at 06:00 UTC (after the production smoke run) and by hand
+- **`.github/workflows/sync-projects.yml`** runs daily at 06:23 UTC (after the 06:17 production smoke run, off the busy top of the hour) and by hand
   (workflow_dispatch, optional `force` input; a scheduled run never forces). It has two jobs. Rollback: disable the workflow in the Actions
   tab; `npm run sync:projects` keeps working by hand.
   - **`sync`** runs the sync on ubuntu-latest with a read-only `GITHUB_TOKEN` (every project repo is public), persists
