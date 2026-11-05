@@ -23,7 +23,7 @@ is real but pre-hero: the giant name, a short statement and, once photos exist, 
 | End-to-end tests (Playwright, 3 projects; the build must exist, served via wrangler) | `npm run test:e2e` (first time: `npm run test:e2e:install`) |
 | Smoke tests (Chromium projects only) against `BASE_URL`, default the site URL in `src/config/site.ts` | `npm run test:smoke` |
 | Lighthouse budget on all three pages, mobile then desktop (reads the existing build) | `npm run lighthouse` |
-| Refresh the generated project data by hand (GitHub dates, About text and topics, live-site screenshots; `--check` writes nothing and exits 2 when an output would change; `--force` is reserved for recapturing screenshots; see "Projects") | `npm run sync:projects -- [--check] [--force]` |
+| Refresh the generated project data by hand (GitHub dates, About text and topics, live-site screenshots; `--check` writes nothing and exits 2 when an output would change; `--force` recaptures every screenshot; see "Projects") | `npm run sync:projects -- [--check] [--force]` |
 | Publish a gallery collection by hand: processes JPEGs from `gallery-originals/<collection>` and, with `--upload`, uploads them to R2 and rewrites `src/data/gallery/<collection>.json`; a dry run without `--upload` (see "Gallery") | `npm run sync:gallery -- <collection> [--source <dir>] [--upload] [--bucket <name>] [--account <id>]` (the bucket defaults to `portfolio-photos`) |
 | Serve the build locally like production | `npm run preview` (builds, then `wrangler dev`) |
 
@@ -115,7 +115,8 @@ src/
                         pageTitle.ts: the page-title video files; projects.ts: the project schema and card helpers; projectMeta.ts
                         (the generated meta schema and its canonical serializer), projectSource.ts: parsing for the sync
                         script and the page; topicMap.ts: GitHub topic slugs to chip names; projectSync.ts: the sync's
-                        flags, exit codes and copy validation; date.ts: UTC date formatting;
+                        flags, exit codes, copy validation, capture plan and run summary; captureGuard.ts: the
+                        blank-screenshot guard; date.ts: UTC date formatting;
                         gallery.ts: the collection registry (GALLERY_COLLECTIONS) and the entry schema; photography.ts:
                         the photography caption/sidecar schemas and template, EXIF mapping and caption
                         formatting; sidecarPlaceholder.ts: the TODO alt marker the schema rejects; gallerySync.ts:
@@ -230,9 +231,10 @@ number so the hover box encloses it, the caption stack, and the image on the rig
 is a `Caption`: a bold caps status label in `accent-deep` after a decorative square (plain text, no chip), a bold caps
 title, and a byline with the tech chips (`paper-2`) and "Updated <date>". Numbers stay ink. **Numbers** come from `numberItems` in
 `src/lib/numbering.ts`: ascending by the repo's creation date (`created` in `project-meta.json`), so the oldest is 01, the
-newest has the highest number, and adding a project never renumbers another; ties on the same date go by slug, and a
-project with no recorded `created` is numbered after every dated one (by slug), so it still renders; run the sync to
-give it its place. `numberItems` returns them in number order, so the rows under the cover follow on from it (02, 03, 04 under an 01 cover). A card's main link is `projectUrl(subdomain)` when `subdomain` is set, otherwise the repo;
+newest has the highest number, and adding a project never renumbers another; ties on the same date go by slug. Every project
+has a meta entry with a `created` date (`parseProjectMeta` requires it and `copyFor` fails the build without the entry),
+so run the sync right after adding a project. The sync never removes the entry of a deleted project: delete it from
+`src/data/project-meta.json` by hand. `numberItems` returns them in number order, so the rows under the cover follow on from it (02, 03, 04 under an 01 cover). A card's main link is `projectUrl(subdomain)` when `subdomain` is set, otherwise the repo;
 every card also has a GitHub icon link, and both open in a new tab (`target="_blank"`, announced by an sr-only note
 and the icon's label). On hover and keyboard focus a card draws a box-shadow that takes no space: a 1px `accent-deep`
 ring plus a 5 px `accent` offset to the bottom right, so it reads slightly 3D. The GitHub icon link fills with `accent` (the icon turns ink) on
@@ -243,8 +245,8 @@ The tooltip is a child of the link, so the pointer can move onto it (WCAG 1.4.13
 captured at 2x (CSS viewport 1280x800, a 2560x1600 image) and the cover offers widths up to 2560. The status is `live`, `in-progress` or `archived`.
 
 **The copy comes from GitHub.** A card's description is the repo's GitHub About text and its tech chips are the repo's
-topics, mapped to display names through `TOPIC_NAMES` in `src/lib/topicMap.ts` (`threejs` -> `three.js`), in GitHub's
-(alphabetical) order. The sync writes both into `src/data/project-meta.json`; the frontmatter has neither. The sync fails,
+topics, mapped to display names through `TOPIC_NAMES` in `src/lib/topicMap.ts` (`threejs` -> `three.js`), ordered by topic slug
+(GitHub promises no order, and a reorder must not change the data); a name two slugs map to shows once. The sync writes both into `src/data/project-meta.json`; the frontmatter has neither. The sync fails,
 names the repo and the field or slug, and writes nothing when any repo has an empty About, no topics, or a topic the map
 does not know: add the slug to the map in the same change. A project missing from the meta file fails the build
 (`copyFor`), so a card never renders without copy. The meta file is generated: its format is whatever
@@ -256,19 +258,46 @@ hand-formatted. To change a card's text, edit the repo's About or topics on GitH
 2. Create `src/content/projects/<slug>.md` with `title`, `status`, `repo` (`https://github.com/<owner>/<repo>`), `order`,
    and `subdomain` if it has its own address (the DNS label only). A live project with a subdomain also needs
    `appSelector`: a CSS selector for an element the app renders once it is ready (the screenshot waits for it).
-3. Run `npm run sync:projects` (set `GITHUB_TOKEN` to avoid the unauthenticated GitHub rate limit). It records the newest
-   default-branch commit date (`updated`), the repo's creation date (`created`, which numbers the project), the About
+3. Run `npm run sync:projects` (set `GITHUB_TOKEN` to avoid the unauthenticated GitHub rate limit). It records the date of the newest
+   default-branch commit a person made (`updated`; see "The capture"), the repo's creation date (`created`, which numbers the project), the About
    text (`description`) and the mapped topics (`tech`) in `src/data/project-meta.json`, and for live projects with a subdomain it screenshots the
    site to `src/assets/projects/<slug>.avif` and prints a reminder to add
    `thumbnail: ../../assets/projects/<slug>.avif` to the frontmatter. Add it, look at the screenshot, and commit all of it.
 4. `thumbnail` is optional (a card without one renders without an image).
 
 **The sync is manual and its outputs are committed.** The build makes no network calls. A local run uses the same code
-path a scheduled job will, but screenshots rendered on Windows or macOS differ from ones rendered on the Linux runner. Re-run the script when a project
-changes and commit the diff (the screenshot is written only if its bytes changed; it fails above 500 kB). The
-AudioVisualizer screenshot shows the landing view with its visualizer previews (v0.3.0 no longer opens the "Audio source"
-dialog that v0.2.7 showed). The capture can race the app's first render and come out almost blank (about 6 kB); look at the
-file and re-run the sync if so. **Nothing checks external links**: CI's lychee runs `--offline` against `dist/`, so subdomain and github.com
+path as the `sync-projects.yml` workflow (below), but screenshots rendered on Windows or macOS differ from ones rendered
+on the Linux runner. Re-run the script when a project changes and commit the diff (a file is written only if its bytes
+changed).
+
+**The capture** (`scripts/sync-projects.ts`, decisions in `src/lib/projectSync.ts` and `src/lib/captureGuard.ts`).
+- **Keyed by commit.** Each screenshot target's meta entry records `capturedSha`, the default-branch commit its
+  screenshot was taken at. A screenshot is retaken only with `--force`, when the file is missing, or when the repo's head
+  moved past `capturedSha` and the live site is known to serve it: every check run of the head commit has passed
+  (Cloudflare's "Workers Builds" run among them), or, for a commit with no check runs, it is at least `SETTLE_HOURS` (6)
+  old. A pending or failed deploy keeps the old screenshot. So an unchanged repo never yields a new image, and `--check`
+  launches no browser then.
+- **Waits.** Fixed 1280x800 viewport at 2x, dark scheme, reduced motion, animations disabled; after the load event a
+  best-effort network-idle wait bounded at 10 s (the app may stream or poll), then the project's `appSelector` must be
+  visible, fonts loaded and the on-screen images complete.
+- **Guard.** A capture is rejected when the navigation status is not 2xx, the image is not 2560x1600, the AVIF is under
+  20 kB (`MIN_CAPTURE_BYTES`; the blank capture of PR #20 was 5.8 kB at 1x, real ones 31 kB to 247 kB) or over 500 kB,
+  or no RGB channel varies enough (`MIN_CHANNEL_STDEV`). Thresholds were calibrated on the committed captures.
+- **One bad capture skips one project** (decision D12). A rejected or failed capture writes no screenshot and keeps that
+  project's previous file and `capturedSha`; everything else is still written, the error line names the project and
+  every reason, and the run exits 1. Copy errors stay all or nothing.
+- **`updated` ignores bots.** It is the newest of the last 30 default-branch commits whose GitHub author is not a bot
+  and which is not the sync bot's commit (`SYNC_COMMIT_TITLE`) or a merge of its branch, so a bot PR merging here never
+  moves this repo's own date and opens the next one.
+- **Job summary.** In GitHub Actions the run appends a table to the job summary: per project, whether the copy and the
+  dates changed and what happened to the screenshot (skipped and why, captured and why, or failed with the reasons).
+- **`.github/workflows/sync-projects.yml`** (workflow_dispatch only, optional `force` input) runs the sync on
+  ubuntu-latest with a read-only `GITHUB_TOKEN` (every project repo is public), persists no credential and uploads
+  `src/data/project-meta.json` and the screenshots as the `project-sync` artifact. It never commits or pushes; the
+  publish job that will open the bot PR is not built yet.
+
+The AudioVisualizer screenshot shows the landing view with its visualizer previews (v0.3.0 no longer opens the "Audio
+source" dialog that v0.2.7 showed). Look at a new screenshot before committing it. **Nothing checks external links**: CI's lychee runs `--offline` against `dist/`, so subdomain and github.com
 links are verified only by the smoke tests reading the `href`, never by following them.
 
 ## Gallery

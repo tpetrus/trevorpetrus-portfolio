@@ -32,7 +32,12 @@ const commitsResponseSchema = z
     .array(
         z.object({
             sha: z.string().regex(/^[0-9a-f]{40}$/),
-            commit: z.object({ committer: z.object({ date: z.iso.datetime() }) }),
+            // GitHub sends null when the commit's email matches no account.
+            author: z.object({ type: z.string() }).nullable().optional(),
+            commit: z.object({
+                message: z.string().optional(),
+                committer: z.object({ date: z.iso.datetime() }),
+            }),
         }),
     )
     .min(1, 'The repository has no commits');
@@ -101,17 +106,45 @@ export function factsFromRepo(response: unknown): RepoFacts {
 }
 
 /**
- * The URL of the repo's newest commit on its default branch. The commits endpoint, unlike the repo's `pushed_at`,
- * ignores pushes to other branches, and the version bot and Dependabot push PR branches all the time.
+ * The first line of the sync bot's commit on main (contract C4: the squash-merged bot PR's title, which GitHub follows
+ * with ` (#<number>)`). `headFromCommits` skips it.
+ */
+export const SYNC_COMMIT_TITLE = 'chore(projects): refresh project data';
+
+/** The sync bot's fixed branch (contract C4); a merge commit of it is skipped like the squash commit. */
+export const SYNC_BRANCH = 'bot/sync-projects';
+
+/**
+ * The URL of the repo's newest commits on its default branch (`per_page=30`, enough to look past the bot commits that
+ * `headFromCommits` skips). The commits endpoint, unlike the repo's `pushed_at`, ignores pushes to other branches, and
+ * the version bot and Dependabot push PR branches all the time.
  */
 export function commitsApiUrl(repo: string): string {
-    return `https://api.github.com/repos/${repoPath(repo)}/commits?per_page=1`;
+    return `https://api.github.com/repos/${repoPath(repo)}/commits?per_page=30`;
 }
 
-/** Extracts the newest commit's SHA and committer date from a `commits?per_page=1` response. */
+/**
+ * Extracts the SHA and committer date of the newest commit a person made from a `commits?per_page=30` response
+ * (S2, reviewer finding F1). It skips a commit whose GitHub `author` is a bot account (`type: "Bot"`, which covers the
+ * version bot, Dependabot and the sync App), a commit whose first message line starts with `SYNC_COMMIT_TITLE`, and a
+ * merge commit whose first line is `Merge pull request #<n> from <owner>/bot/sync-projects`. Without this, the bot
+ * PR merging into this repo would move this repo's own `updated` and open the next bot PR, forever. Throws when the
+ * response is empty, malformed, or holds no commit that qualifies.
+ */
 export function headFromCommits(response: unknown): HeadCommit {
-    const [newest] = commitsResponseSchema.parse(response);
-    return { sha: newest.sha, date: newest.commit.committer.date };
+    const commits = commitsResponseSchema.parse(response);
+    const mergeOfSyncBranch = new RegExp(`^Merge pull request #\\d+ from [^/\\s]+/${SYNC_BRANCH}$`);
+    const person = commits.find((entry) => {
+        if (entry.author?.type === 'Bot') return false;
+        const firstLine = (entry.commit.message ?? '').split('\n', 1)[0].trim();
+        return !firstLine.startsWith(SYNC_COMMIT_TITLE) && !mergeOfSyncBranch.test(firstLine);
+    });
+    if (!person) {
+        throw new Error(
+            `None of the newest ${commits.length} commits was made by a person (all are bot or sync commits)`,
+        );
+    }
+    return { sha: person.sha, date: person.commit.committer.date };
 }
 
 /** Returns a copy of `meta` with `slug` set to `entry`. */

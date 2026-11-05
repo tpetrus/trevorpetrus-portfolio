@@ -96,14 +96,62 @@ describe('repoApiUrl and factsFromRepo', () => {
 });
 
 describe('commitsApiUrl and headFromCommits', () => {
-    it('asks for the single newest commit', () => {
+    it('asks for the newest 30 commits', () => {
         expect(commitsApiUrl('https://github.com/tpetrus/AudioVisualizer')).toBe(
-            'https://api.github.com/repos/tpetrus/AudioVisualizer/commits?per_page=1',
+            'https://api.github.com/repos/tpetrus/AudioVisualizer/commits?per_page=30',
         );
     });
 
     it('takes the sha and committer date of the first commit', () => {
         expect(headFromCommits([commit('2026-10-05T12:00:00Z')])).toEqual({ sha: SHA, date: '2026-10-05T12:00:00Z' });
+    });
+
+    describe('skipping bot commits', () => {
+        const sha = (char: string) => char.repeat(40);
+        const made = (
+            char: string,
+            message: string,
+            author: { type: string } | null,
+            date = '2026-10-01T00:00:00Z',
+        ) => ({ sha: sha(char), author, commit: { message, committer: { date } } });
+        const person = made('1', 'feat: a change\n\nbody', { type: 'User' }, '2026-09-01T00:00:00Z');
+
+        it('chooses the newest human commit past bot commits', () => {
+            const response = [
+                made('2', 'chore: set version to 1.2.3', { type: 'Bot' }, '2026-10-03T00:00:00Z'),
+                made('3', 'build(deps): bump x', { type: 'Bot' }, '2026-10-02T00:00:00Z'),
+                person,
+            ];
+            expect(headFromCommits(response)).toEqual({ sha: sha('1'), date: '2026-09-01T00:00:00Z' });
+        });
+
+        it('skips the squashed sync commit', () => {
+            const response = [made('2', 'chore(projects): refresh project data (#40)', { type: 'User' }), person];
+            expect(headFromCommits(response).sha).toBe(sha('1'));
+        });
+
+        it('skips a merge of the sync branch but not of another branch', () => {
+            const sync = made('2', 'Merge pull request #41 from tpetrus/bot/sync-projects\n\nchore', { type: 'User' });
+            expect(headFromCommits([sync, person]).sha).toBe(sha('1'));
+            const other = made('3', 'Merge pull request #42 from tpetrus/feat/x', { type: 'User' });
+            expect(headFromCommits([sync, other, person]).sha).toBe(sha('3'));
+        });
+
+        it('counts a null author as a person', () => {
+            expect(headFromCommits([made('2', 'fix: y', null), person]).sha).toBe(sha('2'));
+        });
+
+        it('counts a commit without the author key or a message as a person', () => {
+            expect(headFromCommits([commit('2026-10-05T12:00:00Z')]).sha).toBe(SHA);
+        });
+
+        it('throws a clear error when every commit is a bot or sync commit', () => {
+            const response = [
+                made('2', 'chore: x', { type: 'Bot' }),
+                made('3', 'chore(projects): refresh project data', { type: 'User' }),
+            ];
+            expect(() => headFromCommits(response)).toThrow(/None of the newest 2 commits was made by a person/);
+        });
     });
 
     it('rejects an empty response and a bad shape', () => {
