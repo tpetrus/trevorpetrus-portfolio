@@ -153,4 +153,75 @@ describe.skipIf(!jqAvailable && !process.env.CI)('running the jq filter', () => 
     it('rejects an entry that is not an object', () => {
         expect(runFilter({ [SLUG]: 'text' }, [SLUG])).toContain('the entry is not an object');
     });
+
+    // The filter and the schema must give the same verdict on the values where a regex alone would differ from
+    // z.iso.datetime(): impossible calendar days, the leap-year rules, out-of-range times, and the optional parts.
+    const filterAccepts = (fields: Record<string, unknown>) => runFilter(metaWith(fields), [SLUG]) === null;
+    const schemaAcceptsSafely = (fields: Record<string, unknown>) => {
+        try {
+            parseProjectMeta(metaWith(fields));
+            return true;
+        } catch {
+            return false;
+        }
+    };
+
+    it.each<[string, boolean]>([
+        ['2026-01-02T03:04:05Z', true],
+        ['2026-01-02T03:04:05.5Z', true],
+        ['2026-12-31T23:59:59Z', true],
+        ['2024-02-29T00:00:00Z', true],
+        ['2000-02-29T00:00:00Z', true],
+        ['0000-02-29T00:00:00Z', true],
+        ['2026-01-02T03:04Z', false],
+        ['2026-01-02T03:04:05.Z', false],
+        ['2026-02-29T00:00:00Z', false],
+        ['1900-02-29T00:00:00Z', false],
+        ['2026-04-31T00:00:00Z', false],
+        ['2026-13-01T00:00:00Z', false],
+        ['2026-00-10T00:00:00Z', false],
+        ['2026-01-00T00:00:00Z', false],
+        ['2026-01-32T00:00:00Z', false],
+        ['2026-01-01T24:00:00Z', false],
+        ['2026-01-01T00:60:00Z', false],
+        ['2026-01-01T00:00:60Z', false],
+        ['9999-99-99T99:99:99Z', false],
+        ['2026-01-01t00:00:00Z', false],
+        ['2026-01-01T00:00:00z', false],
+    ])('agrees with the schema on the date %j (accepted: %s)', (value, accepted) => {
+        for (const field of ['created', 'updated']) {
+            expect(filterAccepts({ [field]: value })).toBe(accepted);
+            expect(schemaAcceptsSafely({ [field]: value })).toBe(accepted);
+        }
+    });
+
+    // Characters String.prototype.trim() removes are blank to the schema; U+0085, U+180E and U+200B are not. A regex
+    // class such as \S gets U+0085 and U+FEFF the other way round.
+    it.each<[string, number, boolean]>([
+        ['a tab', 0x09, false],
+        ['a line feed', 0x0a, false],
+        ['a vertical tab', 0x0b, false],
+        ['a form feed', 0x0c, false],
+        ['a carriage return', 0x0d, false],
+        ['a space', 0x20, false],
+        ['a no-break space', 0xa0, false],
+        ['an ogham space mark', 0x1680, false],
+        ['an en quad', 0x2000, false],
+        ['a hair space', 0x200a, false],
+        ['a line separator', 0x2028, false],
+        ['a paragraph separator', 0x2029, false],
+        ['a narrow no-break space', 0x202f, false],
+        ['a medium mathematical space', 0x205f, false],
+        ['an ideographic space', 0x3000, false],
+        ['a byte order mark', 0xfeff, false],
+        ['a next line', 0x85, true],
+        ['a Mongolian vowel separator', 0x180e, true],
+        ['a zero width space', 0x200b, true],
+    ])('agrees with the schema that %s alone is blank: %s', (_name, codePoint, hasText) => {
+        const description = String.fromCodePoint(codePoint);
+        expect(filterAccepts({ description })).toBe(hasText);
+        expect(schemaAcceptsSafely({ description })).toBe(hasText);
+        // With a letter beside it the description has text, whatever the character.
+        expect(filterAccepts({ description: `${description}a${description}` })).toBe(true);
+    });
 });
