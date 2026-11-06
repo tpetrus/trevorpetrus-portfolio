@@ -668,5 +668,15 @@ only the Chromium projects (`chromium-*`) because the shared smoke workflow inst
   (`git checkout origin/main -- package-lock.json`) and redoing the install, or installing on Linux/WSL, also works.
 - **The initial lockfile was repaired by hand.** The six entries Windows npm dropped were copied from the sibling
   AudioVisualizer-React lockfile (same `@tailwindcss/oxide` 4.3.3), because no `main` copy existed to restore from.
+- **Local WebKit (`webkit-mobile`) on Windows fails under load, not in the code.** With the whole suite at Playwright's
+  default parallelism, a test that navigates with View Transitions can lose its page ("Target page, context or browser has
+  been closed") or stall on a click: 2 failures in 264 tests (`header.spec.ts` "the handoff still works after View
+  Transitions navigations" and `lightbox.spec.ts` "still works after navigating away and back"). The same tests pass 20
+  out of 20 alone, the photography reveal test passed 60 out of 60 (serial and 8 workers), and the whole WebKit suite
+  passed twice over with `--workers=2` (230 passed). CI runs Linux WebKit in the Playwright container and none of its last
+  60 runs failed in e2e. So before suspecting the code, rerun the failing spec alone or with
+  `npx playwright test --project=webkit-mobile --workers=2`. Playwright's `goto` in WebKit also takes 3.5 to 6.9 s here
+  against 0.2 s in Chromium, so a slow machine multiplies it. If it ever fails on CI's Linux image, it is a real bug: start
+  from the View Transitions swap on `/photography/` (many images under `content-visibility`).
 - **Dependency audit:** `npm install` reports vulnerabilities in dev tooling (not in production dependencies:
   `npm audit --omit=dev` reports none); CI's security workflow is the gate.
