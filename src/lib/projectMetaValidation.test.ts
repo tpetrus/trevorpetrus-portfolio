@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import { basename, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
@@ -8,8 +9,11 @@ import { parseProjectMeta, projectMetaEntrySchema } from './projectMeta';
 
 // The publish job of sync-projects.yml cannot run this repository's code, so it checks the sync artifact with a jq
 // filter that mirrors the entry schema. These specs are what keep the two copies of the rules together.
-const FILTER_PATH = '.github/scripts/validate-project-meta.jq';
-const WORKFLOW_PATH = '.github/workflows/sync-projects.yml';
+// Paths come from this file's location, not the working directory, so the spec also runs from a subdirectory or an IDE.
+const ROOT = fileURLToPath(new URL('../../', import.meta.url));
+const FILTER_RELATIVE_PATH = '.github/scripts/validate-project-meta.jq';
+const FILTER_PATH = join(ROOT, FILTER_RELATIVE_PATH);
+const WORKFLOW_PATH = join(ROOT, '.github/workflows/sync-projects.yml');
 const filter = readFileSync(FILTER_PATH, 'utf8');
 
 const SLUG = 'some-project';
@@ -20,6 +24,11 @@ const VALID_ENTRY = {
     tech: ['TypeScript'],
     capturedSha: 'a'.repeat(40),
 };
+
+// The order of the lists is not part of the rules, so a harmless reorder on either side must not fail the spec.
+function sorted(list: unknown): string[] {
+    return [...(list as string[])].sort();
+}
 
 /** The string array of a `def <name>: [...];` line of the filter. */
 function filterList(name: string): unknown {
@@ -51,18 +60,28 @@ describe('the jq filter and the meta schema', () => {
     const shape = projectMetaEntrySchema.shape;
 
     it('allows exactly the fields of the schema', () => {
-        expect(filterList('fields')).toEqual(Object.keys(shape));
+        expect(sorted(filterList('fields'))).toEqual(sorted(Object.keys(shape)));
     });
 
     it('requires exactly the required fields of the schema', () => {
         const required = Object.entries(shape)
             .filter(([, field]) => !field.isOptional())
             .map(([name]) => name);
-        expect(filterList('required')).toEqual(required);
+        expect(sorted(filterList('required'))).toEqual(sorted(required));
     });
 
-    it('is the filter the workflow reads', () => {
-        expect(readFileSync(WORKFLOW_PATH, 'utf8')).toContain(FILTER_PATH);
+    // Comments are dropped first: the workflow's comments name the file too, so they must not satisfy the check.
+    it('is the filter the workflow runs, with the same arguments the spec uses', () => {
+        const commands = readFileSync(WORKFLOW_PATH, 'utf8')
+            .split('\n')
+            .filter((line) => !line.trimStart().startsWith('#'))
+            .join('\n');
+        expect(commands).toContain(`filter="$PWD/${FILTER_RELATIVE_PATH}"`);
+        expect(commands).toContain('jq -e -r --argjson slugs "$slugs_json" --from-file "$filter" "$meta"');
+    });
+
+    it('describes a valid entry as valid, so the rejections below are about their own field', () => {
+        expect(() => parseProjectMeta({ [SLUG]: VALID_ENTRY })).not.toThrow();
     });
 });
 
@@ -72,10 +91,10 @@ const jqAvailable = spawnSync('jq', ['--version']).status === 0;
 
 describe.skipIf(!jqAvailable && !process.env.CI)('running the jq filter', () => {
     it('accepts the committed meta file with the committed projects', () => {
-        const slugs = readdirSync('src/content/projects')
+        const slugs = readdirSync(join(ROOT, 'src', 'content', 'projects'))
             .filter((name) => name.endsWith('.md'))
             .map((name) => basename(name, '.md'));
-        const meta: unknown = JSON.parse(readFileSync(join('src', 'data', 'project-meta.json'), 'utf8'));
+        const meta: unknown = JSON.parse(readFileSync(join(ROOT, 'src', 'data', 'project-meta.json'), 'utf8'));
         expect(runFilter(meta, slugs)).toBeNull();
     });
 
