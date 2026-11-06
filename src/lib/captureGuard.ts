@@ -71,3 +71,55 @@ export function assessCapture(facts: CaptureFacts): CaptureVerdict {
 function kilobytes(bytes: number): string {
     return `${(bytes / 1024).toFixed(1)} kB`;
 }
+
+/** What the script reads from one `<img>` of the page. */
+export interface PageImage {
+    /** `currentSrc`: empty while the image has no source to load. */
+    readonly src: string;
+    /** Whether the image is at least partly inside the viewport the screenshot shows. */
+    readonly inViewport: boolean;
+    /** `HTMLImageElement.complete`: also true for an image that failed to load, and for one with no source. */
+    readonly complete: boolean;
+    /** `HTMLImageElement.naturalWidth`: 0 for an image that failed to load. */
+    readonly naturalWidth: number;
+}
+
+export type ImagesState =
+    | { readonly state: 'ready' }
+    /** An on-screen image is still loading: keep waiting. */
+    | { readonly state: 'loading'; readonly sources: readonly string[] }
+    /** An on-screen image finished without pixels: it would be photographed as a broken-image icon. */
+    | { readonly state: 'broken'; readonly sources: readonly string[] };
+
+// A vector image can report a natural width of 0 in a working browser when it declares no size, so it cannot be judged
+// by its width.
+const VECTOR_SOURCE = /\.svg(?:[?#]|$)|^data:image\/svg\+xml/i;
+
+/**
+ * Whether every image the screenshot will show has loaded. Images outside the viewport and images with no source are
+ * ignored. An on-screen image that is not `complete` is `loading`. One that is `complete` with a natural width of 0 is
+ * `broken` (a failed request, or bytes the browser could not decode), unless it is a vector image. `broken` wins over
+ * `loading`, because waiting longer cannot fix it.
+ */
+export function assessImages(images: readonly PageImage[]): ImagesState {
+    const onScreen = images.filter((image) => image.inViewport && image.src !== '');
+    const broken = onScreen.filter(
+        (image) => image.complete && image.naturalWidth === 0 && !VECTOR_SOURCE.test(image.src),
+    );
+    if (broken.length > 0) return { state: 'broken', sources: broken.map((image) => image.src) };
+    const loading = onScreen.filter((image) => !image.complete);
+    if (loading.length > 0) return { state: 'loading', sources: loading.map((image) => image.src) };
+    return { state: 'ready' };
+}
+
+/**
+ * The failure reason for an `ImagesState` that is not ready: `an image on the page failed to load: <src>` or, when the
+ * wait ran out, `an image on the page was still loading after the wait: <src>`. At most three sources are named, each
+ * cut to 80 characters (a `data:` URL can be enormous), and `, and N more` follows when there are others.
+ */
+export function formatImageProblem(state: Exclude<ImagesState, { state: 'ready' }>): string {
+    const shown = state.sources.slice(0, 3).map((src) => (src.length > 80 ? `${src.slice(0, 80)}...` : src));
+    const more = state.sources.length > 3 ? `, and ${state.sources.length - 3} more` : '';
+    const what = state.state === 'broken' ? 'failed to load' : 'was still loading after the wait';
+    return `an image on the page ${what}: ${shown.join(', ')}${more}`;
+}

@@ -298,7 +298,10 @@ changed).
   before `src/data/project-meta.json`, so a recorded `capturedSha` always has its image.
 - **Waits.** Fixed 1280x800 viewport at 2x, dark scheme, reduced motion, animations disabled; after the load event a
   best-effort network-idle wait bounded at 10 s (the app may stream or poll), then the project's `appSelector` must be
-  visible, fonts loaded and the on-screen images complete.
+  visible, fonts loaded and the on-screen images loaded (`assessImages` in `src/lib/captureGuard.ts`). An on-screen image
+  that finished with no pixels (a failed request or undecodable bytes) fails the capture at once, naming the image,
+  instead of being photographed as a broken-image icon; one still loading after 30 s fails it too. Images off screen,
+  images with no source and vector images (which may report a width of 0) are not judged.
 - **Guard.** A capture is rejected when the navigation status is not 2xx, the image is not 2560x1600, the AVIF is under
   20 kB (`MIN_CAPTURE_BYTES`; the blank capture of PR #20 was 5.8 kB at 1x, real ones 31 kB to 247 kB) or over 500 kB,
   or no RGB channel varies enough (`MIN_CHANNEL_STDEV`). Thresholds were calibrated on the committed captures.
