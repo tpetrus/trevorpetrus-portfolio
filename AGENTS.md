@@ -285,7 +285,7 @@ changed).
   no browser then.
 - **Reading the deploy** (`deployStateFromCheckRuns`). The head commit's check runs are fetched only when the decision
   needs them, page by page (`filter=latest`, up to `MAX_CHECK_RUN_PAGES` of 100). Of the runs sharing a name only the
-  latest counts (a run listed twice, or with an unreadable start time, cannot beat a dated rerun), so a rerun replaces
+  latest counts (a run listed twice counts once, by the copy read last; an unreadable start time cannot beat a dated rerun), so a rerun replaces
   a failed run. When any run is named `Workers Builds...` (Cloudflare's deploy), only those decide, so an unrelated
   failing check never blocks a screenshot; otherwise every run must pass. A run still incomplete `STALE_RUN_HOURS` (24)
   after it started is ignored, so a stuck run cannot block a screenshot forever; when that leaves none of the deploy
@@ -309,6 +309,8 @@ changed).
   moves this repo's own date and opens the next one.
 - **Job summary.** In GitHub Actions the run appends a table to the job summary: per project, whether the copy and the
   dates changed and what happened to the screenshot (skipped and why, captured and why, or failed with the reasons).
+  Facts that belong to no one row follow it under "Run notes": a project whose deploy check runs were all stale, and
+  the error when no deploy could be read for any target.
 - **`.github/workflows/sync-projects.yml`** runs daily at 06:23 UTC (after the 06:17 production smoke run, off the busy top of the hour) and by hand
   (workflow_dispatch, optional `force` input; a scheduled run never forces). It has two jobs. Rollback: disable the workflow in the Actions
   tab; `npm run sync:projects` keeps working by hand. GitHub turns off the schedules of a public repository after 60

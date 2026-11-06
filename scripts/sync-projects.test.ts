@@ -10,6 +10,7 @@ import {
     GITHUB_RETRY_DELAY_MS,
     GitHubHttpError,
     isTransientGitHubError,
+    staleDeployMessage,
 } from '../src/lib/projectSync';
 import { encodeAvif, fetchGitHub, main, type Capture, type Project, type SyncDeps } from './sync-projects';
 
@@ -490,6 +491,8 @@ describe('main', () => {
                 expect(run.summaries[0]).toContain('captured (new-commit)');
                 const warnings = run.logs.filter((line) => line.startsWith('::warning::'));
                 expect(warnings).toEqual([formatStaleDeployWarning('app')]);
+                expect(run.summaries[0]).toContain('#### Run notes');
+                expect(run.summaries[0]).toContain(`- ${staleDeployMessage('app')}`);
             }, 60_000);
         });
 
@@ -507,6 +510,7 @@ describe('main', () => {
                 expect(run.writes).toEqual([META]);
                 expect(run.errors).toEqual([formatDeployReadError(['app'])]);
                 expect(run.summaries).toHaveLength(1);
+                expect(run.summaries[0]).toContain(`- ${formatDeployReadError(['app'])}`);
             });
 
             it('lets --check report the error ahead of would-change', async () => {
