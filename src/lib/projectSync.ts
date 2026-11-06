@@ -246,8 +246,8 @@ export function nextCheckRunsPage(
 
 /**
  * Narrows a commit's check runs (every page together) and reads the deploy state, in this order:
- * 0. duplicates: of the runs sharing an `id` (a run that moved between pages while they were read), only the first
- *    counts;
+ * 0. duplicates: of the runs sharing an `id` (a run that moved between pages while they were read), only the last
+ *    counts, because the page read later is the fresher snapshot of that run;
  * 1. latest run per name: of the runs sharing a `name`, only the one with the greatest `startedAt` counts (a null
  *    `startedAt`, or one `Date.parse` cannot read, is older than any date; ties go to the greater `id`), so a rerun
  *    supersedes the run it repeats whatever order the runs arrive in;
@@ -267,9 +267,10 @@ export function deployStateFromCheckRuns(runs: readonly CheckRun[], now: Date): 
 // Steps 0 to 3 of `deployStateFromCheckRuns`, shared with `deployRunsAllStale` so the two can never disagree about which
 // runs count. `hadDeploy` is whether step 2 found a deploy run, before step 3 removed stale ones.
 function narrowCheckRuns(runs: readonly CheckRun[], now: Date): { narrowed: CheckRun[]; hadDeploy: boolean } {
-    // A page boundary can move while the pages are read, listing one run twice; the first copy stands.
+    // A page boundary can move while the pages are read, listing one run twice; the copy read last stands, since it is
+    // the newer snapshot (its status may have moved on from in_progress).
     const byId = new Map<number, CheckRun>();
-    for (const run of runs) if (!byId.has(run.id)) byId.set(run.id, run);
+    for (const run of runs) byId.set(run.id, run);
 
     // A null or unreadable start is older than any date, so arrival order never decides; the greater id wins a tie.
     const startOf = (run: CheckRun): number => {
@@ -389,8 +390,12 @@ export function formatDeploySkipWarning(slug: string, reason: SkipReason, detail
  * over <STALE_RUN_HOURS> hours or never started), so the screenshot is decided as if the commit had no check runs`.
  */
 export function formatStaleDeployWarning(slug: string): string {
-    const message = `${slug}: every deploy check run of the head commit is stale (unfinished for over ${STALE_RUN_HOURS} hours or never started), so the screenshot is decided as if the commit had no check runs`;
-    return `::warning::${message.replace(/%/g, '%25').replace(/\s+/g, ' ').trim()}`;
+    return `::warning::${staleDeployMessage(slug).replace(/%/g, '%25').replace(/\s+/g, ' ').trim()}`;
+}
+
+/** The text of `formatStaleDeployWarning` without the workflow command, for the job summary. */
+export function staleDeployMessage(slug: string): string {
+    return `${slug}: every deploy check run of the head commit is stale (unfinished for over ${STALE_RUN_HOURS} hours or never started), so the screenshot is decided as if the commit had no check runs`;
 }
 
 /**
@@ -446,9 +451,15 @@ export function formatCaptureFailure(slug: string, reasons: readonly string[]): 
  * appended in check mode), then a table with one row per project, in input order, and the columns Project, Copy,
  * Dates and Screenshot. Copy and Dates read `changed` or `unchanged`; Screenshot reads `-` for a project that is not a
  * target, `skipped (<reason>)`, `captured (<reason>)` or `captured (<reason>), unchanged bytes`, and
- * `**failed**: <reasons joined with "; ">`. Table cells escape `|`. Ends with a newline.
+ * `**failed**: <reasons joined with "; ">`. Table cells escape `|`. When `notes` is given and not empty (run-level
+ * facts that belong to no one row: a stale deploy, no deploy readable), a `#### Run notes` heading and one bullet per
+ * note follow the table, each on one line. Ends with a newline.
  */
-export function formatSyncSummary(reports: readonly ProjectReport[], options: { readonly check: boolean }): string {
+export function formatSyncSummary(
+    reports: readonly ProjectReport[],
+    options: { readonly check: boolean; readonly notes?: readonly string[] },
+): string {
+    const notes = options.notes ?? [];
     const rows = reports.map((report) => {
         const copy = report.copyChanged ? 'changed' : 'unchanged';
         const dates = report.datesChanged ? 'changed' : 'unchanged';
@@ -461,7 +472,12 @@ export function formatSyncSummary(reports: readonly ProjectReport[], options: { 
         '| --- | --- | --- | --- |',
         ...rows,
         '',
+        ...(notes.length > 0 ? ['#### Run notes', '', ...notes.map((note) => `- ${oneLine(note)}`), ''] : []),
     ].join('\n');
+}
+
+function oneLine(text: string): string {
+    return text.replace(/\s+/g, ' ').trim();
 }
 
 // A `|` inside a table cell would start a new column, and a line break would end the row: Playwright's timeout errors
