@@ -354,12 +354,14 @@ jobs:
           fi
           # A branch can exist without an open PR (a closed one, or a failed run between the push and the PR). Read into
           # a variable first: inside the test below a failed ls-remote would look like "no branch" and the step would pass.
-          remote_sha=$(authgit ls-remote origin "refs/heads/$SYNC_BRANCH" | cut -f1)
+          # awk keeps only the exact ref: ls-remote matches a pattern at the end of a ref, so a stray ref such as
+          # refs/heads/other/refs/heads/bot/sync-projects would add a second line and break the lease below.
+          remote_sha=$(authgit ls-remote origin "refs/heads/$SYNC_BRANCH" | awk -v ref="refs/heads/$SYNC_BRANCH" '$2 == ref { print $1 }')
           if [ -n "$remote_sha" ]; then
             open_count=$(gh api "repos/$REPO/pulls?state=open&head=$OWNER:$SYNC_BRANCH" --jq length)
             if [ "$closed_app_pr" = "true" ] || [ "$open_count" = "0" ]; then
               if ! authgit push "--force-with-lease=refs/heads/$SYNC_BRANCH:$remote_sha" origin --delete "$SYNC_BRANCH"; then
-                echo "::error::Could not delete '$SYNC_BRANCH'. It changed since this run read it, and a newer branch is never removed. The next run tries again." >&2
+                echo "::error::Could not delete '$SYNC_BRANCH' (git's message is above). Most likely it moved or vanished since this run read it, and a branch that moved is never removed; a network or permission error looks the same. The next run tries again." >&2
                 exit 1
               fi
               result="$result; deleted the branch $SYNC_BRANCH"
@@ -454,7 +456,7 @@ jobs:
           echo "::add-mask::$auth"
           authgit() { git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" "$@"; }
           paths=(src/data/project-meta.json src/assets/projects)
-          remote_sha=$(authgit ls-remote origin "refs/heads/$SYNC_BRANCH" | cut -f1)
+          remote_sha=$(authgit ls-remote origin "refs/heads/$SYNC_BRANCH" | awk -v ref="refs/heads/$SYNC_BRANCH" '$2 == ref { print $1 }')
           # Staged first so a new screenshot counts in the comparison, which git diff alone ignores while untracked.
           git add -- "${paths[@]}"
           if [ -n "$remote_sha" ]; then
