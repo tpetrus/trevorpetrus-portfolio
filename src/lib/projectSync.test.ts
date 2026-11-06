@@ -405,6 +405,14 @@ describe('deployStateFromCheckRuns', () => {
         expect(state(rerun, failed, { ...failed })).toBe('green');
     });
 
+    it('lets the copy of a run that was read last decide', () => {
+        // The run moved between pages: the page read first still showed it running, the page read later shows it done.
+        const running = run({ id: 9, status: 'in_progress', conclusion: null, startedAt: ago(1) });
+        const done = run({ id: 9, status: 'completed', conclusion: 'success', startedAt: ago(1) });
+        expect(state(running, done)).toBe('green');
+        expect(state(done, running)).toBe('pending');
+    });
+
     it('lets a deploy run of any worker decide, not only this one', () => {
         expect(state(run({ name: 'Workers Builds: some-other-worker', conclusion: 'failure' }), run())).toBe('failed');
     });
@@ -683,6 +691,23 @@ describe('formatSyncSummary', () => {
         expect(summary.split('\n')[4]).toBe(
             '| x | unchanged | unchanged | **failed**: locator.waitFor: Timeout 30000ms exceeded. Call log: - waiting |',
         );
+    });
+
+    it('lists run notes after the table, each on one line, and none when there are none', () => {
+        const none = formatSyncSummary([], { check: false });
+        expect(formatSyncSummary([], { check: false, notes: [] })).toBe(none);
+        expect(formatSyncSummary([], { check: false, notes: ['first  note', 'second\nnote'] }).split('\n')).toEqual([
+            '### Project sync',
+            '',
+            '| Project | Copy | Dates | Screenshot |',
+            '| --- | --- | --- | --- |',
+            '',
+            '#### Run notes',
+            '',
+            '- first note',
+            '- second note',
+            '',
+        ]);
     });
 
     it('marks check mode in the heading', () => {

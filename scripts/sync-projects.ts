@@ -66,6 +66,7 @@ import {
     parseSyncArgs,
     planCapture,
     planCaptureWithoutDeploy,
+    staleDeployMessage,
     type ProjectReport,
     type RepoCopyInput,
     type ScreenshotOutcome,
@@ -241,6 +242,8 @@ export async function main(argv: readonly string[], deps: SyncDeps): Promise<Syn
         const reports: ProjectReport[] = [];
         const screenshots: Output[] = [];
         const failures: string[] = [];
+        // Run-level facts for the job summary, which a table row cannot hold.
+        const notes: string[] = [];
         // Slugs whose check runs were requested, and those among them whose read threw: when they are the same set,
         // no deploy could be read at all and the run exits 1 after writing everything else.
         const requested: string[] = [];
@@ -283,7 +286,10 @@ export async function main(argv: readonly string[], deps: SyncDeps): Promise<Syn
                     }
                     // A stuck deploy reads as `none`; say so, or it would pass silently. The log is outside the try so a
                     // throwing logger can never turn a readable deploy into `unknown`.
-                    if (stale) deps.log(formatStaleDeployWarning(current.slug));
+                    if (stale) {
+                        deps.log(formatStaleDeployWarning(current.slug));
+                        notes.push(staleDeployMessage(current.slug));
+                    }
                     decision = planCapture({ ...planInput, deploy });
                 }
                 if (!decision.capture) {
@@ -356,10 +362,11 @@ export async function main(argv: readonly string[], deps: SyncDeps): Promise<Syn
             deps.log(`${path}: ${verb}${note}`);
         }
         for (const line of failures) deps.error(line);
-        deps.summary(formatSyncSummary(reports, { check: args.check }));
 
         // Every deploy read failing is a misconfiguration (token, response shape), not one flaky project.
         const deployUnreadable = deployReadFailedEverywhere(requested, unknown);
+        if (deployUnreadable) notes.push(formatDeployReadError(unknown));
+        deps.summary(formatSyncSummary(reports, { check: args.check, notes }));
         if (deployUnreadable) deps.error(formatDeployReadError(unknown));
         if (failures.length > 0 || deployUnreadable) return EXIT_ERROR;
         return args.check && anyChange ? EXIT_WOULD_CHANGE : EXIT_OK;
