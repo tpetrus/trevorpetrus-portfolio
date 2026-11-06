@@ -170,7 +170,8 @@ scripts/sync-gallery.ts   manual: processes and uploads gallery images and write
 scripts/galleryImage.ts   the image processing the sync uses (sharp and exifr), with the location guards and the
                           GPS-to-city lookup; specs sit next to it (scripts/galleryImage.test.ts)
 scripts/geonames.ts       downloads and caches GeoNames `cities1000` (I/O only; logic is in src/lib/geonames.ts)
-.github/                thin caller workflows and Dependabot config
+.github/                thin caller workflows, Dependabot config and scripts/validate-project-meta.jq (the sync publish job's
+                        artifact check)
 ```
 
 ## The domain: change it in one place
@@ -234,7 +235,7 @@ title, and a byline with the tech chips (`paper-2`) and "Updated <date>". Number
 newest has the highest number, and adding a project never renumbers another; ties on the same date go by slug. Every project
 has a meta entry with a `created` date (`parseProjectMeta` requires it and `copyFor` fails the build without the entry),
 so run the sync right after adding a project. The sync never removes the entry of a deleted project: delete it from
-`src/data/project-meta.json` by hand. `numberItems` returns them in number order, so the rows under the cover follow on from it (02, 03, 04 under an 01 cover). A card's main link is `projectUrl(subdomain)` when `subdomain` is set, otherwise the repo;
+`src/data/project-meta.json` by hand, along with its screenshot, or every publish of the daily sync fails on the unknown project. `numberItems` returns them in number order, so the rows under the cover follow on from it (02, 03, 04 under an 01 cover). A card's main link is `projectUrl(subdomain)` when `subdomain` is set, otherwise the repo;
 every card also has a GitHub icon link, and both open in a new tab (`target="_blank"`, announced by an sr-only note
 and the icon's label). On hover and keyboard focus a card draws a box-shadow that takes no space: a 1px `accent-deep`
 ring plus a 5 px `accent` offset to the bottom right, so it reads slightly 3D. The GitHub icon link fills with `accent` (the icon turns ink) on
@@ -321,12 +322,14 @@ changed).
     token of the version-bot GitHub App (contents and pull requests write). It first checks that the repository allows
     auto-merge and that the `main` rules require `ci / result`, `pr-checks / pr-title` and `pr-checks / version`, and
     fails, naming what is missing, before any write. If `main` moved after the run started, it publishes nothing
-    (the next run starts from fresh data). It treats the artifact as untrusted data and accepts at most 50 regular
+    (the next run starts from fresh data), with a warning annotation on the green run. It treats the artifact as untrusted data and accepts at most 50 regular
     files of at most 2,000,000 bytes: `data/project-meta.json`, one JSON object with exactly one entry per
-    `src/content/projects/*.md` slug in the meta schema's shape (length-capped), and `assets/projects/<slug>.avif` for
+    `src/content/projects/*.md` slug in the meta schema's shape (length-capped; checked by the jq filter
+    `.github/scripts/validate-project-meta.jq`, and `src/lib/projectMetaValidation.test.ts` fails when the filter and
+    `projectMetaEntrySchema` drift apart: a changed field goes in both), and `assets/projects/<slug>.avif` for
     a known slug with the AVIF signature. It copies them onto the commit the sync ran on and then (contract C4):
     - outputs equal to that commit and the sync exited 0: closes the open bot PR and deletes `bot/sync-projects`
-      (kept when someone else's PR uses the branch); an exit-1 run with no change leaves an open bot PR alone;
+      if it is still at the commit it read (kept when someone else's PR uses the branch); an exit-1 run with no change leaves an open bot PR alone;
     - outputs changed: commits `chore(projects): refresh project data` (`SYNC_COMMIT_TITLE`) as the App's bot user on a
       fresh `bot/sync-projects` and pushes it only if the branch is still at the commit it read (`--force-with-lease`),
       so a commit it never saw is never overwritten; when the branch already holds the same outputs and is based on

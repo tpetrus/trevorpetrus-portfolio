@@ -9,8 +9,9 @@ name: Sync projects
 # can still use a partial result, and then fails itself on a non-zero code so the owner is emailed.
 #
 # `publish` holds the write credential (a GitHub App token), so it never runs the repository's code: no npm, no browser,
-# no repo script, only git, gh and shell over the artifact, which it validates as untrusted data first (the same
-# pattern as update-snapshots.yml in tpetrus/ci-workflows). It copies the outputs into a checkout of main, pushes them
+# no repo script, only git, gh, shell and jq over the artifact, which it validates as untrusted data first (the same
+# pattern as update-snapshots.yml in tpetrus/ci-workflows). The one file from the repo that acts as a program is the jq
+# filter, read from the checkout of main, the same commit as this workflow. It copies the outputs into a checkout of main, pushes them
 # as one commit to the branch `bot/sync-projects` and opens (or reuses) a pull request with auto-merge on, so the data
 # reaches main only through the required checks. When main already has the data it closes a leftover PR and branch.
 # The branch is pushed as the App because pushes made with GITHUB_TOKEN start no workflows, which would leave the
@@ -157,8 +158,9 @@ jobs:
       # The sync job built from the commit this run started on. If main has moved since, the data may be stale (a
       # project that merged meanwhile, a screenshot already refreshed) and a PR built on the old commit would only
       # conflict or overwrite newer work. So nothing is published: every later step is skipped through the `fresh`
-      # output, the run still succeeds, and the next run starts from the new main. Git is not usable yet (there is no
-      # checkout), so the head of main is read through the API.
+      # output, the run still succeeds with a warning (so a green run that published nothing can be told from one that
+      # had nothing to publish), and the next run starts from the new main. Git is not usable yet (there is no checkout),
+      # so the head of main is read through the API.
       - name: Stop when main moved
         id: fresh
         env:
@@ -169,7 +171,7 @@ jobs:
           current=$(gh api "repos/$REPO/commits/main" --jq .sha)
           if [ "$current" != "$RUN_SHA" ]; then
             message="main moved since this run started ($RUN_SHA -> $current); nothing is published, the next run uses fresh data"
-            echo "::notice::$message"
+            echo "::warning::$message"
             echo "Publish: $message." >> "$GITHUB_STEP_SUMMARY"
             echo "fresh=false" >> "$GITHUB_OUTPUT"
             exit 0
@@ -201,8 +203,9 @@ jobs:
       # the checkout's target directories must contain no symlink, so the copy cannot be redirected out of the workspace.
       # The content is checked too, with jq and shell only: at most 50 files of at most 2,000,000 bytes (CI's 2 MB limit
       # is decimal), a meta file that is one JSON object with exactly the projects in src/content/projects (the checkout
-      # is main, so trusted) and the entry shape of src/lib/projectMeta.ts, and screenshots named after those projects
-      # that begin with an AVIF header.
+      # is main, so trusted) and the entry shape of src/lib/projectMeta.ts (the filter in
+      # .github/scripts/validate-project-meta.jq, which has its own spec), and screenshots named after those projects
+      # that begin with an AVIF header. A file's size is checked before anything reads it.
       - name: Validate the sync artifact
         if: steps.fresh.outputs.fresh == 'true'
         env:
@@ -236,6 +239,8 @@ jobs:
             return 1
           }
           slugs_json=$(printf '%s\n' "${known[@]}" | jq -R . | jq -s -c .)
+          # Resolved now: the next line leaves the checkout.
+          filter="$PWD/.github/scripts/validate-project-meta.jq"
 
           cd "$STAGE"
           if [ -n "$(find . -mindepth 1 ! -type f ! -type d -print -quit)" ]; then
@@ -251,6 +256,8 @@ jobs:
             case "/$relative/" in
               */../*) fail "Path traversal in the sync artifact: $relative" ;;
             esac
+            size=$(stat -c %s -- "$relative")
+            [ "$size" -le 2000000 ] || fail "File over 2 MB in the sync artifact: $relative ($size bytes)"
             if [ "$relative" = "data/project-meta.json" ]; then
               have_meta=true
               jq empty -- "$relative" || fail "data/project-meta.json is not valid JSON."
@@ -267,44 +274,17 @@ jobs:
               [ "$(head -c 12 -- "$relative" | tail -c 8)" = "ftypavif" ] ||
                 fail "Screenshot without an AVIF header in the sync artifact: $relative"
             fi
-            size=$(stat -c %s -- "$relative")
-            [ "$size" -le 2000000 ] || fail "File over 2 MB in the sync artifact: $relative ($size bytes)"
           done < <(find . -type f -print0)
           [ "$have_meta" = "true" ] || fail "The sync artifact has no data/project-meta.json."
 
           # The meta file: one JSON document, an object, then every entry against the schema in src/lib/projectMeta.ts.
-          # The jq program prints the first problem it finds; with -e that is exit code 0, and no output (exit code 4)
+          # The jq filter prints the first problem it finds; with -e that is exit code 0, and no output (exit code 4)
           # means the file is fine. Any other code is jq itself failing, which also stops the run.
           meta=data/project-meta.json
           [ "$(jq -s 'length' "$meta")" = "1" ] || fail "data/project-meta.json is not exactly one JSON document."
           jq -e 'type == "object"' "$meta" > /dev/null || fail "data/project-meta.json is not a JSON object."
-          program=$(cat <<'JQ'
-          def re_date: "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$";
-          def fields: ["created", "updated", "description", "tech", "capturedSha"];
-          def required: ["created", "updated", "description", "tech"];
-          def entry($k):
-            if type != "object" then "\($k): the entry is not an object"
-            else
-              . as $e
-              | first(
-                  (keys_unsorted[] | select(IN(fields[]) | not) | "\($k): unexpected key '\(.)'"),
-                  (required[] | select(. as $f | $e | has($f) | not) | "\($k): missing '\(.)'"),
-                  (("created", "updated") as $f | $e[$f] | select((type == "string" and test(re_date)) | not) | "\($k): '\($f)' is not an ISO UTC datetime"),
-                  ($e.description | select((type == "string" and length > 0 and length <= 500) | not) | "\($k): 'description' must be a non-empty string of at most 500 characters"),
-                  ($e.tech | select((type == "array" and length >= 1 and length <= 20 and all(.[]; type == "string" and length >= 1 and length <= 40)) | not) | "\($k): 'tech' must be 1 to 20 strings of 1 to 40 characters each"),
-                  (select($e | has("capturedSha")) | $e.capturedSha | select((type == "string" and test("^[0-9a-f]{40}$")) | not) | "\($k): 'capturedSha' must be 40 lowercase hex characters")
-                )
-            end;
-          . as $m
-          | first(
-              (keys_unsorted[] | select(IN($slugs[]) | not) | "unknown project key '\(.)' (there is no src/content/projects/\(.).md)"),
-              ($slugs[] | select(. as $s | $m | has($s) | not) | "missing project '\(.)'"),
-              (keys_unsorted[] as $k | $m[$k] | entry($k))
-            )
-          JQ
-          )
           set +e
-          problem=$(jq -e -r --argjson slugs "$slugs_json" "$program" "$meta")
+          problem=$(jq -e -r --argjson slugs "$slugs_json" --from-file "$filter" "$meta")
           status=$?
           set -e
           # The message can quote a key from the artifact, so control characters (a newline could start another workflow
@@ -339,7 +319,8 @@ jobs:
       #
       # The branch is deleted only when that cannot hurt someone else's work: either the App's own PR for it was just
       # closed, or no open PR in this repository has it as its head. A person's PR from a branch of the same name stays
-      # untouched, with its branch. The token goes only to the one git command that needs it.
+      # untouched, with its branch. The delete names the SHA that was read, so a branch that moved since is never removed;
+      # the next run retries. The token goes only to the git commands that need it.
       - name: Close the stale sync pull request
         if: steps.fresh.outputs.fresh == 'true' && steps.copy.outputs.changed == 'false'
         env:
@@ -371,11 +352,16 @@ jobs:
             result="closed pull request #$number"
             closed_app_pr=true
           fi
-          # A branch can exist without an open PR (a closed one, or a failed run between the push and the PR).
-          if [ -n "$(authgit ls-remote origin "refs/heads/$SYNC_BRANCH")" ]; then
+          # A branch can exist without an open PR (a closed one, or a failed run between the push and the PR). Read into
+          # a variable first: inside the test below a failed ls-remote would look like "no branch" and the step would pass.
+          remote_sha=$(authgit ls-remote origin "refs/heads/$SYNC_BRANCH" | cut -f1)
+          if [ -n "$remote_sha" ]; then
             open_count=$(gh api "repos/$REPO/pulls?state=open&head=$OWNER:$SYNC_BRANCH" --jq length)
             if [ "$closed_app_pr" = "true" ] || [ "$open_count" = "0" ]; then
-              authgit push origin --delete "$SYNC_BRANCH"
+              if ! authgit push "--force-with-lease=refs/heads/$SYNC_BRANCH:$remote_sha" origin --delete "$SYNC_BRANCH"; then
+                echo "::error::Could not delete '$SYNC_BRANCH'. It changed since this run read it, and a newer branch is never removed. The next run tries again." >&2
+                exit 1
+              fi
               result="$result; deleted the branch $SYNC_BRANCH"
             else
               echo "::notice::The branch $SYNC_BRANCH is the head of $open_count open pull request(s) that this workflow did not open, so it is not deleted."
