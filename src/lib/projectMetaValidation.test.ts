@@ -65,7 +65,8 @@ describe('the jq filter and the meta schema', () => {
 
     it('requires exactly the required fields of the schema', () => {
         const required = Object.entries(shape)
-            .filter(([, field]) => !field.isOptional())
+            // A field is optional when it accepts a missing value (zod deprecated isOptional() for exactly this check).
+            .filter(([, field]) => !field.safeParse(undefined).success)
             .map(([name]) => name);
         expect(sorted(filterList('required'))).toEqual(sorted(required));
     });
