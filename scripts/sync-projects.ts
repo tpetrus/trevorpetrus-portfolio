@@ -23,11 +23,11 @@ import { appendFileSync, mkdirSync, readdirSync, readFileSync, realpathSync, wri
 import { basename, dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { chromium, type Browser } from '@playwright/test';
+import { chromium, type Browser, type Page } from '@playwright/test';
 import sharp from 'sharp';
 
 import { projectUrl } from '../src/config/site.ts';
-import { assessCapture } from '../src/lib/captureGuard.ts';
+import { assessCapture, assessImages, formatImageProblem, type PageImage } from '../src/lib/captureGuard.ts';
 import {
     commitsApiUrl,
     factsFromRepo,
@@ -80,6 +80,7 @@ const VIEWPORT = { width: 1280, height: 800 };
 const SCALE = 2;
 const AVIF_QUALITY = 80;
 const PAGE_TIMEOUT_MS = 30_000;
+const IMAGE_POLL_MS = 100;
 const LAUNCH_TIMEOUT_MS = 60_000;
 const FETCH_TIMEOUT_MS = 30_000;
 const NETWORK_IDLE_TIMEOUT_MS = 10_000;
@@ -424,6 +425,30 @@ export async function fetchGitHub(url: string): Promise<unknown> {
     return response.json();
 }
 
+// Waits until every image the screenshot will show has loaded. The page only reports facts; assessImages
+// (src/lib/captureGuard.ts) judges them. A finished image with no pixels fails the capture at once, since a broken
+// image would be photographed as an icon, and one still loading after PAGE_TIMEOUT_MS fails it too.
+async function waitForImages(page: Page): Promise<void> {
+    const deadline = Date.now() + PAGE_TIMEOUT_MS;
+    for (;;) {
+        const images: PageImage[] = await page.evaluate(() =>
+            Array.from(document.images).map((image) => {
+                const { top, bottom } = image.getBoundingClientRect();
+                return {
+                    src: image.currentSrc,
+                    inViewport: bottom > 0 && top < window.innerHeight,
+                    complete: image.complete,
+                    naturalWidth: image.naturalWidth,
+                };
+            }),
+        );
+        const result = assessImages(images);
+        if (result.state === 'ready') return;
+        if (result.state === 'broken' || Date.now() >= deadline) throw new Error(formatImageProblem(result));
+        await page.waitForTimeout(IMAGE_POLL_MS);
+    }
+}
+
 async function screenshot(browser: Browser, url: string, appSelector: string): Promise<Capture> {
     const context = await browser.newContext({
         viewport: VIEWPORT,
@@ -444,13 +469,7 @@ async function screenshot(browser: Browser, url: string, appSelector: string): P
         // once it is ready (the project's `appSelector`).
         await page.locator(appSelector).first().waitFor({ state: 'visible' });
         await page.evaluate(() => document.fonts.ready);
-        await page.waitForFunction(() =>
-            Array.from(document.images).every((image) => {
-                const { top, bottom } = image.getBoundingClientRect();
-                const inViewport = bottom > 0 && top < window.innerHeight;
-                return !inViewport || image.complete;
-            }),
-        );
+        await waitForImages(page);
         const png = await page.screenshot({ type: 'png', animations: 'disabled', caret: 'hide' });
         return { png, status: response?.status() ?? null };
     } finally {

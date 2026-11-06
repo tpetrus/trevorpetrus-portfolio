@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import {
     assessCapture,
+    assessImages,
+    formatImageProblem,
     MAX_CAPTURE_BYTES,
     MIN_CAPTURE_BYTES,
     MIN_CHANNEL_STDEV,
     type CaptureFacts,
+    type PageImage,
 } from './captureGuard';
 
 const good: CaptureFacts = {
@@ -91,5 +94,87 @@ describe('assessCapture', () => {
             'the AVIF is',
             'the pixels are',
         ]);
+    });
+});
+
+describe('assessImages', () => {
+    const image = (over: Partial<PageImage> = {}): PageImage => ({
+        src: 'https://app.example/card.avif',
+        inViewport: true,
+        complete: true,
+        naturalWidth: 640,
+        ...over,
+    });
+
+    it('is ready without images and with loaded ones', () => {
+        expect(assessImages([])).toEqual({ state: 'ready' });
+        expect(assessImages([image(), image({ src: 'https://app.example/b.avif' })])).toEqual({ state: 'ready' });
+    });
+
+    it('waits for an on-screen image that has not completed', () => {
+        expect(assessImages([image(), image({ src: 'https://app.example/slow.avif', complete: false })])).toEqual({
+            state: 'loading',
+            sources: ['https://app.example/slow.avif'],
+        });
+    });
+
+    it('calls an on-screen image that completed with no pixels broken, which complete alone would pass', () => {
+        expect(assessImages([image({ src: 'https://app.example/gone.avif', naturalWidth: 0 })])).toEqual({
+            state: 'broken',
+            sources: ['https://app.example/gone.avif'],
+        });
+    });
+
+    it('reports broken before loading, because waiting cannot fix it', () => {
+        const state = assessImages([
+            image({ src: 'https://app.example/slow.avif', complete: false, naturalWidth: 0 }),
+            image({ src: 'https://app.example/gone.avif', naturalWidth: 0 }),
+        ]);
+        expect(state).toEqual({ state: 'broken', sources: ['https://app.example/gone.avif'] });
+    });
+
+    it('ignores images outside the viewport and images with no source', () => {
+        expect(
+            assessImages([
+                image({ inViewport: false, complete: false, naturalWidth: 0 }),
+                image({ src: '', complete: true, naturalWidth: 0 }),
+                image({ src: '', complete: false, naturalWidth: 0 }),
+            ]),
+        ).toEqual({ state: 'ready' });
+    });
+
+    it.each([
+        'https://app.example/logo.svg',
+        'https://app.example/logo.SVG?v=2',
+        'https://app.example/logo.svg#icon',
+        'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg"/>',
+    ])('does not judge a vector image by its natural width: %s', (src) => {
+        expect(assessImages([image({ src, naturalWidth: 0 })])).toEqual({ state: 'ready' });
+    });
+
+    it('still judges a raster image whose name only mentions svg', () => {
+        expect(assessImages([image({ src: 'https://app.example/svg-card.avif', naturalWidth: 0 })]).state).toBe(
+            'broken',
+        );
+    });
+});
+
+describe('formatImageProblem', () => {
+    it('names a broken image', () => {
+        expect(formatImageProblem({ state: 'broken', sources: ['https://app.example/a.avif'] })).toBe(
+            'an image on the page failed to load: https://app.example/a.avif',
+        );
+    });
+
+    it('names a slow image after the wait ran out', () => {
+        expect(formatImageProblem({ state: 'loading', sources: ['https://app.example/a.avif'] })).toBe(
+            'an image on the page was still loading after the wait: https://app.example/a.avif',
+        );
+    });
+
+    it('names at most three, cuts long sources and counts the rest', () => {
+        const long = `data:image/png;base64,${'A'.repeat(200)}`;
+        const text = formatImageProblem({ state: 'broken', sources: ['a', 'b', long, 'd', 'e'] });
+        expect(text).toBe(`an image on the page failed to load: a, b, ${long.slice(0, 80)}..., and 2 more`);
     });
 });
