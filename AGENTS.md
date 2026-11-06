@@ -326,7 +326,8 @@ changed).
     fails, naming what is missing, before any write. If `main` moved after the run started, it publishes nothing
     (the next run starts from fresh data), with a warning annotation on the green run. It treats the artifact as untrusted data and accepts at most 50 regular
     files of at most 2,000,000 bytes: `data/project-meta.json`, one JSON object with exactly one entry per
-    `src/content/projects/*.md` slug in the meta schema's shape (length-capped; checked by the jq filter
+    `src/content/projects/*.md` slug in the meta schema's shape (length-capped, with the schema's date and blank-text
+    rules; checked by the jq filter
     `.github/scripts/validate-project-meta.jq`, and `src/lib/projectMetaValidation.test.ts` fails when the filter and
     `projectMetaEntrySchema` drift apart: a changed field goes in both), and `assets/projects/<slug>.avif` for
     a known slug with the AVIF signature. It copies them onto the commit the sync ran on and then (contract C4):
