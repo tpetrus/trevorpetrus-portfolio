@@ -235,7 +235,8 @@ title, and a byline with the tech chips (`paper-2`) and "Updated <date>". Number
 newest has the highest number, and adding a project never renumbers another; ties on the same date go by slug. Every project
 has a meta entry with a `created` date (`parseProjectMeta` requires it and `copyFor` fails the build without the entry),
 so run the sync right after adding a project. The sync never removes the entry of a deleted project: delete it from
-`src/data/project-meta.json` by hand, along with its screenshot, or every publish of the daily sync fails on the unknown project. `numberItems` returns them in number order, so the rows under the cover follow on from it (02, 03, 04 under an 01 cover). A card's main link is `projectUrl(subdomain)` when `subdomain` is set, otherwise the repo;
+`src/data/project-meta.json` by hand, along with its screenshot, or every publish of the daily sync fails on the unknown project. `numberItems` returns them in number order, so the rows under the cover follow on from it (02, 03, 04 under an 01 cover). Each card's `article` carries `data-project="<slug>"` (the `slug` prop; no visual effect), which
+`tests/e2e/projects.spec.ts` uses to check a card's copy against that project's meta entry. A card's main link is `projectUrl(subdomain)` when `subdomain` is set, otherwise the repo;
 every card also has a GitHub icon link, and both open in a new tab (`target="_blank"`, announced by an sr-only note
 and the icon's label). On hover and keyboard focus a card draws a box-shadow that takes no space: a 1px `accent-deep`
 ring plus a 5 px `accent` offset to the bottom right, so it reads slightly 3D. The GitHub icon link fills with `accent` (the icon turns ink) on
