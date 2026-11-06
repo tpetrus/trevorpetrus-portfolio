@@ -161,8 +161,13 @@ test.describe('projects page @smoke', () => {
     test('every card shows its project meta description and tech chips', async ({ page }) => {
         const cards = page.getByRole('article');
         const count = await cards.count();
-        const entries = Object.values(META);
         expect(count).toBeGreaterThan(0);
+        // Every project has one card, so the slugs on the page are exactly the meta file's keys.
+        expect(
+            (
+                await cards.evaluateAll((elements) => elements.map((element) => element.getAttribute('data-project')))
+            ).sort(),
+        ).toEqual(Object.keys(META).sort());
 
         for (let index = 0; index < count; index++) {
             const card = cards.nth(index);
@@ -171,9 +176,12 @@ test.describe('projects page @smoke', () => {
 
             expect(description).not.toBe('');
             expect(chips.length).toBeGreaterThan(0);
-            // The card is matched to its entry by the description, then the chips must be that entry's list.
-            const entry = entries.find((candidate) => normalize(candidate.description) === description);
-            expect(entry, `no meta entry has the description "${description}"`).toBeDefined();
+            // The card names its project, so its copy is checked against that project's entry and no other: two
+            // projects with the same About text could not be told apart by the text.
+            const slug = await card.getAttribute('data-project');
+            const entry = slug === null ? undefined : META[slug];
+            expect(entry, `no meta entry for the card "${slug}"`).toBeDefined();
+            expect(description).toBe(normalize(entry?.description ?? ''));
             expect(chips).toEqual(entry?.tech.map(normalize));
         }
         await expect(cards.first().getByRole('list', { name: 'Technologies' })).toBeVisible();

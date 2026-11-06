@@ -22,7 +22,9 @@ const COPY = { description: 'Copy from GitHub.', tech: ['Astro', 'three.js'] };
 
 async function render(featured: boolean): Promise<string> {
     const container = await AstroContainer.create();
-    return container.renderToString(ProjectCard, { props: { project: PROJECT, copy: COPY, featured, number: 1 } });
+    return container.renderToString(ProjectCard, {
+        props: { project: PROJECT, slug: 'fixture-project', copy: COPY, featured, number: 1 },
+    });
 }
 
 describe('ProjectCard reading order', () => {
@@ -57,6 +59,14 @@ describe('ProjectCard image widths', () => {
         expect(html).toMatch(/640w/);
         expect(html).not.toMatch(/480w/);
         expect(html).toContain('(min-width: 1024px) 45vw');
+    });
+});
+
+describe('ProjectCard slug', () => {
+    it.each([true, false])('marks the card with its slug in data-project (featured: %s)', async (featured) => {
+        const html = await render(featured);
+
+        expect(html).toMatch(/<article[^>]*\sdata-project="fixture-project"/);
     });
 });
 
