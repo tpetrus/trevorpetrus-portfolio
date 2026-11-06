@@ -11,6 +11,8 @@ import ProjectScreenshot from './ProjectScreenshot.astro';
 
 interface Props {
     project: CollectionEntry<'projects'>['data'];
+    /** The project's slug (its content entry id), written to `data-project` so tests can tie a card to its meta entry. */
+    slug: string;
     /** The description and tech chips, from the repo's GitHub About text and topics (src/data/project-meta.json). */
     copy: ProjectCopy;
     /** When the newest commit landed; the date is omitted when the sync has not recorded one. */
@@ -23,7 +25,7 @@ interface Props {
     priority?: boolean;
 }
 
-const { project, copy, updated, featured = false, number, priority = false } = Astro.props;
+const { project, slug, copy, updated, featured = false, number, priority = false } = Astro.props;
 const { title, status, repo, thumbnail } = project;
 const { description, tech } = copy;
 
@@ -57,6 +59,7 @@ const rowGrid = thumbnail
     if there were no padding. A row has no vertical margin trick: its vertical padding makes the box end flush with the
     index rules on the li. `has-focus-visible` shows the box for keyboard focus anywhere in the card. */}
 <article
+    data-project={slug}
     class:list={[
         'relative flex flex-col gap-5 transition-[box-shadow] duration-150 [box-shadow:0_0_0_1px_transparent,5px_5px_0_1px_transparent] hover:[box-shadow:0_0_0_1px_var(--color-accent-deep),5px_5px_0_1px_var(--color-accent)] has-focus-visible:[box-shadow:0_0_0_1px_var(--color-accent-deep),5px_5px_0_1px_var(--color-accent)] motion-reduce:transition-none',
         featured
