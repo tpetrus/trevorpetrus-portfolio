@@ -298,7 +298,10 @@ changed).
   before `src/data/project-meta.json`, so a recorded `capturedSha` always has its image.
 - **Waits.** Fixed 1280x800 viewport at 2x, dark scheme, reduced motion, animations disabled; after the load event a
   best-effort network-idle wait bounded at 10 s (the app may stream or poll), then the project's `appSelector` must be
-  visible, fonts loaded and the on-screen images complete.
+  visible, fonts loaded and the on-screen images loaded (`assessImages` in `src/lib/captureGuard.ts`). An on-screen image
+  that finished with no pixels (a failed request or undecodable bytes) fails the capture at once, naming the image,
+  instead of being photographed as a broken-image icon; one still loading after 30 s fails it too. Images off screen,
+  images with no source and vector images (which may report a width of 0) are not judged.
 - **Guard.** A capture is rejected when the navigation status is not 2xx, the image is not 2560x1600, the AVIF is under
   20 kB (`MIN_CAPTURE_BYTES`; the blank capture of PR #20 was 5.8 kB at 1x, real ones 31 kB to 247 kB) or over 500 kB,
   or no RGB channel varies enough (`MIN_CHANNEL_STDEV`). Thresholds were calibrated on the committed captures.
@@ -670,5 +673,15 @@ only the Chromium projects (`chromium-*`) because the shared smoke workflow inst
   (`git checkout origin/main -- package-lock.json`) and redoing the install, or installing on Linux/WSL, also works.
 - **The initial lockfile was repaired by hand.** The six entries Windows npm dropped were copied from the sibling
   AudioVisualizer-React lockfile (same `@tailwindcss/oxide` 4.3.3), because no `main` copy existed to restore from.
+- **Local WebKit (`webkit-mobile`) on Windows fails under load, not in the code.** With the whole suite at Playwright's
+  default parallelism, a test that navigates with View Transitions can lose its page ("Target page, context or browser has
+  been closed") or stall on a click: 2 failures in 264 tests (`header.spec.ts` "the handoff still works after View
+  Transitions navigations" and `lightbox.spec.ts` "still works after navigating away and back"). The same tests pass 20
+  out of 20 alone, the photography reveal test passed 60 out of 60 (serial and 8 workers), and the whole WebKit suite
+  passed twice over with `--workers=2` (230 passed). CI runs Linux WebKit in the Playwright container and none of its last
+  60 runs failed in e2e. So before suspecting the code, rerun the failing spec alone or with
+  `npx playwright test --project=webkit-mobile --workers=2`. Playwright's `goto` in WebKit also takes 3.5 to 6.9 s here
+  against 0.2 s in Chromium, so a slow machine multiplies it. If it ever fails on CI's Linux image, it is a real bug: start
+  from the View Transitions swap on `/photography/` (many images under `content-visibility`).
 - **Dependency audit:** `npm install` reports vulnerabilities in dev tooling (not in production dependencies:
   `npm audit --omit=dev` reports none); CI's security workflow is the gate.
