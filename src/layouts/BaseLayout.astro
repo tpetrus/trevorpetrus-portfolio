@@ -53,17 +53,13 @@ const canonicalUrl = new URL(Astro.url.pathname, Astro.site);
         {/* Sticky on every page, above the page content (incl. the running head) and below the skip link (z-30). */}
         <header data-site-header class="sticky top-0 z-20 border-b border-ink bg-paper">
             <div class="column flex flex-wrap items-center justify-between gap-x-gutter py-3">
-                {/* header-start holds a page's own control before the name: the home page's leaves pause button. */}
-                <div class="flex items-center gap-3">
-                    <slot name="header-start" />
-                    <a
-                        href="/"
-                        data-header-name
-                        class="font-display text-step-n1 font-bold tracking-[0.06em] whitespace-nowrap uppercase"
-                    >
-                        {siteName}
-                    </a>
-                </div>
+                <a
+                    href="/"
+                    data-header-name
+                    class="font-display text-step-n1 font-bold tracking-[0.06em] whitespace-nowrap uppercase"
+                >
+                    {siteName}
+                </a>
                 <nav aria-label="Primary">
                     <ul role="list" class="flex gap-gutter">
                         {NAV_ITEMS.map(({ label, href }) => (
@@ -88,9 +84,14 @@ const canonicalUrl = new URL(Astro.url.pathname, Astro.site);
         {/* The accent band on top is decorative: it marks where the page ends without carrying any meaning. */}
         <footer class="surface-ink border-t-4 border-accent">
             <div class="column flex flex-col gap-2 py-8 text-step-n1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-gutter">
-                <p class="font-display font-bold tracking-[0.06em] uppercase">
-                    &copy; {new Date().getFullYear()} {siteName}
-                </p>
+                {/* footer-control holds a page's own control after the copyright: the home page's leaves pause button.
+                    It comes second so the copyright's text stays the baseline the row aligns on. */}
+                <div class="flex items-center gap-3">
+                    <p class="font-display font-bold tracking-[0.06em] uppercase">
+                        &copy; {new Date().getFullYear()} {siteName}
+                    </p>
+                    <slot name="footer-control" />
+                </div>
                 <p class="font-mono text-ink-muted-on-ink">
                     Set in Archivo, Inter and IBM Plex Mono; built with{' '}
                     <a href="https://astro.build" class="link">

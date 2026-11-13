@@ -1,7 +1,7 @@
 export type LeafFill = 'paper-2' | 'paper-3' | 'accent-tint';
 export const LEAF_FILLS: readonly LeafFill[] = ['paper-2', 'paper-3', 'accent-tint'];
-export const LEAF_SHAPES = 3;
-export const MAX_LEAVES = 15;
+export const LEAF_SHAPES = 2;
+export const MAX_LEAVES = 24;
 
 export interface LeafTier {
     readonly minWidthRem: number;
@@ -10,10 +10,10 @@ export interface LeafTier {
 
 // More leaves only where there is room for them; the last tier equals MAX_LEAVES.
 export const LEAF_TIERS: readonly LeafTier[] = [
-    { minWidthRem: 0, count: 4 },
-    { minWidthRem: 48, count: 8 },
-    { minWidthRem: 64, count: 11 },
-    { minWidthRem: 80, count: 15 },
+    { minWidthRem: 0, count: 7 },
+    { minWidthRem: 48, count: 12 },
+    { minWidthRem: 64, count: 18 },
+    { minWidthRem: 80, count: 24 },
 ];
 
 export function leafCount(widthPx: number): number {
@@ -37,10 +37,13 @@ export function leafTierCss(): string {
     }).join('\n');
 }
 
-// Leaves grow with the viewport width: a seeded size (18-40 px) is the size up to LEAF_SCALE_REF_PX, then scales with
+// Leaves grow with the viewport width: a seeded size (LEAF_MIN_PX to LEAF_MAX_PX) is the size up to LEAF_SCALE_REF_PX, then scales with
 // the width up to LEAF_SCALE_MAX times (2.5x on a 2560 px screen), so a big monitor does not get a sprinkle of crumbs.
 // The rendered width (leafSizeCss) and the physics (leafScale, through Viewport.scale) use the same numbers.
 export const LEAF_SCALE_REF_PX = 1024;
+// The seeded size range in px at or below LEAF_SCALE_REF_PX.
+export const LEAF_MIN_PX = 84;
+export const LEAF_MAX_PX = 168;
 export const LEAF_SCALE_MAX = 3;
 
 export function leafScale(widthPx: number): number {
@@ -125,7 +128,7 @@ export function createLeaves(seed: number, max: number = MAX_LEAVES): Leaf[] {
             index,
             shape: Math.floor(r() * LEAF_SHAPES),
             fill,
-            size: Math.round(between(r, 18, 40)),
+            size: Math.round(between(r, LEAF_MIN_PX, LEAF_MAX_PX)),
             homeX,
             homeY,
             x: homeX,
