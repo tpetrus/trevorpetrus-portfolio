@@ -12,6 +12,7 @@ import {
     type GalleryExtension,
 } from './gallery';
 import type { PhotoLocation } from './location';
+import { collectionAnchorId } from './photoLink';
 
 export type { CuratedEntry };
 
@@ -460,6 +461,40 @@ export function checkSourceFormat(file: string, claimed: GalleryExtension, actua
 }
 
 const FORMAT_NAMES: Record<GalleryExtension, string> = { jpg: 'JPEG', png: 'PNG' };
+
+/**
+ * Checks every file's real format at once and throws ONE error naming each mismatch, so a batch of renamed files is
+ * fixed in one round instead of one failed run per file.
+ */
+export function checkSourceFormats(
+    files: readonly { file: string; claimed: GalleryExtension; actual: GalleryExtension }[],
+): void {
+    const lines: string[] = [];
+    for (const { file, claimed, actual } of files) {
+        try {
+            checkSourceFormat(file, claimed, actual);
+        } catch (error) {
+            lines.push(`  - ${(error as Error).message}`);
+        }
+    }
+    if (lines.length > 0) throw new Error(`${lines.length} file(s) have the wrong format:\n${lines.join('\n')}`);
+}
+
+/** Problems for images of one collection whose anchor ids collide once sanitized, naming both files. */
+export function anchorCollisionProblems(
+    collection: GalleryCollectionName,
+    images: readonly { file: string; basename: string; extension: GalleryExtension }[],
+): string[] {
+    const byId = new Map<string, string>();
+    const problems: string[] = [];
+    for (const { file, basename, extension } of images) {
+        const id = collectionAnchorId(collection, galleryKey(collection, basename, extension));
+        const other = byId.get(id);
+        if (other === undefined) byId.set(id, file);
+        else problems.push(`Images "${other}" and "${file}" share the page anchor "#${id}": rename one.`);
+    }
+    return problems;
+}
 
 /** A warning when more photos are pinned than the home page's collage shows, naming the ones it leaves out. */
 export function pinLimitWarning(entries: readonly GalleryEntry<unknown>[], limit: number): string | undefined {
