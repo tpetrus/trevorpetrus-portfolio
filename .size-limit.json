@@ -6,6 +6,12 @@
     "limit": "30 kB"
   },
   {
+    "name": "Home page HTML, gzip: its inlined scripts (the leaves loop, the header-name handoff) and the leaf layer markup",
+    "path": "dist/index.html",
+    "gzip": true,
+    "limit": "9 kB"
+  },
+  {
     "name": "Total CSS: every stylesheet in _astro (gzip)",
     "path": "dist/_astro/*.css",
     "gzip": true,
