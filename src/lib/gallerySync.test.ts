@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { GalleryEntry } from './gallery';
 import type { PhotoLocation } from './location';
-import type { PhotographyCaption } from './photography';
+import { comparePhotographyEntries, type PhotographyCaption } from './photography';
 import {
     acceptImages,
     decideAction,
@@ -29,7 +29,8 @@ import {
     serializeGallery,
     sidecarDirectory,
     sidecarFileName,
-    withPin,
+    checkSourceFormat,
+    withSidecarFlags,
     type CuratedEntry,
 } from './gallerySync';
 
@@ -277,6 +278,27 @@ describe('parseSidecars', () => {
     });
 });
 
+describe('parseSidecars for art', () => {
+    const file = (basename: string, ...lines: string[]) => ({
+        basename,
+        source: `dir/${basename}.yml`,
+        text: `${lines.join('\n')}\n`,
+    });
+
+    it('names every offender (placeholder alt, missing title, bad category) in one pass', () => {
+        const result = parseSidecars('art', [
+            file('a', 'alt: "TODO: describe"', 'title: A', 'category: drawing'),
+            file('b', 'alt: Fine', 'category: drawing'),
+            file('c', 'alt: Fine', 'title: C', 'category: sculpture'),
+            file('d', 'alt: Fine', 'title: "  "', 'category: drawing'),
+            file('e', 'alt: Fine', 'title: E', 'category: digital'),
+        ]);
+        expect(result.problems).toHaveLength(4);
+        expect(result.problems.map((problem) => /dir\/(\w)\.yml/.exec(problem)?.[1])).toEqual(['a', 'b', 'c', 'd']);
+        expect([...result.sidecars.keys()]).toEqual(['e']);
+    });
+});
+
 describe('acceptImages', () => {
     it('splits accepted images from rejected files, sorted', () => {
         expect(acceptImages(['b.jpg', 'a.JPEG', 'c.png', '.d.jpg', 'a.jpg'], ['jpg'])).toEqual({
@@ -352,6 +374,7 @@ describe('mergeGallery', () => {
                 curated('photography/same-day-a.jpg', '2025-05-05'),
             ],
             [],
+            comparePhotographyEntries,
         );
         expect(entries.map(({ key }) => key.replace('photography/', ''))).toEqual([
             'first.jpg',
@@ -368,7 +391,7 @@ describe('mergeGallery', () => {
 
     it('does not mutate its input', () => {
         const input = [curated('photography/b.jpg', '2020-01-01'), curated('photography/a.jpg', '2021-01-01')];
-        mergeGallery(input, []);
+        mergeGallery(input, [], comparePhotographyEntries);
         expect(input.map(({ entry: { key } }) => key)).toEqual(['photography/b.jpg', 'photography/a.jpg']);
     });
 
@@ -376,27 +399,54 @@ describe('mergeGallery', () => {
         const { entries, dropped } = mergeGallery(
             [curated('photography/kept.jpg', undefined)],
             [{ key: 'photography/kept.jpg' }, { key: 'photography/gone.jpg' }],
+            comparePhotographyEntries,
         );
         expect(entries).toHaveLength(1);
         expect(dropped).toEqual(['photography/gone.jpg']);
     });
 });
 
-describe('withPin', () => {
-    it('adds pin: true when the sidecar pins the photo', () => {
-        expect(withPin(entry('photography/a.jpg', undefined), true)).toEqual({
-            ...entry('photography/a.jpg', undefined),
-            pin: true,
-        });
+describe('withSidecarFlags', () => {
+    const base = entry('photography/a.jpg', undefined);
+
+    it('adds pin: true and the homeOrder when the sidecar sets them', () => {
+        expect(withSidecarFlags(base, { pin: true, homeOrder: 2 })).toEqual({ ...base, pin: true, homeOrder: 2 });
+        expect(withSidecarFlags(base, { pin: undefined, homeOrder: 0 })).toEqual({ ...base, homeOrder: 0 });
     });
 
-    it('drops a pin the previous entry carried when the sidecar no longer sets it', () => {
-        const pinned = { ...entry('photography/a.jpg', undefined), pin: true as const };
+    it('writes nothing when neither is set', () => {
+        const result = withSidecarFlags(base, { pin: undefined, homeOrder: undefined });
+        expect(result).toEqual(base);
+        expect(Object.hasOwn(result, 'pin')).toBe(false);
+        expect(Object.hasOwn(result, 'homeOrder')).toBe(false);
+    });
+
+    it('drops a pin and a homeOrder the previous entry carried when the sidecar no longer sets them', () => {
+        const flagged = { ...base, pin: true as const, homeOrder: 4 };
         for (const pin of [undefined, false]) {
-            const result = withPin(pinned, pin);
-            expect(result).toEqual(entry('photography/a.jpg', undefined));
+            const result = withSidecarFlags(flagged, { pin, homeOrder: undefined });
+            expect(result).toEqual(base);
             expect(Object.hasOwn(result, 'pin')).toBe(false);
+            expect(Object.hasOwn(result, 'homeOrder')).toBe(false);
         }
+    });
+
+    it('changes a homeOrder', () => {
+        expect(withSidecarFlags({ ...base, homeOrder: 1 }, { pin: undefined, homeOrder: 7 })).toEqual({
+            ...base,
+            homeOrder: 7,
+        });
+    });
+});
+
+describe('checkSourceFormat', () => {
+    it('passes when the bytes are the format the name claims', () => {
+        expect(() => checkSourceFormat('a.png', 'png', 'png')).not.toThrow();
+    });
+
+    it('names the file when a PNG is called a JPEG or the reverse', () => {
+        expect(() => checkSourceFormat('a.jpg', 'jpg', 'png')).toThrow(/"a.jpg" is really a PNG file, not a JPEG/);
+        expect(() => checkSourceFormat('a.png', 'png', 'jpg')).toThrow(/"a.png" is really a JPEG file, not a PNG/);
     });
 });
 
@@ -608,5 +658,35 @@ describe('entry composition', () => {
             caption: { taken: '2021-01-01' },
         });
         expect(Object.hasOwn(result, 'pin')).toBe(false);
+    });
+});
+
+describe('homeOrder in both branches', () => {
+    const collection = { readsCamera: false, captionFor: () => ({}) };
+    const base = entry('art/a.png', undefined);
+    const processed = { width: 1, height: 1, thumbhash: 'th', caption: undefined };
+    const processedEntry = (homeOrder: number | undefined) =>
+        composeProcessedEntry(collection, {
+            key: 'art/a.png',
+            sourceSha256: 'a'.repeat(64),
+            processed,
+            sidecar: { alt: 'a', category: 'drawing', homeOrder },
+            location: undefined,
+        });
+
+    it('sets, changes and removes homeOrder when an entry is composed from a changed or new source', () => {
+        expect(processedEntry(3).homeOrder).toBe(3);
+        expect(Object.hasOwn(processedEntry(undefined), 'homeOrder')).toBe(false);
+    });
+
+    it('sets, changes and removes homeOrder on the unchanged path', () => {
+        const sidecar = { alt: 'a', category: 'drawing' } as const;
+        const compose = (existing: typeof base, homeOrder: number | undefined) =>
+            composeUnchangedEntry(collection, { existing, sidecar: { ...sidecar, homeOrder }, location: undefined });
+        const set = compose(base, 1);
+        expect(set.homeOrder).toBe(1);
+        expect(compose(set, 5).homeOrder).toBe(5);
+        const removed = compose(set, undefined);
+        expect(Object.hasOwn(removed, 'homeOrder')).toBe(false);
     });
 });
