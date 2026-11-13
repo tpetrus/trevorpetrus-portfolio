@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
     GUST_MAX,
     LEAF_FILLS,
+    LEAF_SCALE_MAX,
+    LEAF_SCALE_REF_PX,
     LEAF_SEED,
     LEAF_SHAPES,
     LEAF_TIERS,
@@ -13,6 +15,8 @@ import {
     createLeaves,
     createWind,
     leafCount,
+    leafScale,
+    leafSizeCss,
     leafTierCss,
     leafTransform,
     step,
@@ -20,6 +24,53 @@ import {
 } from './leaves';
 
 const viewport = { width: 1000, height: 800 };
+
+describe('leaf scale', () => {
+    it('keeps the seeded size up to the reference width, then grows with the width up to the cap', () => {
+        expect(leafScale(320)).toBe(1);
+        expect(leafScale(LEAF_SCALE_REF_PX)).toBe(1);
+        expect(leafScale(1920)).toBeCloseTo(1920 / LEAF_SCALE_REF_PX);
+        expect(leafScale(2560)).toBeCloseTo(2.5);
+        expect(leafScale(10_000)).toBe(LEAF_SCALE_MAX);
+    });
+
+    it('writes the same curve as a CSS clamp, so the still leaves match the moving ones', () => {
+        expect(leafSizeCss(20)).toBe(
+            `clamp(20px, ${Math.round((2000 / LEAF_SCALE_REF_PX) * 100) / 100}vw, ${20 * LEAF_SCALE_MAX}px)`,
+        );
+        // The preferred vw term equals size * leafScale at any width between the bounds.
+        const vw = Number(/, ([\d.]+)vw,/.exec(leafSizeCss(32))?.[1]);
+        expect((vw * 2560) / 100).toBeCloseTo(32 * leafScale(2560), 0);
+    });
+
+    it('wraps and pushes by the scaled size', () => {
+        const [leaf] = createLeaves(3, 1);
+        Object.assign(leaf, { size: 40 });
+        const big = { ...viewport, scale: 2 };
+        // 80 px wide at scale 2: still partly visible at half that past the left edge, gone past all of it.
+        const across = (80 / big.width) * 100;
+        leaf.x = -across + 0.01;
+        step([leaf], 0, createWind(), big);
+        expect(leaf.x).toBe(-across + 0.01);
+        leaf.x = -across - 0.01;
+        step([leaf], 0, createWind(), big);
+        expect(leaf.x).toBe(100);
+        leaf.x = 100;
+        step([leaf], 0, createWind(), big);
+        expect(leaf.x).toBe(-across);
+
+        // The pointer at the scaled center pushes nothing; at the unscaled center it is off-center and pushes.
+        Object.assign(leaf, { x: 50, y: 50, vx: 0, vy: 0 });
+        const wind = createWind();
+        wind.pointer = { x: 500 + 40, y: 400 + 40, active: true };
+        step([leaf], 16, wind, big);
+        expect([leaf.vx, leaf.vy]).toEqual([0, 0]);
+        Object.assign(leaf, { x: 50, y: 50 });
+        wind.pointer = { x: 500 + 20, y: 400 + 40, active: true };
+        step([leaf], 16, wind, big);
+        expect(leaf.vx).toBeGreaterThan(0);
+    });
+});
 
 describe('tiers', () => {
     it('is ascending, strictly increasing in count, from 4 to 15', () => {

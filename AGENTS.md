@@ -242,7 +242,9 @@ three symbols) with `will-change: transform`, so moving one never repaints the v
 `src/lib/leaves.ts`: `LEAF_TIERS` (4 leaves below 48rem, 8, 11, and 15 from 80rem; `leafCount(width)`), a seeded still
 composition in viewport percent (`createLeaves(LEAF_SEED)`), and `step`, which falls, sways, spins and flips each leaf,
 lets a mouse push leaves within 120 px, and decays the scroll gust (`applyGust`, clamped to `GUST_MAX`) under 5% within
-2 s. The server renders the still composition and `leafTierCss()` hides the leaves above the viewport's tier, so reduced
+2 s. Each leaf has a seeded size of 18 to 40 px, kept up to `LEAF_SCALE_REF_PX` (1024 px) and multiplied by the
+viewport width over it from there, up to `LEAF_SCALE_MAX` (2.5x on a 2560 px screen): `leafSizeCss` writes that curve as
+an inline CSS `clamp()` for the still composition and `leafScale` gives the script the same factor. The server renders the still composition and `leafTierCss()` hides the leaves above the viewport's tier, so reduced
 motion and no-JS visitors see the right density with no script. Each leaf's fill is a literal Tailwind class
 (`text-paper-3`), because Tailwind only emits a theme color's variable when a class uses it.
 `src/scripts/homeLeaves.ts` starts the loop on `requestIdleCallback` unless the visitor prefers reduced motion, writes
@@ -253,8 +255,9 @@ the statement; WCAG 2.2.2) is disabled until the script runs, hidden under reduc
 ("Pause/Play falling leaves") and not remembered across visits. The script is about 1.9 kB gzip and under Vite's 4 kB
 inline limit, so it ships inside `index.html`; the "Home page HTML" entry in `.size-limit.json` is what budgets it. Tune
 the feel through the constants in `leaves.ts`, not in the glue. `tests/e2e/leavesStill.spec.ts` and
-`tests/e2e/leavesMotion.spec.ts` cover it; the home visual baseline shows the still composition (the visual spec runs
-under reduced motion).
+`tests/e2e/leavesMotion.spec.ts` cover it. The visual spec runs under reduced motion, so the home baselines hold the
+still composition, but the pale fills sit close to Playwright's per-pixel color threshold and barely register in the
+comparison: the leaf specs, not the baselines, are what check the leaves.
 
 ## Projects
 The Projects page is built from the `projects` content collection (`src/content/projects/*.md`, schema in

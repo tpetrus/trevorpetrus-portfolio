@@ -37,6 +37,22 @@ export function leafTierCss(): string {
     }).join('\n');
 }
 
+// Leaves grow with the viewport width: a seeded size (18-40 px) is the size up to LEAF_SCALE_REF_PX, then scales with
+// the width up to LEAF_SCALE_MAX times (2.5x on a 2560 px screen), so a big monitor does not get a sprinkle of crumbs.
+// The rendered width (leafSizeCss) and the physics (leafScale, through Viewport.scale) use the same numbers.
+export const LEAF_SCALE_REF_PX = 1024;
+export const LEAF_SCALE_MAX = 3;
+
+export function leafScale(widthPx: number): number {
+    return clamp(widthPx / LEAF_SCALE_REF_PX, 1, LEAF_SCALE_MAX);
+}
+
+// The same curve in CSS, so the still composition is sized right without JavaScript. vw includes a classic scrollbar,
+// like the innerWidth the script passes to leafScale.
+export function leafSizeCss(size: number): string {
+    return `clamp(${size}px, ${num((size * 100) / LEAF_SCALE_REF_PX)}vw, ${size * LEAF_SCALE_MAX}px)`;
+}
+
 export const LEAF_SEED = 20240611;
 export const GUST_MAX = 160;
 export const POINTER_RADIUS_PX = 120;
@@ -132,6 +148,8 @@ export function createLeaves(seed: number, max: number = MAX_LEAVES): Leaf[] {
 export interface Viewport {
     width: number;
     height: number;
+    // leafScale of the viewport: what the seeded sizes are multiplied by. Absent means 1.
+    scale?: number;
 }
 export interface Wind {
     gust: number;
@@ -152,14 +170,16 @@ export function step(leaves: Leaf[], dtMs: number, wind: Wind, viewport: Viewpor
     const h = viewport.height || 1;
     const decay = Math.exp(-dt / DECAY_S);
     const p = wind.pointer;
+    const scale = viewport.scale ?? 1;
     wind.gust *= decay;
     for (const l of leaves) {
+        const size = l.size * scale;
         l.t += dt;
         l.vx *= decay;
         l.vy *= decay;
         if (p.active) {
-            const dx = (l.x * w) / 100 + l.size / 2 - p.x;
-            const dy = (l.y * h) / 100 + l.size / 2 - p.y;
+            const dx = (l.x * w) / 100 + size / 2 - p.x;
+            const dy = (l.y * h) / 100 + size / 2 - p.y;
             const d = Math.hypot(dx, dy);
             if (d < POINTER_RADIUS_PX) {
                 const k = ((1 - d / POINTER_RADIUS_PX) * POINTER_PUSH * dt) / (d || 1);
@@ -172,13 +192,13 @@ export function step(leaves: Leaf[], dtMs: number, wind: Wind, viewport: Viewpor
         l.y += l.fall * dt + (l.vy * dt * 100) / h;
         l.rotation += l.spin * dt;
         l.flip = Math.cos(l.phase + l.t * l.flipRate);
-        const below = 100 + (l.size / h) * 100;
+        const below = 100 + (size / h) * 100;
         // The leaf's width in percent: x is its left edge, so it is fully off the left at -across and off the right at 100.
-        const across = (l.size / w) * 100;
+        const across = (size / w) * 100;
         if (l.y > below) {
             // No RNG here: a fixed, per-leaf shift keeps the respawns from lining up. The leaf is above the top, out of
             // sight, so it may land anywhere across the width.
-            l.y = -(l.size / h) * 100;
+            l.y = -(size / h) * 100;
             l.x = (((l.x + 31 + l.index * 7) % 100) + 100) % 100;
         } else if (l.x >= 100) {
             // Blown off the right, it comes back in from just past the left edge (and the other way round), so a leaf

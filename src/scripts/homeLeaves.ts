@@ -13,6 +13,7 @@ import {
     createLeaves,
     createWind,
     leafCount,
+    leafScale,
     leafTransform,
     step,
     type Leaf,
@@ -50,10 +51,10 @@ function bind(layer: HTMLElement): () => void {
     let lastScrollY = window.scrollY;
 
     // Only the leaves the tier CSS shows are moved; the others stay hidden at their still position. The count comes from
-    // innerWidth because the tier media queries measure that (a classic scrollbar included); the layer, which the
-    // scrollbar narrows, only sizes the motion.
+    // innerWidth because the tier media queries measure that (a classic scrollbar included), and so does the scale,
+    // whose CSS twin is in vw; the layer, which the scrollbar narrows, only sizes the motion.
     const measure = (): void => {
-        viewport = { width: layer.clientWidth, height: layer.clientHeight };
+        viewport = { width: layer.clientWidth, height: layer.clientHeight, scale: leafScale(window.innerWidth) };
         active = leaves.slice(0, leafCount(window.innerWidth));
     };
 

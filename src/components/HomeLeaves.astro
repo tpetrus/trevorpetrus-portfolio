@@ -1,5 +1,5 @@
 ---
-import { LEAF_SEED, createLeaves, leafTierCss, stillTransform, type LeafFill } from '../lib/leaves';
+import { LEAF_SEED, createLeaves, leafSizeCss, leafTierCss, stillTransform, type LeafFill } from '../lib/leaves';
 
 // The same seed every build, so the still composition (what reduced motion and no-JS visitors see) never changes.
 const leaves = createLeaves(LEAF_SEED);
@@ -51,7 +51,7 @@ const SHAPES = [
             width={leaf.size}
             height={leaf.size}
             focusable="false"
-            style={`left:${leaf.homeX}%;top:${leaf.homeY}%;transform:${stillTransform(leaf)}`}
+            style={`left:${leaf.homeX}%;top:${leaf.homeY}%;width:${leafSizeCss(leaf.size)};height:${leafSizeCss(leaf.size)};transform:${stillTransform(leaf)}`}
         >
             <use href={`#leaf-shape-${leaf.shape}`} />
         </svg>

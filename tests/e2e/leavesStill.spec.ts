@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { leafCount } from '../../src/lib/leaves';
+import { LEAF_SEED, createLeaves, leafCount, leafScale } from '../../src/lib/leaves';
 
 // The home page's leaf layer as reduced motion (and a visitor without JavaScript) sees it: a still composition behind
 // the content. The motion is covered by leavesMotion.spec.ts.
@@ -77,6 +77,27 @@ test.describe('home leaf layer, still', () => {
                 () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
             );
             expect(overflow).toBe(0);
+        });
+    }
+
+    for (const width of [375, 1024, 2560]) {
+        test(`sizes the leaves for a ${width}px viewport with CSS alone`, async ({ page }) => {
+            await page.setViewportSize({ width, height: 900 });
+            await page.goto('/');
+
+            // The computed width is the layout size, before the rotation and flip of the transform.
+            const widths = await page.locator('[data-leaf]').evaluateAll((nodes) =>
+                nodes.map((node) => {
+                    const style = getComputedStyle(node);
+                    return style.display === 'none' ? null : parseFloat(style.width);
+                }),
+            );
+            const leaves = createLeaves(LEAF_SEED);
+            expect(widths.filter((rendered) => rendered !== null)).toHaveLength(leafCount(width));
+            for (const [index, rendered] of widths.entries()) {
+                if (rendered === null) continue;
+                expect(rendered).toBeCloseTo((leaves[index]?.size ?? 0) * leafScale(width), 0);
+            }
         });
     }
 
