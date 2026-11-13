@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { GalleryEntry } from './gallery';
+import { GALLERY_COLLECTIONS } from './gallery';
 import type { PhotoLocation } from './location';
 import { comparePhotographyEntries, type PhotographyCaption } from './photography';
 import {
@@ -30,6 +31,8 @@ import {
     sidecarDirectory,
     sidecarFileName,
     checkSourceFormat,
+    checkSourceFormats,
+    anchorCollisionProblems,
     withSidecarFlags,
     type CuratedEntry,
 } from './gallerySync';
@@ -688,5 +691,57 @@ describe('homeOrder in both branches', () => {
         expect(compose(set, 5).homeOrder).toBe(5);
         const removed = compose(set, undefined);
         expect(Object.hasOwn(removed, 'homeOrder')).toBe(false);
+    });
+});
+
+describe('composeProcessedEntry with the real photography hooks', () => {
+    it('builds the caption from the camera fields and the place through the registry', () => {
+        const location = { city: 'Lisbon', country: 'Portugal', source: 'sidecar' } as const;
+        const result = composeProcessedEntry(GALLERY_COLLECTIONS.photography, {
+            key: 'photography/a.jpg',
+            sourceSha256: 'a'.repeat(64),
+            processed: {
+                width: 3,
+                height: 2,
+                thumbhash: 'th',
+                caption: { camera: 'Canon EOS R5', taken: '2021-01-01' },
+            },
+            sidecar: { alt: 'Alt', category: 'landscape' },
+            location,
+        });
+        expect(result.caption).toEqual({ camera: 'Canon EOS R5', taken: '2021-01-01', location });
+        expect(result.category).toBe('landscape');
+    });
+});
+
+describe('checkSourceFormats', () => {
+    it('passes when every file is the format it claims', () => {
+        expect(() => checkSourceFormats([{ file: 'a.jpg', claimed: 'jpg', actual: 'jpg' }])).not.toThrow();
+    });
+
+    it('names every mismatched file in one error', () => {
+        const run = () =>
+            checkSourceFormats([
+                { file: 'a.jpg', claimed: 'jpg', actual: 'png' },
+                { file: 'ok.png', claimed: 'png', actual: 'png' },
+                { file: 'b.png', claimed: 'png', actual: 'jpg' },
+            ]);
+        expect(run).toThrow(/2 file\(s\)[\s\S]*"a.jpg" is really a PNG[\s\S]*"b.png" is really a JPEG/);
+    });
+});
+
+describe('anchorCollisionProblems', () => {
+    const image = (basename: string) => ({ file: `${basename}.jpg`, basename, extension: 'jpg' as const });
+
+    it('reports nothing for distinct anchors', () => {
+        expect(anchorCollisionProblems('photography', [image('a'), image('b')])).toEqual([]);
+    });
+
+    it('names both files when sanitizing makes two anchors equal', () => {
+        const [problem, ...rest] = anchorCollisionProblems('photography', [image('a b'), image('a-b')]);
+        expect(rest).toEqual([]);
+        expect(problem).toContain('"a b.jpg"');
+        expect(problem).toContain('"a-b.jpg"');
+        expect(problem).toContain('#photo-a-b');
     });
 });

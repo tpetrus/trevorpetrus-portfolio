@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
-import { parseGallery } from './gallery';
+import { GALLERY_COLLECTIONS, parseGallery } from './gallery';
 import { parseSidecar } from './gallerySync';
 import { decodeThumbHash, encodeThumbHash } from './thumbhash';
 
@@ -118,5 +118,31 @@ describe('checkGalleryFile', () => {
 
     it('rejects a file named after a collection that does not exist', () => {
         expect(() => checkGalleryFile('../data/gallery/sculpture.json', [])).toThrow(/Unknown gallery collection/);
+    });
+});
+
+// Art mirrors the photography check: every committed piece sits in a registry category and agrees with its sidecar.
+// The sidecar folder does not exist until the first upload, so the check passes on an empty collection.
+describe('art categories match the registry and the sidecars', () => {
+    const sidecarDir = new URL('../content/art/', import.meta.url);
+    const art = parseGallery('art', files['../data/gallery/art.json']);
+    const ids = GALLERY_COLLECTIONS.art.categories.map(({ id }) => id);
+
+    it('puts every committed piece in one of the art categories', () => {
+        for (const entry of art) {
+            expect(ids, `${entry.key} has category "${entry.category}"`).toContain(entry.category);
+        }
+    });
+
+    it('records the category its sidecar names', () => {
+        for (const entry of art) {
+            const name = `${entry.key.slice('art/'.length, entry.key.lastIndexOf('.'))}.yml`;
+            const path = `src/content/art/${name}`;
+            const sidecar = parseSidecar('art', readFileSync(new URL(name, sidecarDir), 'utf8'), path);
+            expect(
+                entry.category,
+                `${path}: category differs from art.json; re-run npm run sync:gallery -- art --upload`,
+            ).toBe(sidecar.category);
+        }
     });
 });

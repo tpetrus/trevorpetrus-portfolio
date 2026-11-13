@@ -474,8 +474,8 @@ visual specs and in `lighthouserc.json`.
    the schema rejects anything else) and, optionally, set an integer `order` (lowest first,
    ahead of photos without one), `pin: true` (see "Home collage") and a `location` override (see "Where it was taken"). The photography sidecar schema rejects an `alt` that starts with `TODO`
    (`ALT_PLACEHOLDER_MARKER` in `src/lib/sidecarPlaceholder.ts`, case-insensitive), so the sync fails, dry run included,
-   and lists every such sidecar. It also reports every missing sidecar, orphan sidecar, non-JPEG and duplicate name in one
-   run.
+   and lists every such sidecar. It also reports every missing sidecar, orphan sidecar, non-JPEG, duplicate name and pair of
+   names that would share a page anchor (`a b.jpg` and `a-b.jpg` both become `#photo-a-b`) in one run.
 4. Dry run: `npm run sync:gallery -- photography`. It processes in memory and prints what it would do; it touches neither
    R2 nor the JSON. Check the sizes and captions. Its last line says so: `49 new, ... entries (dry run: src/data/gallery/photography.json
    not written; re-run with --upload to publish)`, so the count of entries is not mistaken for a write. It then prints
@@ -501,11 +501,13 @@ or if the camera fields do not round-trip. A file whose bytes and `PROCESSING_VE
 bump it when the processing changes; it covers the JPEG and the PNG recipe alike) are unchanged is skipped.
 
 A PNG original (art only) stays a PNG: the output format is decided from the file's bytes, and a file whose name and bytes
-disagree fails. It is auto-oriented, converted to sRGB, re-encoded without palette quantizing, with its alpha channel, and
+disagree fails (every such file is named in one error, before anything is processed or uploaded). It is auto-oriented, converted to sRGB, re-encoded without palette quantizing, with its alpha channel, and
 uploaded as `art/<basename>.png` with content type `image/png`. sharp writes no text or EXIF chunks, and
 `assertPngChunks` checks it: the output may hold only `IHDR`, `PLTE`, `tRNS`, `IDAT`, `IEND`, `sRGB`, `iCCP`, `gAMA`,
 `cHRM` and `pHYs`, and anything else (`eXIf`, `tEXt`, `iTXt`, `zTXt`, `tIME`, an APNG chunk) fails before the upload.
-`assertNoLocation` runs on PNG output too. A 16-bit PNG currently comes out at 8 bits per channel. The JPEG recipe is pinned
+`assertNoLocation` runs on PNG output too. A 16-bit PNG stays 16-bit; one without an ICC profile is
+left untagged rather than tagged sRGB, because the sRGB transform would shift its samples (viewers read an untagged PNG
+as sRGB). The JPEG recipe is pinned
 by a sha256 of a fixture's output in `scripts/galleryImage.test.ts`: a sharp or libvips bump that changes the bytes fails
 it on purpose. sharp's prebuilt libvips writes different bytes on each platform, so there is one digest per platform
 (`JPEG_RECIPE_DIGESTS`: `linux` for CI, `win32` for local Windows runs; other platforms skip the pin). Check the new

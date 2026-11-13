@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { Place } from '../src/lib/geonames.ts';
 import { createHash } from 'node:crypto';
-import { crc32 } from 'node:zlib';
+import { crc32, deflateSync, inflateSync } from 'node:zlib';
 
 import {
     assertNoLocation,
@@ -302,6 +302,33 @@ async function alphaPng(): Promise<Buffer> {
         .toBuffer();
 }
 
+// The unfiltered scanlines of a non-interlaced 16-bit RGBA PNG (8 bytes per pixel), read from its IDAT chunks.
+function decodeRgba16(png: Buffer, size: number): Buffer {
+    const idat: Buffer[] = [];
+    for (let at = 8; at < png.length;) {
+        const length = png.readUInt32BE(at);
+        if (png.toString('latin1', at + 4, at + 8) === 'IDAT') idat.push(png.subarray(at + 8, at + 8 + length));
+        at += length + 12;
+    }
+    const filtered = inflateSync(Buffer.concat(idat));
+    const stride = size * 8;
+    const out = Buffer.alloc(stride * size);
+    for (let y = 0; y < size; y++) {
+        const type = filtered[y * (stride + 1)];
+        for (let x = 0; x < stride; x++) {
+            const left = x >= 8 ? out[y * stride + x - 8] : 0;
+            const up = y > 0 ? out[(y - 1) * stride + x] : 0;
+            const upLeft = y > 0 && x >= 8 ? out[(y - 1) * stride + x - 8] : 0;
+            const guess = left + up - upLeft;
+            const [pa, pb, pc] = [Math.abs(guess - left), Math.abs(guess - up), Math.abs(guess - upLeft)];
+            const paeth = pa <= pb && pa <= pc ? left : pb <= pc ? up : upLeft;
+            const predictor = [0, left, up, (left + up) >> 1, paeth][type];
+            out[y * stride + x] = (filtered[y * (stride + 1) + 1 + x] + predictor) & 255;
+        }
+    }
+    return out;
+}
+
 describe('processImage for a PNG', () => {
     it('keeps only allowed chunks and the alpha channel, whatever metadata the source carried', async () => {
         const source = injectChunks(await alphaPng(), LEAKY_CHUNKS);
@@ -328,6 +355,37 @@ describe('processImage for a PNG', () => {
         const { bytes } = await processImage(source, { readsCamera: false, label: 'art.png' });
         const raw = (png: Buffer) => sharp(png).ensureAlpha().raw().toBuffer();
         expect((await raw(bytes)).equals(await raw(source))).toBe(true);
+    });
+
+    it('keeps a 16-bit source at 16 bits with identical pixels', async () => {
+        // sharp's raw input has no 16-bit mode, so the source is written by hand: 16-bit RGBA, filter byte 0 per row,
+        // with channel values whose low bytes differ from their high bytes so an 8-bit round trip would show.
+        const size = 4;
+        const rows = Buffer.alloc(size * (1 + size * 8));
+        for (let y = 0; y < size; y++) {
+            const start = y * (1 + size * 8);
+            for (let i = 0; i < size * 4; i++) {
+                const value = i % 4 === 3 ? 65535 : (y * 4099 + i * 1021 + 7) % 65536;
+                rows.writeUInt16BE(value, start + 1 + i * 2);
+            }
+        }
+        const header = Buffer.alloc(13);
+        header.writeUInt32BE(size, 0);
+        header.writeUInt32BE(size, 4);
+        header.set([16, 6, 0, 0, 0], 8);
+        const source = Buffer.concat([
+            Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+            chunk('IHDR', header),
+            chunk('IDAT', deflateSync(rows)),
+            chunk('IEND', Buffer.alloc(0)),
+        ]);
+        expect((await sharp(source).metadata()).depth).toBe('ushort');
+
+        const { bytes } = await processImage(source, { readsCamera: false, label: 'art16.png' });
+        expect((await sharp(bytes).metadata()).depth).toBe('ushort');
+        // sharp cannot hand back 16-bit samples for a profile-tagged PNG without converting them, so the scanlines
+        // are read straight from the file.
+        expect(decodeRgba16(bytes, size).equals(decodeRgba16(source, size))).toBe(true);
     });
 });
 

@@ -111,5 +111,6 @@ export function compareArtEntries(a: CuratedEntry<ArtCaption>, b: CuratedEntry<A
         if (b.order === undefined) return -1;
         return a.order - b.order;
     }
-    return a.entry.key.localeCompare(b.entry.key);
+    // By code point, so the order never depends on the machine's locale.
+    return a.entry.key < b.entry.key ? -1 : a.entry.key > b.entry.key ? 1 : 0;
 }
