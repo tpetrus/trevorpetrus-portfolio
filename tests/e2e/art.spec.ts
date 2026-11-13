@@ -35,6 +35,16 @@ test.describe('art page', () => {
         await expect(page.locator('link[href*="photoswipe"], style:has-text(".pswp")')).toHaveCount(0);
     });
 
+    test('asks search engines not to index it while it is not in the nav, unlike the linked pages', async ({
+        page,
+    }) => {
+        await page.goto('/art/');
+        await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex');
+
+        await page.goto('/photography/');
+        await expect(page.locator('meta[name="robots"]')).toHaveCount(0);
+    });
+
     test('has no video in its title', async ({ page }) => {
         await page.goto('/art/');
 

@@ -406,9 +406,13 @@ With no entries the page shows "Photos are on their way." and references no Phot
 
 **The Art page** (`src/pages/art.astro`, `/art/`) is the Photography page for the `art` collection: the same ink section,
 `GallerySections` with the art copy ("Art categories", "Art is on its way.", "<Category> pieces are on their way."), the
-`PageTitle` "Art" with no video, sections Painting, Drawing and Digital. It is not in the header nav yet: the link ships
+`PageTitle` "Art" with no video, sections Drawing and Digital. It is not in the header nav yet: the link ships
 with the first real art upload, so the public nav never points at an empty page, and until then the running head shows
-only the site name on `/art/` (it reads page names from the nav). Deep links are per collection
+only the site name on `/art/` (it reads page names from the nav). Until then it is also `noindex` (`BaseLayout`'s
+`noindex` prop writes `<meta name="robots" content="noindex">`), so `lighthouserc.json` uses an `assertMatrix`: `/art/`
+keeps the 0.9 performance, accessibility and best-practices budgets but, instead of the SEO category (which a noindex
+page cannot reach, since `is-crawlable` carries most of its weight), asserts each other SEO audit. Remove the prop and
+the `/art/` matrix entry with the nav link. Deep links are per collection
 (`collectionAnchorId`/`collectionHref` in `src/lib/photoLink.ts`): `#photo-<name>` on Photography (unchanged) and
 `#art-<name>` on Art, and the lightbox opens either prefix (`anchorIdFromHash`). Art images can be transparent PNGs, so
 their tiles (`data-collection="art"` on the gallery) and their lightbox image (`.pswp__img--on-paper`, set by

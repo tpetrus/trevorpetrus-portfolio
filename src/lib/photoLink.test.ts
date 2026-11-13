@@ -74,7 +74,7 @@ describe('anchorIdFromHash', () => {
         expect(anchorIdFromHash(hash)).toBe(hash.replace(/^#/, ''));
     });
 
-    it.each(['', '#', '#painting', '#art-', '#photo-', '#art-a b', '#other-x'])('ignores %j', (hash) => {
+    it.each(['', '#', '#drawing', '#art-', '#photo-', '#art-a b', '#other-x'])('ignores %j', (hash) => {
         expect(anchorIdFromHash(hash)).toBeUndefined();
     });
 

@@ -195,7 +195,7 @@ describe('Gallery', () => {
         const art = await container.renderToString(Gallery, {
             props: {
                 collection: 'art',
-                entries: [{ ...entry('x'), key: 'art/x.png', category: 'painting', caption: { title: 'X' } }],
+                entries: [{ ...entry('x'), key: 'art/x.png', category: 'drawing', caption: { title: 'X' } }],
             },
         });
 

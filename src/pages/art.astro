@@ -6,9 +6,10 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import { parseGallery } from '../lib/gallery';
 
 const entries = parseGallery('art', artJson);
+// noindex until the Art link is in the header nav (slice S5): an unlinked page should not be found by search first.
 ---
 
-<BaseLayout title="Art" description="Paintings, drawings and digital art by Trevor Petrus." bleed>
+<BaseLayout title="Art" description="Drawings and digital art by Trevor Petrus." bleed noindex>
     {/* Same structure as the Photography page (see there for why the ink section is part of the page), with no title video. */}
     <section class="surface-ink relative z-[1] flex flex-1 flex-col border-b border-ink-muted-on-ink/40">
         <div class="column flex-1 pt-12 pb-6 md:pt-16">

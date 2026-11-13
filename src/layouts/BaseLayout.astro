@@ -12,9 +12,11 @@ interface Props {
     description: string;
     /** The page lays out its own full-width sections instead of the shared `column` (the Photography page). */
     bleed?: boolean;
+    /** Asks search engines not to index the page (the Art page, until it is linked from the nav). */
+    noindex?: boolean;
 }
 
-const { title, description, bleed = false } = Astro.props;
+const { title, description, bleed = false, noindex = false } = Astro.props;
 const siteName = 'Trevor Petrus';
 const pageTitle = `${title} | ${siteName}`;
 const canonicalUrl = new URL(Astro.url.pathname, Astro.site);
@@ -28,6 +30,7 @@ const canonicalUrl = new URL(Astro.url.pathname, Astro.site);
         <title>{pageTitle}</title>
         <meta name="description" content={description} />
         <link rel="canonical" href={canonicalUrl} />
+        {noindex && <meta name="robots" content="noindex" />}
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <meta name="color-scheme" content="light" />
         <meta name="theme-color" content={THEME_COLOR} />

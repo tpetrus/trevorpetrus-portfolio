@@ -79,7 +79,7 @@ describe('GallerySections with the art collection', () => {
         const ids = tagsOf(html, 'li')
             .map((tag) => /id="([^"]*)"/.exec(tag)?.[1])
             .filter((id) => id?.startsWith('art-'));
-        expect(ids).toEqual(['art-Oil-Study', 'art-harbor', 'art-pixels']);
+        expect(ids).toEqual(['art-Ink-Study', 'art-harbor']);
     });
 
     it('has a back-to-top link per section and the legend', () => {
