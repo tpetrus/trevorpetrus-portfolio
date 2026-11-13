@@ -22,7 +22,7 @@ const JPEG_QUALITY = 92;
 const THUMBHASH_MAX_SIDE = 100;
 
 export interface ProcessedImage {
-    jpeg: Buffer;
+    bytes: Buffer;
     width: number;
     height: number;
     thumbhash: string;
@@ -81,7 +81,7 @@ async function thumbhashOf(jpeg: Buffer): Promise<string> {
 
 /**
  * Re-encodes an original for upload: auto-oriented (the rewritten EXIF no longer carries Orientation), converted to sRGB
- * with the profile tagged, and carrying no metadata except, when `keepCameraExif`, the camera settings. sharp cannot
+ * with the profile tagged, and carrying no metadata except, when `readsCamera`, the camera settings. sharp cannot
  * drop only the GPS tags, so the camera fields are read first and written into a fresh EXIF block. XMP (which can hold
  * GPS too) is stripped by default and `keepXmp` is deliberately never called.
  *
@@ -92,10 +92,10 @@ async function thumbhashOf(jpeg: Buffer): Promise<string> {
  */
 export async function processImage(
     original: Buffer,
-    { keepCameraExif, label }: { keepCameraExif: boolean; label: string },
+    { readsCamera, label }: { readsCamera: boolean; label: string },
 ): Promise<ProcessedImage> {
-    const rawExif = keepCameraExif ? await readCameraExif(original) : undefined;
-    const caption = keepCameraExif ? photographyCaptionFromExif(rawExif) : undefined;
+    const rawExif = readsCamera ? await readCameraExif(original) : undefined;
+    const caption = readsCamera ? photographyCaptionFromExif(rawExif) : undefined;
 
     let pipeline = sharp(original).rotate().withIccProfile('srgb');
     const exifBlocks = photographyExifBlocks(rawExif);
@@ -116,5 +116,5 @@ export async function processImage(
     }
 
     const { width, height } = await sharp(jpeg).metadata();
-    return { jpeg, width, height, thumbhash: await thumbhashOf(jpeg), caption };
+    return { bytes: jpeg, width, height, thumbhash: await thumbhashOf(jpeg), caption };
 }

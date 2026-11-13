@@ -69,7 +69,11 @@ describe('processImage', () => {
         expect((await exifr.gps(original))?.latitude).toBeCloseTo(51.5);
         expect(await profileName(original)).toBe('sP3C');
 
-        const { jpeg, width, height } = await processImage(original, { keepCameraExif: true, label: 'fixture.jpg' });
+        const {
+            bytes: jpeg,
+            width,
+            height,
+        } = await processImage(original, { readsCamera: true, label: 'fixture.jpg' });
 
         expect(await exifr.gps(jpeg)).toBeUndefined();
         const metadata = await sharp(jpeg).metadata();
@@ -91,7 +95,7 @@ describe('processImage', () => {
     it('keeps the camera strings, the capture time and the numbers, and reports the caption', async () => {
         const original = await tinyJpeg(CAMERA_EXIF, { profile: 'p3', orientation: 6 });
 
-        const { jpeg, caption } = await processImage(original, { keepCameraExif: true, label: 'fixture.jpg' });
+        const { bytes: jpeg, caption } = await processImage(original, { readsCamera: true, label: 'fixture.jpg' });
 
         expect(caption).toEqual({
             camera: 'NIKON D850',
@@ -118,8 +122,13 @@ describe('processImage', () => {
     it('processes an image with no EXIF at all', async () => {
         const original = await tinyJpeg();
 
-        const { jpeg, caption, width, height } = await processImage(original, {
-            keepCameraExif: true,
+        const {
+            bytes: jpeg,
+            caption,
+            width,
+            height,
+        } = await processImage(original, {
+            readsCamera: true,
             label: 'bare.jpg',
         });
 
@@ -132,14 +141,14 @@ describe('processImage', () => {
     it('writes no camera EXIF for a collection that keeps none', async () => {
         const original = await tinyJpeg(CAMERA_EXIF);
 
-        const { jpeg, caption } = await processImage(original, { keepCameraExif: false, label: 'art.jpg' });
+        const { bytes: jpeg, caption } = await processImage(original, { readsCamera: false, label: 'art.jpg' });
 
         expect(caption).toBeUndefined();
         expect(await metadataOtherThanProfile(jpeg)).toBeUndefined();
     });
 
     it('returns a ThumbHash for the processed image', async () => {
-        const { thumbhash } = await processImage(await tinyJpeg(), { keepCameraExif: true, label: 'bare.jpg' });
+        const { thumbhash } = await processImage(await tinyJpeg(), { readsCamera: true, label: 'bare.jpg' });
 
         expect(thumbhash).toMatch(/^[A-Za-z0-9+/]+=*$/);
     });
@@ -244,7 +253,7 @@ describe('deriveSourceLocation', () => {
         const original = await tinyJpeg({ ...CAMERA_EXIF, IFD3: LISBON_GPS });
         expect((await exifr.gps(original))?.latitude).toBeCloseTo(38.7223, 3);
 
-        const { jpeg, caption } = await processImage(original, { keepCameraExif: true, label: 'lisbon.jpg' });
+        const { bytes: jpeg, caption } = await processImage(original, { readsCamera: true, label: 'lisbon.jpg' });
 
         expect(await exifr.gps(jpeg)).toBeUndefined();
         expect(caption).not.toHaveProperty('location');

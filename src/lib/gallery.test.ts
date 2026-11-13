@@ -73,7 +73,12 @@ describe('parseGallery', () => {
 
 describe('galleryEntrySchema', () => {
     it('takes the caption schema as a parameter', () => {
-        const schema = galleryEntrySchema('art', z.object({ title: z.string() }), [{ id: 'oil', label: 'Oil' }]);
+        const schema = galleryEntrySchema(
+            'art',
+            z.object({ title: z.string() }),
+            [{ id: 'oil', label: 'Oil' }],
+            ['jpg'],
+        );
         const entry = { ...validEntry, key: 'art/piece.jpg', category: 'oil', caption: { title: 'Piece' } };
         expect(() => schema.parse({ ...entry, category: 'landscape' })).toThrow(/one of oil/);
         expect(schema.parse(entry)).toEqual(entry);
@@ -82,8 +87,34 @@ describe('galleryEntrySchema', () => {
 });
 
 describe('GALLERY_COLLECTIONS', () => {
-    it('keeps camera EXIF for photography', () => {
-        expect(GALLERY_COLLECTIONS.photography.keepsCameraExif).toBe(true);
+    it('declares photography capabilities', () => {
+        const { readsCamera, usesPlaces, extensions } = GALLERY_COLLECTIONS.photography;
+        expect({ readsCamera, usesPlaces, extensions }).toEqual({
+            readsCamera: true,
+            usesPlaces: true,
+            extensions: ['jpg'],
+        });
+    });
+
+    it('builds the photography caption from the camera and the place', () => {
+        const location = { city: 'Lisbon', country: 'Portugal', source: 'sidecar' } as const;
+        const { captionFor } = GALLERY_COLLECTIONS.photography;
+        const sidecar = { alt: 'a', category: 'landscape' } as const;
+        expect(captionFor({ sidecar, camera: { iso: 100, location: { ...location, city: 'Old' } }, location })).toEqual(
+            {
+                iso: 100,
+                location,
+            },
+        );
+        expect(captionFor({ sidecar, camera: undefined, location: undefined })).toEqual({});
+    });
+
+    it('accepts only the collection extensions in a key', () => {
+        const schema = galleryEntrySchema('art', z.object({}), [{ id: 'oil', label: 'Oil' }], ['jpg', 'png']);
+        const entry = { ...validEntry, key: 'art/piece.png', category: 'oil', caption: {} };
+        expect(schema.parse(entry).key).toBe('art/piece.png');
+        expect(() => schema.parse({ ...entry, key: 'art/piece.gif' })).toThrow(/art\/<file>\.jpg\|png/);
+        expect(() => parseGallery('photography', [{ ...validEntry, key: 'photography/a.png' }])).toThrow();
     });
 
     it('shows only the place under a photography tile', () => {

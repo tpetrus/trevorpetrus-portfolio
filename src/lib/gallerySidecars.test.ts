@@ -33,26 +33,26 @@ describe('parseScaffoldArgs', () => {
 
 describe('planScaffold', () => {
     it('creates a sidecar for each accepted image that lacks one and skips the rest, sorted', () => {
-        const plan = planScaffold(['b.JPG', 'a.jpg', 'c.jpeg'], ['b.yml']);
+        const plan = planScaffold(['b.JPG', 'a.jpg', 'c.jpeg'], ['b.yml'], ['jpg']);
         expect(plan.create.map(({ basename }) => basename)).toEqual(['a', 'c']);
         expect(plan.skip.map(({ basename }) => basename)).toEqual(['b']);
         expect(plan.rejected).toEqual([]);
     });
 
     it('creates nothing when every image has a sidecar, and ignores sidecars without an image', () => {
-        const plan = planScaffold(['a.jpg'], ['a.yml', 'ghost.yml']);
+        const plan = planScaffold(['a.jpg'], ['a.yml', 'ghost.yml'], ['jpg']);
         expect(plan.create).toEqual([]);
         expect(plan.skip).toHaveLength(1);
     });
 
     it('reports files the sync would reject instead of scaffolding them', () => {
-        const plan = planScaffold(['notes.txt', '.hidden.jpg', 'a.jpg', 'a.jpeg'], []);
+        const plan = planScaffold(['notes.txt', '.hidden.jpg', 'a.jpg', 'a.jpeg'], [], ['jpg']);
         expect(plan.create.map(({ file }) => file)).toEqual(['a.jpeg']);
         expect(plan.rejected).toHaveLength(3);
     });
 
     it('plans nothing for an empty or missing source directory', () => {
-        expect(planScaffold([], [])).toEqual({ create: [], skip: [], rejected: [] });
+        expect(planScaffold([], [], ['jpg'])).toEqual({ create: [], skip: [], rejected: [] });
     });
 });
 

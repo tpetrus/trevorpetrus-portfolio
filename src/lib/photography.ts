@@ -1,5 +1,6 @@
 import { z } from 'astro/zod';
 
+import type { CuratedEntry } from './gallery';
 import { formatLocation, locationSchema, sidecarLocationSchema } from './location';
 import { ALT_PLACEHOLDER_MARKER, isPlaceholderAlt, PLACEHOLDER_ALT_MESSAGE } from './sidecarPlaceholder';
 
@@ -237,4 +238,22 @@ export function photographyExifBlocks(raw: Readonly<Record<string, unknown>> | u
         ...(Object.keys(ifd0).length > 0 ? { IFD0: ifd0 } : {}),
         ...(Object.keys(ifd2).length > 0 ? { IFD2: ifd2 } : {}),
     };
+}
+
+/**
+ * The order of photography's curated entries: those with an `order` first, lowest first; then the newest capture date;
+ * then the key, so the result never depends on file-system order.
+ */
+export function comparePhotographyEntries(
+    a: CuratedEntry<PhotographyCaption>,
+    b: CuratedEntry<PhotographyCaption>,
+): number {
+    if (a.order !== b.order) {
+        if (a.order === undefined) return 1;
+        if (b.order === undefined) return -1;
+        return a.order - b.order;
+    }
+    const takenA = a.entry.caption.taken ?? '';
+    const takenB = b.entry.caption.taken ?? '';
+    return takenB.localeCompare(takenA) || a.entry.key.localeCompare(b.entry.key);
 }
