@@ -4,10 +4,17 @@ import { parse } from 'yaml';
 import {
     galleryCollection,
     assertGalleryCollection,
+    type CollectionCaption,
     type CollectionSidecar,
+    type CuratedEntry,
     type GalleryCollectionName,
     type GalleryEntry,
+    type GalleryExtension,
 } from './gallery';
+import type { PhotoLocation } from './location';
+import { comparePhotographyEntries } from './photography';
+
+export type { CuratedEntry };
 
 // Bump when the sync script's image processing changes (quality, color handling, EXIF policy), so every committed
 // entry is re-processed and re-uploaded on the next run instead of being skipped as unchanged.
@@ -24,7 +31,28 @@ export const DEFAULT_BUCKET = 'portfolio-photos';
 const BUCKET_NAME = /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/;
 const ACCOUNT_ID = /^[0-9a-f]{32}$/i;
 
-const ACCEPTED_EXTENSIONS = ['.jpg', '.jpeg'];
+// The file extensions (lowercase, with the dot) each source format accepts. A JPEG may be named .jpg or .jpeg.
+const FILE_EXTENSIONS: Record<GalleryExtension, readonly string[]> = {
+    jpg: ['.jpg', '.jpeg'],
+    png: ['.png'],
+};
+
+function acceptedFileExtensions(extensions: readonly GalleryExtension[]): string[] {
+    return extensions.flatMap((extension) => FILE_EXTENSIONS[extension]);
+}
+
+// "a", "a and b", "a, b and c".
+function joinWithAnd(items: readonly string[]): string {
+    return items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;
+}
+
+/** The format a source file name claims, or undefined for an extension no collection accepts. */
+export function extensionOfFile(file: string): GalleryExtension | undefined {
+    const extension = splitExtension(file).extension.toLowerCase();
+    return (Object.keys(FILE_EXTENSIONS) as GalleryExtension[]).find((candidate) =>
+        FILE_EXTENSIONS[candidate].includes(extension),
+    );
+}
 
 export interface SyncOptions {
     collection: GalleryCollectionName;
@@ -119,6 +147,8 @@ export interface SourceImage {
     file: string;
     /** The name without its extension; the sidecar is `<basename>.yml`. */
     basename: string;
+    /** The format the file name claims, which is also the extension of its R2 key. */
+    extension: GalleryExtension;
 }
 
 function splitExtension(file: string): { basename: string; extension: string } {
@@ -128,24 +158,28 @@ function splitExtension(file: string): { basename: string; extension: string } {
 
 /**
  * Sorts the files in a source directory into the images the sync accepts and a problem line for each file it does not:
- * non-JPEGs, hidden files and names that collide once the extension is removed.
+ * files of a format the collection does not take, hidden files and names that collide once the extension is removed.
  */
-export function acceptImages(imageFiles: readonly string[]): { images: SourceImage[]; problems: string[] } {
+export function acceptImages(
+    imageFiles: readonly string[],
+    extensions: readonly GalleryExtension[],
+): { images: SourceImage[]; problems: string[] } {
+    const accepted = acceptedFileExtensions(extensions);
     const problems: string[] = [];
     const images: SourceImage[] = [];
     const seen = new Set<string>();
 
     for (const file of [...imageFiles].sort()) {
         const { basename, extension } = splitExtension(file);
-        if (!ACCEPTED_EXTENSIONS.includes(extension.toLowerCase())) {
-            problems.push(`"${file}" is not accepted: only .jpg and .jpeg files are.`);
+        if (!accepted.includes(extension.toLowerCase())) {
+            problems.push(`"${file}" is not accepted: only ${joinWithAnd(accepted)} files are.`);
         } else if (basename.startsWith('.')) {
             problems.push(`"${file}" is a hidden file: rename it.`);
         } else if (seen.has(basename)) {
             problems.push(`"${file}" has the same name as another image once the extension is removed.`);
         } else {
             seen.add(basename);
-            images.push({ file, basename });
+            images.push({ file, basename, extension: extensionOfFile(file)! });
         }
     }
     return { images, problems };
@@ -158,14 +192,15 @@ export function sidecarFileName(basename: string): string {
 
 /**
  * Checks the source directory against the sidecar directory (both as plain file-name lists) and collects EVERY
- * problem, so one run reports all of them: files that are not JPEGs, duplicate names, images without a sidecar and
- * sidecars without an image.
+ * problem, so one run reports all of them: files of a format the collection does not take, duplicate names, images
+ * without a sidecar and sidecars without an image.
  */
 export function planInputs(
     imageFiles: readonly string[],
     sidecarFiles: readonly string[],
+    extensions: readonly GalleryExtension[],
 ): { images: SourceImage[]; problems: string[] } {
-    const { images, problems } = acceptImages(imageFiles);
+    const { images, problems } = acceptImages(imageFiles, extensions);
     const seen = new Set(images.map(({ basename }) => basename));
 
     const sidecarBasenames = new Set<string>();
@@ -189,10 +224,19 @@ export function planInputs(
     return { images, problems };
 }
 
-/** The R2 object key for an image: always `<collection>/<basename>.jpg`, because the output is always a JPEG. */
-export function galleryKey(collection: string, basename: string): string {
-    return `${collection}/${basename}.jpg`;
+/** The R2 object key for an image: `<collection>/<basename>.<extension>`, the extension of the source format. */
+export function galleryKey(collection: string, basename: string, extension: GalleryExtension): string {
+    return `${collection}/${basename}.${extension}`;
 }
+
+/** The extension of an R2 key (`jpg` or `png`); throws for anything else, so a stray key is never uploaded. */
+export function keyExtension(key: string): GalleryExtension {
+    const extension = key.slice(key.lastIndexOf('.') + 1);
+    if (extension === 'jpg' || extension === 'png') return extension;
+    throw new Error(`Cannot upload "${key}": only .jpg and .png keys are supported.`);
+}
+
+const CONTENT_TYPES: Record<GalleryExtension, string> = { jpg: 'image/jpeg', png: 'image/png' };
 
 /** Parses and validates a hand-written sidecar, naming the file in the error. */
 export function parseSidecar(collection: GalleryCollectionName, yamlText: string, source: string): CollectionSidecar {
@@ -273,39 +317,19 @@ export function syncSummary(
         : `${tally}; ${entryCount} entries (dry run: ${dataFile} not written; re-run with --upload to publish)`;
 }
 
-/** An entry plus the sidecar's `order`, which decides its position but is not stored in the data file. */
-export interface CuratedEntry<Caption> {
-    entry: GalleryEntry<Caption>;
-    order: number | undefined;
-}
-
-// Entries with an `order` first, lowest first; then newest capture date; then the key, so the result never depends
-// on file-system order.
-function compareCurated(
-    a: CuratedEntry<{ taken?: string | undefined }>,
-    b: CuratedEntry<{ taken?: string | undefined }>,
-) {
-    if (a.order !== b.order) {
-        if (a.order === undefined) return 1;
-        if (b.order === undefined) return -1;
-        return a.order - b.order;
-    }
-    const takenA = a.entry.caption.taken ?? '';
-    const takenB = b.entry.caption.taken ?? '';
-    return takenB.localeCompare(takenA) || a.entry.key.localeCompare(b.entry.key);
-}
-
 /**
  * Builds the new data file from the entries of the images that exist now, sorted, and reports the keys that were in the
  * old file but whose source is gone. Those entries are dropped from the data; their R2 objects are not deleted.
+ * `compare` is the collection's `compareEntries`; it defaults to photography's order.
  */
-export function mergeGallery<Caption extends { taken?: string | undefined }>(
+export function mergeGallery<Caption>(
     current: readonly CuratedEntry<Caption>[],
     previous: readonly Pick<GalleryEntry<unknown>, 'key'>[],
+    compare: (a: CuratedEntry<Caption>, b: CuratedEntry<Caption>) => number = comparePhotographyEntries as never,
 ): { entries: GalleryEntry<Caption>[]; dropped: string[] } {
     const currentKeys = new Set(current.map(({ entry }) => entry.key));
     return {
-        entries: [...current].sort(compareCurated).map(({ entry }) => entry),
+        entries: [...current].sort(compare).map(({ entry }) => entry),
         dropped: previous.map(({ key }) => key).filter((key) => !currentKeys.has(key)),
     };
 }
@@ -317,6 +341,89 @@ export function mergeGallery<Caption extends { taken?: string | undefined }>(
 export function withPin<Caption>(entry: GalleryEntry<Caption>, pin: boolean | undefined): GalleryEntry<Caption> {
     const { pin: _previous, ...rest } = entry;
     return pin === true ? { ...rest, pin: true } : rest;
+}
+
+/** The collection hooks the entry composition needs; `galleryCollection(name)` satisfies it. */
+export interface EntryCollection {
+    readsCamera: boolean;
+    captionFor(input: {
+        sidecar: CollectionSidecar;
+        camera: CollectionCaption | undefined;
+        location: PhotoLocation | undefined;
+    }): CollectionCaption;
+}
+
+/**
+ * The entry of an image whose source and recipe are unchanged: the previous entry with the alt text, category, caption
+ * and pin taken from the sidecar again, none of which is part of the uploaded file, so a change needs no re-upload.
+ */
+export function composeUnchangedEntry(
+    collection: EntryCollection,
+    {
+        existing,
+        sidecar,
+        location,
+    }: {
+        existing: GalleryEntry<CollectionCaption>;
+        sidecar: CollectionSidecar;
+        location: PhotoLocation | undefined;
+    },
+): GalleryEntry<CollectionCaption> {
+    return withPin(
+        {
+            ...existing,
+            alt: sidecar.alt,
+            category: sidecar.category,
+            caption: collection.captionFor({
+                sidecar,
+                camera: collection.readsCamera ? existing.caption : undefined,
+                location,
+            }),
+        },
+        sidecar.pin,
+    );
+}
+
+/** What processing one image yields that the entry needs. */
+export interface ProcessedFacts {
+    width: number;
+    height: number;
+    thumbhash: string;
+    /** The camera caption read from the source; undefined when the collection does not read the camera. */
+    caption: CollectionCaption | undefined;
+}
+
+/** The entry of a new or changed image, from what processing read and the sidecar. */
+export function composeProcessedEntry(
+    collection: EntryCollection,
+    {
+        key,
+        sourceSha256,
+        processed,
+        sidecar,
+        location,
+    }: {
+        key: string;
+        sourceSha256: string;
+        processed: ProcessedFacts;
+        sidecar: CollectionSidecar;
+        location: PhotoLocation | undefined;
+    },
+): GalleryEntry<CollectionCaption> {
+    return withPin(
+        {
+            key,
+            width: processed.width,
+            height: processed.height,
+            thumbhash: processed.thumbhash,
+            sourceSha256,
+            processingVersion: PROCESSING_VERSION,
+            alt: sidecar.alt,
+            category: sidecar.category,
+            caption: collection.captionFor({ sidecar, camera: processed.caption, location }),
+        },
+        sidecar.pin,
+    );
 }
 
 /** A warning when more photos are pinned than the home page's collage shows, naming the ones it leaves out. */
@@ -343,6 +450,7 @@ export function serializeGallery(entries: readonly GalleryEntry<unknown>[]): str
  * local simulator. The token is not here: it goes only through the child process environment.
  */
 export function r2UploadArgs(bucket: string, key: string, file: string): string[] {
+    const contentType = CONTENT_TYPES[keyExtension(key)];
     return [
         'r2',
         'object',
@@ -351,7 +459,7 @@ export function r2UploadArgs(bucket: string, key: string, file: string): string[
         '--file',
         file,
         '--content-type',
-        'image/jpeg',
+        contentType,
         '--cache-control',
         'public, max-age=86400',
         '--remote',

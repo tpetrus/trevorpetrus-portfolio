@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { GalleryEntry } from './gallery';
+import type { PhotoLocation } from './location';
+import type { PhotographyCaption } from './photography';
 import {
     acceptImages,
     decideAction,
@@ -19,6 +21,10 @@ import {
     planInputs,
     PROCESSING_VERSION,
     r2UploadArgs,
+    composeProcessedEntry,
+    composeUnchangedEntry,
+    extensionOfFile,
+    keyExtension,
     R2_TOKEN_ENV,
     serializeGallery,
     sidecarDirectory,
@@ -159,17 +165,18 @@ describe('paths', () => {
         expect(defaultSourceDir('photography')).toBe('gallery-originals/photography');
         expect(sidecarDirectory('photography')).toBe('src/content/photography');
         expect(galleryDataFile('photography')).toBe('src/data/gallery/photography.json');
-        expect(galleryKey('photography', 'IMG_0001')).toBe('photography/IMG_0001.jpg');
+        expect(galleryKey('photography', 'IMG_0001', 'jpg')).toBe('photography/IMG_0001.jpg');
+        expect(galleryKey('art', 'piece', 'png')).toBe('art/piece.png');
     });
 });
 
 describe('planInputs', () => {
     it('pairs images with sidecars, sorted, and accepts jpg and jpeg in any case', () => {
-        expect(planInputs(['b.JPEG', 'a.jpg', 'c.Jpg'], ['c.yml', 'a.yml', 'b.yml'])).toEqual({
+        expect(planInputs(['b.JPEG', 'a.jpg', 'c.Jpg'], ['c.yml', 'a.yml', 'b.yml'], ['jpg'])).toEqual({
             images: [
-                { file: 'a.jpg', basename: 'a' },
-                { file: 'b.JPEG', basename: 'b' },
-                { file: 'c.Jpg', basename: 'c' },
+                { file: 'a.jpg', basename: 'a', extension: 'jpg' },
+                { file: 'b.JPEG', basename: 'b', extension: 'jpg' },
+                { file: 'c.Jpg', basename: 'c', extension: 'jpg' },
             ],
             problems: [],
         });
@@ -179,10 +186,11 @@ describe('planInputs', () => {
         const { images, problems } = planInputs(
             ['a.jpg', 'a.jpeg', 'b.png', 'c.jpg', 'noextension', '.hidden.jpg'],
             ['a.yml', 'ghost.yml', 'c.yaml'],
+            ['jpg'],
         );
         expect(images).toEqual([
-            { file: 'a.jpeg', basename: 'a' },
-            { file: 'c.jpg', basename: 'c' },
+            { file: 'a.jpeg', basename: 'a', extension: 'jpg' },
+            { file: 'c.jpg', basename: 'c', extension: 'jpg' },
         ]);
         expect(problems).toEqual([
             '".hidden.jpg" is a hidden file: rename it.',
@@ -271,10 +279,10 @@ describe('parseSidecars', () => {
 
 describe('acceptImages', () => {
     it('splits accepted images from rejected files, sorted', () => {
-        expect(acceptImages(['b.jpg', 'a.JPEG', 'c.png', '.d.jpg', 'a.jpg'])).toEqual({
+        expect(acceptImages(['b.jpg', 'a.JPEG', 'c.png', '.d.jpg', 'a.jpg'], ['jpg'])).toEqual({
             images: [
-                { file: 'a.JPEG', basename: 'a' },
-                { file: 'b.jpg', basename: 'b' },
+                { file: 'a.JPEG', basename: 'a', extension: 'jpg' },
+                { file: 'b.jpg', basename: 'b', extension: 'jpg' },
             ],
             problems: [
                 '".d.jpg" is a hidden file: rename it.',
@@ -500,5 +508,105 @@ describe('syncSummary', () => {
         expect(syncSummary({ new: 1, changed: 2, unchanged: 3 }, 4, 6, file, true)).toBe(
             `1 new, 2 changed, 3 unchanged, 4 dropped; 6 entries in ${file}`,
         );
+    });
+});
+
+describe('capability planning', () => {
+    it('accepts png files only for a collection that takes png', () => {
+        expect(acceptImages(['a.PNG', 'b.jpg'], ['jpg', 'png']).images).toEqual([
+            { file: 'a.PNG', basename: 'a', extension: 'png' },
+            { file: 'b.jpg', basename: 'b', extension: 'jpg' },
+        ]);
+        expect(acceptImages(['b.gif'], ['jpg', 'png']).problems).toEqual([
+            '"b.gif" is not accepted: only .jpg, .jpeg and .png files are.',
+        ]);
+        expect(acceptImages(['a.png'], ['jpg']).problems).toEqual([
+            '"a.png" is not accepted: only .jpg and .jpeg files are.',
+        ]);
+        expect(acceptImages(['a.gif'], ['png']).problems).toEqual(['"a.gif" is not accepted: only .png files are.']);
+    });
+
+    it('plans inputs with the collection extensions', () => {
+        expect(planInputs(['a.png'], ['a.yml'], ['png'])).toEqual({
+            images: [{ file: 'a.png', basename: 'a', extension: 'png' }],
+            problems: [],
+        });
+        expect(planInputs(['a.png', 'a.jpg'], ['a.yml'], ['jpg', 'png']).problems).toEqual([
+            '"a.png" has the same name as another image once the extension is removed.',
+        ]);
+    });
+
+    it('names the format a file claims', () => {
+        expect(extensionOfFile('a.JPEG')).toBe('jpg');
+        expect(extensionOfFile('a.Png')).toBe('png');
+        expect(extensionOfFile('a.gif')).toBeUndefined();
+    });
+
+    it('reads the extension of a key and refuses others', () => {
+        expect(keyExtension('art/a.png')).toBe('png');
+        expect(keyExtension('photography/a.jpg')).toBe('jpg');
+        expect(() => keyExtension('art/a.gif')).toThrow(/only .jpg and .png/);
+    });
+
+    it('derives the content type from the key', () => {
+        expect(r2UploadArgs(BUCKET, 'art/a.png', 'f.png')).toContain('image/png');
+        expect(r2UploadArgs(BUCKET, 'photography/a.jpg', 'f.jpg')).toContain('image/jpeg');
+        expect(() => r2UploadArgs(BUCKET, 'art/a.gif', 'f.gif')).toThrow();
+    });
+});
+
+describe('entry composition', () => {
+    const location = { city: 'Lisbon', country: 'Portugal', source: 'geonames' } as const;
+    const sidecar = { alt: 'New alt', category: 'portrait', pin: true } as const;
+    const camera = {
+        readsCamera: true,
+        captionFor: vi.fn(
+            ({ camera: read, location: place }: { camera?: PhotographyCaption; location?: PhotoLocation }) => ({
+                ...read,
+                ...(place ? { location: place } : {}),
+            }),
+        ),
+    };
+
+    it('recomposes an unchanged entry from the sidecar, passing the previous caption as the camera', () => {
+        const existing = { ...entry('photography/a.jpg', '2020-01-01'), alt: 'Old', category: 'landscape' };
+        const result = composeUnchangedEntry(camera, { existing, sidecar, location });
+        expect(result).toEqual({
+            ...existing,
+            alt: 'New alt',
+            category: 'portrait',
+            pin: true,
+            caption: { taken: '2020-01-01', location },
+        });
+        expect(camera.captionFor).toHaveBeenLastCalledWith({ sidecar, camera: existing.caption, location });
+    });
+
+    it('passes no camera when the collection does not read it', () => {
+        const none = { readsCamera: false, captionFor: vi.fn(() => ({})) };
+        composeUnchangedEntry(none, { existing: entry('art/a.png', undefined), sidecar, location: undefined });
+        expect(none.captionFor).toHaveBeenLastCalledWith({ sidecar, camera: undefined, location: undefined });
+    });
+
+    it('composes a new entry with the current processing version and drops a stale pin', () => {
+        const processed = { width: 3, height: 4, thumbhash: 'th', caption: { taken: '2021-01-01' } };
+        const result = composeProcessedEntry(camera, {
+            key: 'photography/b.jpg',
+            sourceSha256: 'b'.repeat(64),
+            processed,
+            sidecar: { alt: 'Alt', category: 'car' },
+            location: undefined,
+        });
+        expect(result).toEqual({
+            key: 'photography/b.jpg',
+            width: 3,
+            height: 4,
+            thumbhash: 'th',
+            sourceSha256: 'b'.repeat(64),
+            processingVersion: PROCESSING_VERSION,
+            alt: 'Alt',
+            category: 'car',
+            caption: { taken: '2021-01-01' },
+        });
+        expect(Object.hasOwn(result, 'pin')).toBe(false);
     });
 });
