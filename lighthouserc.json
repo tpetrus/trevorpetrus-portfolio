@@ -4,7 +4,12 @@
       "startServerCommand": "npx wrangler dev --port 8787",
       "startServerReadyPattern": "Ready on",
       "startServerReadyTimeout": 60000,
-      "url": ["http://localhost:8787/", "http://localhost:8787/photography/", "http://localhost:8787/projects/"],
+      "url": [
+        "http://localhost:8787/",
+        "http://localhost:8787/photography/",
+        "http://localhost:8787/art/",
+        "http://localhost:8787/projects/"
+      ],
       "numberOfRuns": 3,
       "settings": {
         "chromeFlags": "--no-sandbox"

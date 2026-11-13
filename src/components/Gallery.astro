@@ -15,7 +15,7 @@ const { collection, entries, eager = true } = Astro.props;
 const tiles = await galleryTiles(collection, entries, { eager });
 ---
 
-<ul role="list" data-gallery class="gallery">
+<ul role="list" data-gallery data-collection={collection === 'art' ? 'art' : undefined} class="gallery">
     {tiles.map((tile) => (
         <li
             id={tile.anchorId}
@@ -57,6 +57,18 @@ const tiles = await galleryTiles(collection, entries, { eager });
         grid-template-columns: minmax(0, 1fr);
         /* Lets a tile size its stand-in height from the grid's width (cqi) before it is rendered. */
         container-type: inline-size;
+    }
+
+    /* Art may be a PNG with transparent areas: it always sits on solid paper, never on the ink section behind it. */
+    .gallery[data-collection='art'] .photo,
+    .gallery[data-collection='art'] img {
+        background-color: var(--color-paper);
+    }
+
+    /* The art lightbox's image (galleryLightbox.ts marks it): the same paper under a transparent PNG as its tile has. The
+       viewer is built outside this component, hence :global. */
+    :global(.pswp__img--on-paper) {
+        background-color: var(--color-paper);
     }
 
     .tile {

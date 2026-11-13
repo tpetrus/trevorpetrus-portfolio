@@ -190,6 +190,20 @@ describe('Gallery', () => {
         expect(later).not.toContain('fetchpriority');
     });
 
+    it('marks only an art gallery, so its images sit on paper and photography markup is unchanged', async () => {
+        const container = await AstroContainer.create();
+        const art = await container.renderToString(Gallery, {
+            props: {
+                collection: 'art',
+                entries: [{ ...entry('x'), key: 'art/x.png', category: 'painting', caption: { title: 'X' } }],
+            },
+        });
+
+        expect(attributesOf(tagsOf(art, 'ul')[0])['data-collection']).toBe('art');
+        expect(tagsOf(art, 'li').map((tag) => attributesOf(tag).id)).toEqual(['art-x']);
+        expect(html).not.toContain('data-collection');
+    });
+
     it('renders an empty list for no entries', async () => {
         const container = await AstroContainer.create();
 
