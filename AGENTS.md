@@ -490,7 +490,10 @@ uploaded as `art/<basename>.png` with content type `image/png`. sharp writes no 
 `cHRM` and `pHYs`, and anything else (`eXIf`, `tEXt`, `iTXt`, `zTXt`, `tIME`, an APNG chunk) fails before the upload.
 `assertNoLocation` runs on PNG output too. A 16-bit PNG currently comes out at 8 bits per channel. The JPEG recipe is pinned
 by a sha256 of a fixture's output in `scripts/galleryImage.test.ts`: a sharp or libvips bump that changes the bytes fails
-it on purpose. Check the new output, then update the digest (and bump `PROCESSING_VERSION` if uploads should be redone).
+it on purpose. sharp's prebuilt libvips writes different bytes on each platform, so there is one digest per platform
+(`JPEG_RECIPE_DIGESTS`: `linux` for CI, `win32` for local Windows runs; other platforms skip the pin). Check the new
+output, then update both digests (the Linux one is the "Received" value in the failing CI log) and bump
+`PROCESSING_VERSION` if uploads should be redone.
 
 **Where it was taken.** Each photo's caption starts with the city and country (`Lisbon, Portugal · Canon EOS R5 · ...`),
 stored as `caption.location: { city, country, source }` in the JSON. Exact GPS coordinates are still stripped from the
