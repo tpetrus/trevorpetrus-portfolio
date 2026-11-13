@@ -390,8 +390,8 @@ cannot reorder or rewrite the published photos unnoticed; it reads the committed
 
 **Art** (`src/lib/art.ts`, data `src/data/gallery/art.json`, `[]` until the first upload, sidecars
 `src/content/art/<basename>.yml`): the sync reads no camera EXIF and looks up no place for it. Its sidecar is strict:
-`alt` and `title` (required), `category` (`painting`, `drawing` or `digital`, `ART_CATEGORIES`, in that order), and the
-optional `medium` ("oil on canvas"), `dimensions` (free text), `year` (1900 to 2100), `order`, `pin` and `homeOrder`. The
+`alt` and `title` (required), `category` (`drawing` or `digital`, `ART_CATEGORIES`, in that order), and the
+optional `medium` ("graphite on paper"), `dimensions` (free text), `year` (1900 to 2100), `order`, `pin` and `homeOrder`. The
 caption is built from those fields only, so editing them needs no re-upload; the lightbox line is
 "Title, medium, dimensions, year" (absent fields left out) and the tile shows the title. Entries are ordered by category,
 then `order` (lowest first, unordered after), then key. The workflow is the photography one below with `art` in place of

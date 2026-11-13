@@ -17,7 +17,6 @@ export type ArtCaption = z.output<typeof artCaptionSchema>;
 
 /** The art page's sections, in the order they render. `id` is what a sidecar's `category` holds. */
 export const ART_CATEGORIES = [
-    { id: 'painting', label: 'Painting' },
     { id: 'drawing', label: 'Drawing' },
     { id: 'digital', label: 'Digital' },
 ] as const;
@@ -55,7 +54,7 @@ export function artSidecarTemplate(basename: string): string {
 # title (required): the name of the piece, shown under it and in the lightbox. The sync refuses an empty title.
 # category (required): the section of the Art page, one of ${ART_CATEGORY_IDS.join(', ')}.
 #   The sync refuses the placeholder below until it is replaced.
-# medium (optional): for example oil on canvas.
+# medium (optional): for example graphite on paper.
 # dimensions (optional): for example 24 x 36 in.
 # year (optional): a year from 1900 to 2100.
 # order (optional): a whole number that fixes this piece's position in its section, lowest first.
@@ -64,7 +63,7 @@ export function artSidecarTemplate(basename: string): string {
 alt: "${ALT_PLACEHOLDER_MARKER}: describe this piece"
 title: ""
 category: "${ALT_PLACEHOLDER_MARKER}: ${ART_CATEGORY_IDS.join(', ')}"
-# medium: Oil on canvas
+# medium: Graphite on paper
 # dimensions: 24 x 36 in
 # year: 2026
 # order: 1

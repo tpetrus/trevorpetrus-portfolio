@@ -15,12 +15,11 @@ import {
 import { galleryEntrySchema, GALLERY_COLLECTIONS, parseGallery } from './gallery';
 import { parseSidecars, planInputs } from './gallerySync';
 
-const valid = { alt: 'A red barn', title: 'Barn', category: 'painting' };
+const valid = { alt: 'A red barn', title: 'Barn', category: 'drawing' };
 
 describe('ART_CATEGORIES', () => {
-    it('lists painting, drawing and digital, in page order, with labels', () => {
+    it('lists drawing and digital, in page order, with labels', () => {
         expect(ART_CATEGORIES).toEqual([
-            { id: 'painting', label: 'Painting' },
             { id: 'drawing', label: 'Drawing' },
             { id: 'digital', label: 'Digital' },
         ]);
@@ -51,7 +50,8 @@ describe('artSidecarSchema', () => {
         ['a missing title', { title: undefined }, /title/],
         ['a blank title', { title: '   ' }, /title/],
         ['a bad category', { category: 'sculpture' }, /category/],
-        ['a placeholder category', { category: 'TODO: painting, drawing, digital' }, /category/],
+        ['the dropped painting category', { category: 'painting' }, /category/],
+        ['a placeholder category', { category: 'TODO: drawing, digital' }, /category/],
         ['an empty medium', { medium: '' }, /medium/],
         ['a year before 1900', { year: 1899 }, /year/],
         ['a year after 2100', { year: 2101 }, /year/],
@@ -130,7 +130,7 @@ describe('the art collection', () => {
             sourceSha256: 'a'.repeat(64),
             processingVersion: 1,
             alt: 'A barn',
-            category: 'painting',
+            category: 'drawing',
             homeOrder: 3,
             caption: { title: 'Barn' },
         };
@@ -169,7 +169,7 @@ describe('artSidecarTemplate', () => {
             alt: 'A barn',
             title: 'Barn',
             category: 'drawing',
-            medium: 'Oil on canvas',
+            medium: 'Graphite on paper',
             year: 2026,
             homeOrder: 1,
         });
@@ -195,11 +195,11 @@ describe('compareArtEntries', () => {
     it('sorts by category, then order (unset last), then key', () => {
         const sorted = [
             curated('art/z.png', 'digital'),
-            curated('art/b.png', 'painting'),
-            curated('art/a.png', 'painting'),
-            curated('art/c.png', 'painting', 2),
-            curated('art/d.png', 'painting', 1),
-            curated('art/e.png', 'drawing', 5),
+            curated('art/b.png', 'drawing'),
+            curated('art/a.png', 'drawing'),
+            curated('art/c.png', 'drawing', 2),
+            curated('art/d.png', 'drawing', 1),
+            curated('art/e.png', 'digital', 5),
         ].sort(compareArtEntries);
         expect(sorted.map(({ entry }) => entry.key)).toEqual([
             'art/d.png',

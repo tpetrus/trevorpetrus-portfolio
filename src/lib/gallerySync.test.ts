@@ -287,8 +287,8 @@ describe('parseSidecars for art', () => {
 
     it('names every offender (placeholder alt, missing title, bad category) in one pass', () => {
         const result = parseSidecars('art', [
-            file('a', 'alt: "TODO: describe"', 'title: A', 'category: painting'),
-            file('b', 'alt: Fine', 'category: painting'),
+            file('a', 'alt: "TODO: describe"', 'title: A', 'category: drawing'),
+            file('b', 'alt: Fine', 'category: drawing'),
             file('c', 'alt: Fine', 'title: C', 'category: sculpture'),
             file('d', 'alt: Fine', 'title: "  "', 'category: drawing'),
             file('e', 'alt: Fine', 'title: E', 'category: digital'),
@@ -670,7 +670,7 @@ describe('homeOrder in both branches', () => {
             key: 'art/a.png',
             sourceSha256: 'a'.repeat(64),
             processed,
-            sidecar: { alt: 'a', category: 'painting', homeOrder },
+            sidecar: { alt: 'a', category: 'drawing', homeOrder },
             location: undefined,
         });
 
@@ -680,7 +680,7 @@ describe('homeOrder in both branches', () => {
     });
 
     it('sets, changes and removes homeOrder on the unchanged path', () => {
-        const sidecar = { alt: 'a', category: 'painting' } as const;
+        const sidecar = { alt: 'a', category: 'drawing' } as const;
         const compose = (existing: typeof base, homeOrder: number | undefined) =>
             composeUnchangedEntry(collection, { existing, sidecar: { ...sidecar, homeOrder }, location: undefined });
         const set = compose(base, 1);
