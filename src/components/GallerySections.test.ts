@@ -49,9 +49,20 @@ function tagsOf(html: string, name: string): string[] {
     return html.match(new RegExp(String.raw`<${name}\b[^>]*>`, 'g')) ?? [];
 }
 
+// Strips tags until none is left: one pass over input like `<scr<b>ipt>` would leave a tag behind (CodeQL's
+// js/incomplete-multi-character-sanitization), so the helper never reports markup as text.
+function stripTags(markup: string): string {
+    let text = markup;
+    for (let previous = ''; previous !== text;) {
+        previous = text;
+        text = text.replace(/<[^>]*>/g, '');
+    }
+    return text;
+}
+
 function textOf(html: string, name: string): string[] {
     return [...html.matchAll(new RegExp(String.raw`<${name}\b[^>]*>([\s\S]*?)</${name}>`, 'g'))].map(([, inner]) =>
-        inner.replace(/<[^>]*>/g, '').trim(),
+        stripTags(inner).trim(),
     );
 }
 
