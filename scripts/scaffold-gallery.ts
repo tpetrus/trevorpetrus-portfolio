@@ -38,9 +38,9 @@ function createExclusively(path: string, text: string): boolean {
 }
 
 const { collection: collectionName, sourceDir, dryRun } = parseScaffoldArgs(process.argv.slice(2));
-const { sidecarTemplate } = galleryCollection(collectionName);
+const { sidecarTemplate, extensions } = galleryCollection(collectionName);
 const sidecarDir = sidecarDirectory(collectionName);
-const plan = planScaffold(listFiles(sourceDir), listFiles(sidecarDir));
+const plan = planScaffold(listFiles(sourceDir), listFiles(sidecarDir), extensions);
 
 console.log(`${dryRun ? 'Dry run (nothing written)' : 'Scaffolding'}: ${collectionName} from ${sourceDir}`);
 for (const problem of plan.rejected) console.log(`ignored  ${problem}`);
