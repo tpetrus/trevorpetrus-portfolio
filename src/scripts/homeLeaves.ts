@@ -12,8 +12,6 @@ import {
     applyGust,
     createLeaves,
     createWind,
-    leafCount,
-    leafScale,
     leafTransform,
     step,
     type Leaf,
@@ -50,12 +48,21 @@ function bind(layer: HTMLElement): () => void {
     let pausedByUser = false;
     let lastScrollY = window.scrollY;
 
-    // Only the leaves the tier CSS shows are moved; the others stay hidden at their still position. The count comes from
-    // innerWidth because the tier media queries measure that (a classic scrollbar included), and so does the scale,
-    // whose CSS twin is in vw; the layer, which the scrollbar narrows, only sizes the motion.
+    // The CSS decides which leaves show (leafTierCss) and how big they are (leafSizeCss), so the script reads both from
+    // the rendered leaves rather than recomputing them: they cannot disagree, a classic scrollbar included, and the
+    // script stays under Vite's 4 kB inline limit. Hidden leaves stay at their still position. The layer, which the
+    // scrollbar narrows, sizes the motion.
     const measure = (): void => {
-        viewport = { width: layer.clientWidth, height: layer.clientHeight, scale: leafScale(window.innerWidth) };
-        active = leaves.slice(0, leafCount(window.innerWidth));
+        const first = nodes[0];
+        viewport = {
+            width: layer.clientWidth,
+            height: layer.clientHeight,
+            scale: first ? parseFloat(getComputedStyle(first).width) / (leaves[0]?.size ?? 1) || 1 : 1,
+        };
+        active = leaves.filter((leaf) => {
+            const node = nodes[leaf.index];
+            return node ? getComputedStyle(node).display !== 'none' : false;
+        });
     };
 
     const loop = (now: number): void => {

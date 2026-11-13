@@ -244,7 +244,9 @@ composition in viewport percent (`createLeaves(LEAF_SEED)`), and `step`, which f
 lets a mouse push leaves within 120 px, and decays the scroll gust (`applyGust`, clamped to `GUST_MAX`) under 5% within
 2 s. Each leaf has a seeded size of 18 to 40 px, kept up to `LEAF_SCALE_REF_PX` (1024 px) and multiplied by the
 viewport width over it from there, up to `LEAF_SCALE_MAX` (2.5x on a 2560 px screen): `leafSizeCss` writes that curve as
-an inline CSS `clamp()` for the still composition and `leafScale` gives the script the same factor. The server renders the still composition and `leafTierCss()` hides the leaves above the viewport's tier, so reduced
+an inline CSS `clamp()` (`leafScale` is the same curve in TypeScript, for the specs). The script reads the leaf count
+and the scale back from the rendered leaves (their `display` and computed width) rather than recomputing them, so the
+CSS is the one source and the script stays under the inline limit (3,995 of 4,096 bytes: about 100 bytes of headroom). The server renders the still composition and `leafTierCss()` hides the leaves above the viewport's tier, so reduced
 motion and no-JS visitors see the right density with no script. Each leaf's fill is a literal Tailwind class
 (`text-paper-3`), because Tailwind only emits a theme color's variable when a class uses it.
 `src/scripts/homeLeaves.ts` starts the loop on `requestIdleCallback` unless the visitor prefers reduced motion, writes
