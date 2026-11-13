@@ -109,6 +109,19 @@ test.describe('home leaf layer, still', () => {
         await expect(page.locator('body')).toHaveCSS('isolation', 'isolate');
     });
 
+    test('lifts main and the footer above the layer', async ({ page }) => {
+        await page.goto('/');
+
+        // elementFromPoint looks through the layer (it takes no pointer events), so the stacking itself is asserted: a
+        // broken global.css selector would otherwise let the leaves paint over the content unnoticed.
+        await expect(page.locator('body')).toHaveCSS('isolation', 'isolate');
+        await expect(page.locator('[data-leaves]')).toHaveCSS('z-index', '0');
+        for (const selector of ['main', 'body > footer']) {
+            await expect(page.locator(selector)).toHaveCSS('position', 'relative');
+            await expect(page.locator(selector)).toHaveCSS('z-index', '10');
+        }
+    });
+
     test('holds nothing that can take focus', async ({ page }) => {
         await page.goto('/');
 

@@ -68,10 +68,13 @@ function bind(layer: HTMLElement): () => void {
         frame = requestAnimationFrame(loop);
     };
 
+    // Stopping also calms the wind, so a resume never starts with a gust saved up while the leaves stood still.
     const stopLoop = (): void => {
         cancelAnimationFrame(frame);
         frame = 0;
         last = 0;
+        wind.gust = 0;
+        wind.pointer.active = false;
     };
 
     // Works out the state from the preference, the tab's visibility and the button, then starts or stops the loop.
@@ -143,7 +146,8 @@ function bind(layer: HTMLElement): () => void {
         window.addEventListener(
             'scroll',
             () => {
-                applyGust(wind, window.scrollY - lastScrollY);
+                // Only while the leaves move: a gust saved up during a pause would blow them sideways on resume.
+                if (frame) applyGust(wind, window.scrollY - lastScrollY);
                 lastScrollY = window.scrollY;
             },
             { passive: true, signal },
