@@ -26,8 +26,8 @@ function checkGalleryFile(path: string, data: unknown): void {
 }
 
 describe('committed gallery data', () => {
-    it('finds the photography data file', () => {
-        expect(Object.keys(files).map(collectionOf)).toContain('photography');
+    it('finds the photography and art data files', () => {
+        expect(Object.keys(files).map(collectionOf)).toEqual(expect.arrayContaining(['photography', 'art']));
     });
 
     it.each(Object.entries(files))('%s is valid', (path, data) => {

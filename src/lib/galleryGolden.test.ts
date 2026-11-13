@@ -3,9 +3,10 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { parseGallery } from './gallery';
-import { captionWithLocation, resolveLocation } from './location';
-import { mergeGallery, parseSidecar, serializeGallery, type CuratedEntry } from './gallerySync';
+import { galleryCollection, parseGallery } from './gallery';
+import { resolveLocation } from './location';
+import type { PhotographyCaption, PhotographySidecar } from './photography';
+import { composeUnchangedEntry, mergeGallery, parseSidecar, serializeGallery, type CuratedEntry } from './gallerySync';
 
 // Pins the committed photography data: rebuilding every entry through the sync's unchanged-source path (the alt,
 // category and pin from the sidecar; the place from the sidecar override, else the one already committed) and merging
@@ -16,6 +17,7 @@ const sidecarDir = join(process.cwd(), 'src/content/photography');
 describe('the committed photography data', () => {
     it('is reproduced byte for byte from its sidecars by the unchanged path', () => {
         const committed = readFileSync(dataFile, 'utf8');
+        const collection = galleryCollection('photography');
         const previous = parseGallery('photography', JSON.parse(committed));
 
         const current: CuratedEntry<(typeof previous)[number]['caption']>[] = previous.map((existing) => {
@@ -26,15 +28,12 @@ describe('the committed photography data', () => {
                 sidecar.location === undefined
                     ? existing.caption.location
                     : resolveLocation(undefined, sidecar.location);
-            const { pin: _previous, ...rest } = existing;
             return {
-                entry: {
-                    ...rest,
-                    alt: sidecar.alt,
-                    category: sidecar.category,
-                    caption: captionWithLocation(existing.caption, location),
-                    ...(sidecar.pin === true ? { pin: true as const } : {}),
-                },
+                entry: composeUnchangedEntry<PhotographyCaption, PhotographySidecar>(collection, {
+                    existing,
+                    sidecar,
+                    location,
+                }),
                 order: sidecar.order,
             };
         });
@@ -42,7 +41,7 @@ describe('the committed photography data', () => {
         const sidecarCount = readdirSync(sidecarDir).filter((file) => file.endsWith('.yml')).length;
         expect(current).toHaveLength(sidecarCount);
 
-        const { entries, dropped } = mergeGallery(current, previous);
+        const { entries, dropped } = mergeGallery(current, previous, collection.compareEntries);
         expect(dropped).toEqual([]);
         expect(serializeGallery(entries)).toBe(committed);
     });
