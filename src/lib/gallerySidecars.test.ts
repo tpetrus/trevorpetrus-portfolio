@@ -66,7 +66,8 @@ describe('every collection template', () => {
             );
             const edited = template
                 .replace(/^alt: .*$/m, 'alt: A harbor at dawn')
-                .replace(/^category: .*$/m, 'category: landscape');
+                .replace(/^title: .*$/m, 'title: Harbor')
+                .replace(/^category: .*$/m, 'category: ' + GALLERY_COLLECTIONS[name].categories[0].id);
             expect(() => parseSidecar(name, template.replace(/^alt: .*$/m, 'alt: A harbor at dawn'), 'a.yml')).toThrow(
                 /category/,
             );
