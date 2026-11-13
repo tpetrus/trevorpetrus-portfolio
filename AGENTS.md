@@ -4,7 +4,9 @@ A personal portfolio: an intro page (a 3D hero is planned), a photography galler
 served from Cloudflare Workers static assets. Step 1 (skeleton, tooling, CI), Step 2 (the Projects page, built from a
 content collection) and Step 3 (the photo gallery pipeline and the Photography page) are done; the 3D hero is not. The
 Photography page shows the uploaded photos in three category sections, Landscape, Portrait and Car (see "Gallery"). The home page
-is real but pre-hero: the giant name, a short statement and, once photos exist, a three-photo cluster (see "Home").
+is real but pre-hero: the giant name, a short statement, falling leaves behind it (paused from an icon button in the
+header) and, once
+photos exist, a three-photo cluster (see "Home").
 
 ## Commands
 | Task | Command |
@@ -80,8 +82,8 @@ Cloudflare Workers Builds (see "CI and deploys").
   with opacity and a translate, and `src/scripts/headerName.ts` toggles `data-docked` through an IntersectionObserver once
   the wordmark is under the header. `:focus-visible` reveals the name too, and reduced motion drops the translate. Without
   JavaScript the header name stays hidden on the home page, where the h1 shows the name. `html` has
-  `scroll-padding-top: 5.5rem`, above the header's tallest measured height (77 px on phones 375 px wide and narrower, where
-  the nav wraps), so anchors and focused elements are not hidden under it (WCAG 2.4.11); re-measure if the header changes.
+  `scroll-padding-top: 5.5rem`, above the header's tallest measured height (79 px on the home page on phones 414 px wide and
+  narrower, where the nav wraps under the leaves button and the name; 77 px on the other pages), so anchors and focused elements are not hidden under it (WCAG 2.4.11); re-measure if the header changes.
 - **Page column:** the `column` utility in `global.css` (width token `--container-column: 75vw` in `@theme`) is the one
   content column. The header row, `main` (or, on the bleed Photography page, the inner wrapper of the ink section), the
   footer row and the Photography grid all use it, so every page lines up. Below 1024px it is full width minus the `px-edge`
@@ -97,7 +99,11 @@ Cloudflare Workers Builds (see "CI and deploys").
   paper (2.94:1): use `accent-deep` there. A purely decorative accent fill is allowed next to an ink or accent-deep cue:
   the 4 px band above the footer and the home statement, the project status square, the offset of the project hover box.
   Links (`.link`) turn into an accent highlighter with ink text on hover (on ink they turn accent instead); the header
-  nav underlines the current and hovered page in `accent-deep`.
+  nav underlines the current and hovered page in `accent-deep`. `paper-2`, `paper-3` (#e4e0d6) and `accent-tint`
+  (#f5ddd0) are the opaque fills of the home page's falling leaves, which pass behind text: opaque, so two overlapping
+  leaves are no darker than one, and the spec checks `ink`, `ink-muted` and `accent-deep` text at 4.5:1 or more on every
+  fill in `LEAF_FILLS`. `accent-deep` (5.43:1 on paper) is the weakest text on the home page, not `ink-muted`, so it is
+  the bar a new fill must clear; ink or accent leaves at any visible opacity fail it.
 - **Deploy:** Cloudflare Workers static assets: `wrangler.jsonc` (Worker name `trevorpetrus-portfolio`) serves `dist/`. Cloudflare
   Workers Builds is connected: it deploys `main` to production and PR branches to preview URLs (see
   "One-time setup"). GitHub Actions only checks; it never deploys.
@@ -126,7 +132,8 @@ src/
                         sets; thumbhash.ts: ThumbHash validation and the WebP placeholder; exifLocation.ts: which
                         metadata keys are a location; location.ts: the city/country schemas, sidecar-vs-derived
                         merge and the caption text; geonames.ts: offline place lookup and `cities1000`
-                        parsing; zip.ts: a minimal zip reader for the GeoNames download)
+                        parsing; zip.ts: a minimal zip reader for the GeoNames download; leaves.ts: the home page's
+                        falling leaves: tiers, still composition, physics and transforms)
   content.config.ts     the `projects` content collection (schema comes from lib/projects.ts)
   content/projects/     one markdown file per project; the frontmatter is the data (the body is unused)
   assets/projects/      generated screenshots (<slug>.avif), committed; rendered through astro:assets
@@ -149,15 +156,17 @@ src/
                         GeonamesCredit.astro (the CC BY 4.0 credit line),
                         RunningHead.astro (the decorative vertical site/page name, `aria-hidden`, shown from `xl` up),
                         Wordmark.astro (the giant home `h1`), HomeCluster.astro (the home photo cluster; which photos
-                        and their image attributes come from lib/homeCluster.ts)
+                        and their image attributes come from lib/homeCluster.ts), HomeLeaves.astro (the home page's
+                        still leaf layer, from lib/leaves.ts), LeavesToggle.astro (the leaves' pause button)
   scripts/galleryLightbox.ts  (src/scripts/) browser glue for the PhotoSwipe lightbox (DOM only, outside unit-test coverage)
   scripts/headerName.ts  (src/scripts/) DOM glue for the header-name handoff, imported by Wordmark.astro (outside unit coverage)
   scripts/galleryReveal.ts  (src/scripts/) DOM glue for the gallery's reveal-on-scroll, imported by Gallery.astro
   scripts/sectionNav.ts  (src/scripts/) DOM glue for the Photography back-to-top links and section legend, imported by
                         SectionLegend.astro
   scripts/titleVideo.ts  (src/scripts/) DOM glue that plays and pauses the page-title video, imported by PageTitle.astro
-  scripts/tooltipDismiss.ts  (src/scripts/) DOM glue that hides the GitHub icon tooltip on Escape, imported by
-                        ProjectCard.astro
+  scripts/homeLeaves.ts  (src/scripts/) DOM glue that sets the home page's leaves falling, imported by LeavesToggle.astro
+  scripts/tooltipDismiss.ts  (src/scripts/) DOM glue that hides a tooltip on Escape (the GitHub icon's, the leaves
+                        button's), imported by ProjectCard.astro and LeavesToggle.astro
 public/                 static files served from / (favicon.svg; video/: the Photography title loop and its poster;
                         lychee.toml: makes the CI link check resolve /photography/#photo-* inside index.html)
 tests/e2e/              Playwright specs (smoke.spec.ts is tagged @smoke); its own tsconfig; lightbox.spec.ts skips while
@@ -217,11 +226,46 @@ component's style; no transition under reduced motion).
 In the three-photo composition on phones the widest images are about 36% to 38% of the viewport (`phoneImageWidth` in
 `src/lib/homeCluster.ts`; the third, four columns wide as on desktop, is about 29%). They are
 smaller than the wordmark `h1`, so the wordmark stays the largest contentful paint and every cluster image can stay lazy
-with no `fetchpriority="high"`. Measured on this layout (mobile Lighthouse, 3 runs on `/`, with the three real photos):
-LCP element `h1.name` in every run, performance 0.99, LCP 2.0 s, CLS 0. PR #16 measured about 2.4 s (performance about 0.97)
+with no `fetchpriority="high"`. Measured on this layout (mobile Lighthouse, 3 runs on `/`, with the three real photos,
+re-measured when the falling leaves were added, identical with and without them): LCP element the statement paragraph
+(`main > p`, about 1.97 s, all render delay after the fonts), performance 0.99, CLS 0.0007 (the statement reflowing on
+the Inter swap); on desktop the LCP element is `h1.name` (0.48 s), performance 1. An earlier measurement recorded
+`h1.name` on mobile too; in either case it is text, not a photo. PR #16 measured about 2.4 s (performance about 0.97)
 when a cluster photo was the LCP element and eager with `fetchpriority="high"`. If the shown photos, the pins or the layout
 change (a lone pinned photo spans six columns), re-check the LCP element with `npm run lighthouse` before merging: if a photo is the LCP, make that one image
 eager with `fetchpriority="high"` and keep the rest lazy.
+
+**Falling leaves.** A fixed, full-viewport, `aria-hidden`, `pointer-events: none` layer of flat paper-cut leaves sits
+behind the home page's content (`HomeLeaves.astro`, in BaseLayout's `backdrop` slot, which must be body's first child).
+Where it exists, `global.css` isolates the body and lifts `main`, the footer and the running head to `z-index: 10`
+(`body:has(> [data-leaves])`), so no other page's stacking changes. Each leaf is its own small `svg` (a `<use>` of one of
+three symbols) with `will-change: transform`, so moving one never repaints the viewport. The pure logic is
+`src/lib/leaves.ts`: `LEAF_TIERS` (4 leaves below 48rem, 8, 11, and 15 from 80rem; `leafCount(width)`), a seeded still
+composition in viewport percent (`createLeaves(LEAF_SEED)`), and `step`, which falls, sways, spins and flips each leaf,
+lets a mouse push leaves within 120 px, and decays the scroll gust (`applyGust`, clamped to `GUST_MAX`) under 5% within
+2 s. Each leaf has a seeded size of 18 to 40 px, kept up to `LEAF_SCALE_REF_PX` (1024 px) and multiplied by the
+viewport width over it from there, up to `LEAF_SCALE_MAX` (2.5x on a 2560 px screen): `leafSizeCss` writes that curve as
+an inline CSS `clamp()` (`leafScale` is the same curve in TypeScript, for the specs). The script reads the leaf count
+and the scale back from the rendered leaves (their `display` and computed width) rather than recomputing them, so the
+CSS is the one source and the script stays under the inline limit (3,953 of 4,096 bytes: about 140 bytes of headroom). The server renders the still composition and `leafTierCss()` hides the leaves above the viewport's tier, so reduced
+motion and no-JS visitors see the right density with no script. Each leaf's fill is a literal Tailwind class
+(`text-paper-3`), because Tailwind only emits a theme color's variable when a class uses it.
+`src/scripts/homeLeaves.ts` starts the loop on `requestIdleCallback` unless the visitor prefers reduced motion, writes
+only `transform`, and exposes its state as `data-leaves-state` (`still`, `running`, `paused`): it pauses while the tab
+is hidden, freezes in place on a live switch to reduced motion, ignores touch pointers (a finger only scrolls) and
+removes everything through one `AbortController` on `astro:before-swap`. The pause button (`LeavesToggle.astro`; WCAG 2.2.2)
+is a 36 px icon button at the start of the header, before the name, on every width (BaseLayout's `header-start` slot;
+`-my-2` keeps it from making the header row taller). It is disabled until the script runs, hidden under reduced motion,
+named by its action ("Pause/Play falling leaves", its `aria-label`) and not remembered across visits; CSS swaps the
+pause and play icons from `data-state`. Its tooltip is the button's own `::after` with `content: attr(aria-label)`, so it
+always says what a screen reader hears; it opens below the button on hover (only where `hover: hover`) and on keyboard
+focus, and `tooltipDismiss.ts` hides it on Escape (the button carries `data-tooltip` as the owner mark). That import is
+its own `<script>`: imported together with the leaves, the shared module would make the leaves script a chunk too. The script is about 1.9 kB gzip and under Vite's 4 kB
+inline limit, so it ships inside `index.html`; the "Home page HTML" entry in `.size-limit.json` is what budgets it. Tune
+the feel through the constants in `leaves.ts`, not in the glue. `tests/e2e/leavesStill.spec.ts` and
+`tests/e2e/leavesMotion.spec.ts` cover it. The visual spec runs under reduced motion, so the home baselines hold the
+still composition, but the pale fills sit close to Playwright's per-pixel color threshold and barely register in the
+comparison: the leaf specs, not the baselines, are what check the leaves.
 
 ## Projects
 The Projects page is built from the `projects` content collection (`src/content/projects/*.md`, schema in
@@ -586,7 +630,9 @@ When a gate fails:
 - **Budgets** (`.size-limit.json`, `lighthouserc.json`): if the growth or score drop is intended, change the limit in the
   same PR and say why. Don't loosen a limit to get an unrelated change through. The JS budget (30 kB gzip, excluding the
   unused React island runtime) is for the plain site. The 3D hero island gets its own budget of 250 kB in Step 4; add it
-  as a separate entry then rather than raising this one.
+  as a separate entry then rather than raising this one. A script small enough to be inlined (under 4 kB raw, such as
+  the home page's leaves) never reaches `_astro/`, so the "Home page HTML" entry (gzip of `dist/index.html`) budgets it;
+  if the leaves script grows past the inline limit it becomes a chunk and counts against the 30 kB total.
 - **Dependencies**: Dependabot opens weekly grouped PRs (`astro` + `@astrojs/*` together, `three` + `@react-three/*` +
   `@types/three` together). It skips majors of `typescript`, `eslint`, `@eslint/js`, `eslint-plugin-astro` and
   `@types/node` on purpose (see the comments in `.github/dependabot.yml`). `eslint-plugin-astro` is on 1.x because 2.x
