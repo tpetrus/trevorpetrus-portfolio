@@ -2,6 +2,7 @@ import { experimental_AstroContainer as AstroContainer } from 'astro/container';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import type { AnyCollectionCaption, GalleryEntry } from '../lib/gallery';
+import type { PhotoLocation } from '../lib/location';
 import { encodeThumbHash } from '../lib/thumbhash';
 import GallerySections from './GallerySections.astro';
 
@@ -111,5 +112,45 @@ describe('GallerySections with the art collection', () => {
         expect(empty).toContain('Art is on its way.');
         expect(empty).not.toContain('<section');
         expect(empty).not.toContain('data-gallery');
+    });
+});
+
+describe('GallerySections with the photography collection', () => {
+    const photo = (file: string, category: string, location?: PhotoLocation): GalleryEntry<AnyCollectionCaption> => ({
+        ...piece(file, category, location ? { location } : {}),
+        key: `photography/${file}`,
+    });
+    const PHOTO_PROPS = {
+        jumpLabel: 'Photo categories',
+        emptyLine: 'Photos are on their way.',
+        sectionEmptyLine: (label: string) => `${label} photos are on their way.`,
+    };
+    const render = async (entries: GalleryEntry<AnyCollectionCaption>[]) => {
+        const container = await AstroContainer.create();
+        return container.renderToString(GallerySections, {
+            props: { collection: 'photography', entries, ...PHOTO_PROPS },
+        });
+    };
+
+    it('names the jump nav and shows a per-category empty line', async () => {
+        const html = await render([photo('a.jpg', 'landscape')]);
+        expect(html).toContain('aria-label="Photo categories"');
+        expect(html).toContain('Portrait photos are on their way.');
+        expect(html).toContain('Car photos are on their way.');
+        expect(html).not.toContain('Landscape photos are on their way.');
+    });
+
+    it('shows only the whole-collection line with no entries', async () => {
+        const html = await render([]);
+        expect(html).toContain('Photos are on their way.');
+        expect(html).not.toContain('<section');
+    });
+
+    it('credits GeoNames only when a place came from it', async () => {
+        const derived = { city: 'Lisbon', country: 'Portugal', source: 'geonames' } as const;
+        const own = { city: 'Lisbon', country: 'Portugal', source: 'sidecar' } as const;
+        expect(await render([photo('a.jpg', 'landscape', derived)])).toContain('GeoNames');
+        expect(await render([photo('a.jpg', 'landscape', own)])).not.toContain('GeoNames');
+        expect(await render([photo('a.jpg', 'landscape')])).not.toContain('GeoNames');
     });
 });
