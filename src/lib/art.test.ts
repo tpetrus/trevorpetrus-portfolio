@@ -212,6 +212,28 @@ describe('compareArtEntries', () => {
     });
 });
 
+describe('compareArtEntries tie-break', () => {
+    it('orders equal keys-by-category by code point, so "art/B.png" precedes "art/a.png"', () => {
+        const curated = (key: string) => ({
+            entry: {
+                key,
+                width: 1,
+                height: 1,
+                thumbhash: 'x',
+                sourceSha256: 'a'.repeat(64),
+                processingVersion: 1,
+                alt: 'a',
+                category: 'drawing',
+                caption: { title: key } as ArtCaption,
+            },
+            order: undefined,
+        });
+        const sorted = [curated('art/a.png'), curated('art/B.png')].sort(compareArtEntries);
+        expect(sorted.map(({ entry }) => entry.key)).toEqual(['art/B.png', 'art/a.png']);
+        expect(compareArtEntries(curated('art/a.png'), curated('art/a.png'))).toBe(0);
+    });
+});
+
 describe('the preflight', () => {
     it('lists every offending sidecar in one run, before anything is processed', () => {
         const result = parseSidecars('art', [
