@@ -1,18 +1,17 @@
 ---
-// The pause control of the home page's falling leaves (contract C4), an icon button at the start of the header (the
-// layout's header-start slot). Behavior lives in src/scripts/homeLeaves.ts.
+// The pause control of the home page's falling leaves (contract C4), an icon button in the ink footer, after the
+// copyright (the layout's footer-control slot). Behavior lives in src/scripts/homeLeaves.ts.
 ---
 
 {/* The leaves move for more than five seconds next to the content, so they can be stopped (WCAG 2.2.2). The accessible
     name is the action ("Pause/Play falling leaves"); the script changes it and data-state, and CSS swaps the icon. The
     tooltip is the button's own ::after, drawn from that aria-label, so it always says what a screen reader hears and
-    the script has nothing else to update. It is flush below the button, so the pointer can move onto it without it
+    the script has nothing else to update. It is flush above the button (the footer is the bottom of the page), so the pointer can move onto it without it
     closing (WCAG 1.4.13), shows on hover only on a device that can hover (a tap leaves nothing open) and on keyboard
     focus, and Escape hides it through tooltipDismiss.ts (data-tooltip marks the button as a tooltip owner). The button
     stays disabled until the script runs, because without JavaScript there is nothing to pause, and it is never shown to
     a visitor who prefers reduced motion, who only ever sees the still leaves. -my-2 keeps the 36px hit area without
-    making the header row taller (on phones the row is only the name's height, and a taller header would outgrow the
-    html scroll-padding-top). */}
+    making the footer row taller. On the ink surface the icon is ink-muted-on-ink and turns ink on an accent fill. */}
 <button
     type="button"
     data-leaves-toggle
@@ -20,7 +19,7 @@
     data-state="running"
     aria-label="Pause falling leaves"
     disabled
-    class="leaves-toggle relative -my-2 inline-flex size-9 shrink-0 items-center justify-center text-ink-muted transition-colors hover:bg-accent hover:text-ink focus-visible:bg-accent focus-visible:text-ink disabled:bg-transparent disabled:text-ink-muted motion-reduce:transition-none"
+    class="leaves-toggle relative -my-2 inline-flex size-9 shrink-0 items-center justify-center text-ink-muted-on-ink transition-colors hover:bg-accent hover:text-ink focus-visible:bg-accent focus-visible:text-ink disabled:bg-transparent disabled:text-ink-muted-on-ink motion-reduce:transition-none"
 >
     <svg class="icon-pause size-4" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
         <path d="M3 2h3.5v12H3zM9.5 2H13v12H9.5z" fill="currentColor" />
@@ -46,12 +45,12 @@
     .leaves-toggle[data-state='paused'] .icon-pause {
         display: none;
     }
-    /* Below the button and left-aligned, so it opens into the page and never past the viewport's left edge; the header
-       (z-20) is above main, so the tooltip is not covered by the content under it. */
+    /* Above the button and left-aligned, so it opens into the page and never past the viewport's bottom or left edge.
+       Paper on the ink footer, so it reads as a separate layer. */
     .leaves-toggle::after {
         content: attr(aria-label);
         position: absolute;
-        top: 100%;
+        bottom: 100%;
         left: 0;
         display: none;
         border: 1px solid var(--color-ink);

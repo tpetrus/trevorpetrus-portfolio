@@ -5,7 +5,7 @@ served from Cloudflare Workers static assets. Step 1 (skeleton, tooling, CI), St
 content collection) and Step 3 (the photo gallery pipeline and the Photography page) are done; the 3D hero is not. The
 Photography page shows the uploaded photos in three category sections, Landscape, Portrait and Car (see "Gallery"). The home page
 is real but pre-hero: the giant name, a short statement, falling leaves behind it (paused from an icon button in the
-header) and, once
+footer) and, once
 photos exist, a three-photo cluster (see "Home").
 
 ## Commands
@@ -82,8 +82,7 @@ Cloudflare Workers Builds (see "CI and deploys").
   with opacity and a translate, and `src/scripts/headerName.ts` toggles `data-docked` through an IntersectionObserver once
   the wordmark is under the header. `:focus-visible` reveals the name too, and reduced motion drops the translate. Without
   JavaScript the header name stays hidden on the home page, where the h1 shows the name. `html` has
-  `scroll-padding-top: 5.5rem`, above the header's tallest measured height (79 px on the home page on phones 414 px wide and
-  narrower, where the nav wraps under the leaves button and the name; 77 px on the other pages), so anchors and focused elements are not hidden under it (WCAG 2.4.11); re-measure if the header changes.
+  `scroll-padding-top: 5.5rem`, above the header's tallest measured height (77 px on phones, where the nav wraps under the name), so anchors and focused elements are not hidden under it (WCAG 2.4.11); re-measure if the header changes.
 - **Page column:** the `column` utility in `global.css` (width token `--container-column: 75vw` in `@theme`) is the one
   content column. The header row, `main` (or, on the bleed Photography page, the inner wrapper of the ink section), the
   footer row and the Photography grid all use it, so every page lines up. Below 1024px it is full width minus the `px-edge`
@@ -242,11 +241,11 @@ eager with `fetchpriority="high"` and keep the rest lazy.
 behind the home page's content (`HomeLeaves.astro`, in BaseLayout's `backdrop` slot, which must be body's first child).
 Where it exists, `global.css` isolates the body and lifts `main`, the footer and the running head to `z-index: 10`
 (`body:has(> [data-leaves])`), so no other page's stacking changes. Each leaf is its own small `svg` (a `<use>` of one of
-three symbols) with `will-change: transform`, so moving one never repaints the viewport. The pure logic is
-`src/lib/leaves.ts`: `LEAF_TIERS` (4 leaves below 48rem, 8, 11, and 15 from 80rem; `leafCount(width)`), a seeded still
+two symbols, an ovate and a willow leaf) with `will-change: transform`, so moving one never repaints the viewport. The pure logic is
+`src/lib/leaves.ts`: `LEAF_TIERS` (7 leaves below 48rem, 12, 18, and 24 from 80rem; `leafCount(width)`), a seeded still
 composition in viewport percent (`createLeaves(LEAF_SEED)`), and `step`, which falls, sways, spins and flips each leaf,
 lets a mouse push leaves within 120 px, and decays the scroll gust (`applyGust`, clamped to `GUST_MAX`) under 5% within
-2 s. Each leaf has a seeded size of 18 to 40 px, kept up to `LEAF_SCALE_REF_PX` (1024 px) and multiplied by the
+2 s. Each leaf has a seeded size of 84 to 168 px (`LEAF_MIN_PX`, `LEAF_MAX_PX`), kept up to `LEAF_SCALE_REF_PX` (1024 px) and multiplied by the
 viewport width over it from there, up to `LEAF_SCALE_MAX` (2.5x on a 2560 px screen): `leafSizeCss` writes that curve as
 an inline CSS `clamp()` (`leafScale` is the same curve in TypeScript, for the specs). The script reads the leaf count
 and the scale back from the rendered leaves (their `display` and computed width) rather than recomputing them, so the
@@ -257,11 +256,11 @@ motion and no-JS visitors see the right density with no script. Each leaf's fill
 only `transform`, and exposes its state as `data-leaves-state` (`still`, `running`, `paused`): it pauses while the tab
 is hidden, freezes in place on a live switch to reduced motion, ignores touch pointers (a finger only scrolls) and
 removes everything through one `AbortController` on `astro:before-swap`. The pause button (`LeavesToggle.astro`; WCAG 2.2.2)
-is a 36 px icon button at the start of the header, before the name, on every width (BaseLayout's `header-start` slot;
-`-my-2` keeps it from making the header row taller). It is disabled until the script runs, hidden under reduced motion,
+is a 36 px icon button in the ink footer, after the copyright, on every width (BaseLayout's `footer-control` slot;
+`-my-2` keeps it from making the footer row taller). It is disabled until the script runs, hidden under reduced motion,
 named by its action ("Pause/Play falling leaves", its `aria-label`) and not remembered across visits; CSS swaps the
 pause and play icons from `data-state`. Its tooltip is the button's own `::after` with `content: attr(aria-label)`, so it
-always says what a screen reader hears; it opens below the button on hover (only where `hover: hover`) and on keyboard
+always says what a screen reader hears; it opens above the button on hover (only where `hover: hover`) and on keyboard
 focus, and `tooltipDismiss.ts` hides it on Escape (the button carries `data-tooltip` as the owner mark). That import is
 its own `<script>`: imported together with the leaves, the shared module would make the leaves script a chunk too. The script is about 1.9 kB gzip and under Vite's 4 kB
 inline limit, so it ships inside `index.html`; the "Home page HTML" entry in `.size-limit.json` is what budgets it. Tune
