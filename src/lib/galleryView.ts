@@ -7,7 +7,7 @@ import {
 } from './gallery';
 import { aspectRatio, placeTiles, tileSizes, type TilePlacement } from './galleryLayout';
 import { GRID_WIDTHS, imageSrcset, LIGHTBOX_WIDTHS, originalImageUrl, transformedImageUrl } from './imageUrl';
-import { photoAnchorId } from './photoLink';
+import { collectionAnchorId } from './photoLink';
 import { placeholderDataUrl } from './thumbhash';
 
 // Every candidate width the site already generates: the grid set plus the lightbox set. A tile can be as wide as the
@@ -27,7 +27,7 @@ export const GRID_QUALITY = 70;
 
 export interface GalleryTile {
     key: string;
-    /** The tile's `id` on the page, so a link such as `/photography/#photo-<name>` can open the photo (see photoLink.ts). */
+    /** The tile's `id` on the page, so a link such as `/photography/#photo-<name>` or `/art/#art-<name>` can open the photo (see photoLink.ts). */
     anchorId: string;
     alt: string;
     width: number;
@@ -102,7 +102,7 @@ export async function galleryTiles<Name extends GalleryCollectionName>(
     return Promise.all(
         entries.map(async ({ key, alt, width, height, caption, thumbhash }, index) => ({
             key,
-            anchorId: photoAnchorId(key),
+            anchorId: collectionAnchorId(collection, key),
             alt,
             width,
             height,

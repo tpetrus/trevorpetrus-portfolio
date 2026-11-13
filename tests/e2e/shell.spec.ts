@@ -41,6 +41,9 @@ test.describe('site shell', () => {
     for (const { path, text } of [
         { path: '/', text: 'Trevor Petrus' },
         { path: '/photography/', text: 'Trevor Petrus — Photography' },
+        // The head takes the page name from the nav items (src/lib/nav.ts), and Art has no nav link yet, so it shows the
+        // site name alone. When the nav gains the link, this becomes 'Trevor Petrus — Art'.
+        { path: '/art/', text: 'Trevor Petrus' },
         { path: '/projects/', text: 'Trevor Petrus — Projects' },
     ]) {
         test(`${path} has a decorative running head that assistive tech does not see`, async ({ page }) => {
@@ -82,7 +85,7 @@ test.describe('site shell', () => {
     // The header row, the page content and the footer row share one `column` (src/styles/global.css), 75vw wide and
     // centered from 1024px, so every page lines up on the same edges.
     for (const width of [1440, 1920]) {
-        for (const path of ['/', '/photography/', '/projects/']) {
+        for (const path of ['/', '/photography/', '/art/', '/projects/']) {
             test(`${path} lines the header, content and footer up on one 75vw column at ${width}px wide`, async ({
                 page,
             }) => {
@@ -123,7 +126,7 @@ test.describe('site shell', () => {
 
     // WCAG 1.4.10 Reflow: no sideways scrolling down to 320 CSS px wide.
     for (const width of [320, 360]) {
-        for (const path of ['/', '/photography/', '/projects/']) {
+        for (const path of ['/', '/photography/', '/art/', '/projects/']) {
             test(`${path} does not scroll sideways at ${width}px wide`, async ({ page }) => {
                 await page.setViewportSize({ width, height: 800 });
                 await page.goto(path);
