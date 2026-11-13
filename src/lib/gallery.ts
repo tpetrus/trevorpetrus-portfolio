@@ -1,5 +1,15 @@
 import { z } from 'astro/zod';
 
+import {
+    ART_CATEGORIES,
+    artCaptionFor,
+    artCaptionSchema,
+    artSidecarSchema,
+    artSidecarTemplate,
+    compareArtEntries,
+    formatArtCaption,
+    formatArtTileCaption,
+} from './art';
 import { captionWithLocation, type PhotoLocation } from './location';
 import {
     comparePhotographyEntries,
@@ -27,7 +37,7 @@ function isGalleryKey(collection: string, key: string, extensions: readonly Gall
 
 /**
  * The schema of one entry in `src/data/gallery/<collection>.json`. A factory because the caption differs by
- * collection: photography keeps camera settings, art will keep a title and medium.
+ * collection: photography keeps camera settings, art keeps a title and medium.
  */
 export function galleryEntrySchema<Caption extends z.ZodType>(
     collection: string,
@@ -57,6 +67,8 @@ export function galleryEntrySchema<Caption extends z.ZodType>(
             .refine((category) => categoryIds.includes(category), `Expected one of ${categoryIds.join(', ')}`),
         // Written only as `true` (from the sidecar's `pin`), so an unpinned entry carries no key and the file stays small.
         pin: z.literal(true).optional(),
+        // Written only when the sidecar sets it: the entry's position in the home collage.
+        homeOrder: z.int().optional(),
         caption: captionSchema,
     });
 }
@@ -73,6 +85,8 @@ export interface GalleryEntry<Caption> {
     category: string;
     /** The home page's collage shows pinned entries. */
     pin?: true;
+    /** Fixes the entry's position in the home page's collage, lowest first. */
+    homeOrder?: number;
     caption: Caption;
 }
 
@@ -125,7 +139,7 @@ interface GalleryCollection<Caption extends z.ZodType, Sidecar extends z.ZodType
     compareEntries(a: CuratedEntry<z.output<Caption>>, b: CuratedEntry<z.output<Caption>>): number;
 }
 
-/** Everything that differs between collections. `art` is added here, with its own caption and sidecar, later. */
+/** Everything that differs between collections. */
 export const GALLERY_COLLECTIONS = {
     photography: {
         captionSchema: photographyCaptionSchema,
@@ -140,11 +154,37 @@ export const GALLERY_COLLECTIONS = {
         captionFor: ({ camera, location }) => captionWithLocation(camera ?? {}, location),
         compareEntries: comparePhotographyEntries,
     },
+    art: {
+        captionSchema: artCaptionSchema,
+        sidecarSchema: artSidecarSchema,
+        sidecarTemplate: artSidecarTemplate,
+        readsCamera: false,
+        usesPlaces: false,
+        extensions: ['jpg', 'png'],
+        categories: ART_CATEGORIES,
+        formatCaption: formatArtCaption,
+        formatTileCaption: formatArtTileCaption,
+        captionFor: artCaptionFor,
+        compareEntries: compareArtEntries,
+    },
 } satisfies Record<string, GalleryCollection<z.ZodType, z.ZodType>>;
 
 export type GalleryCollectionName = keyof typeof GALLERY_COLLECTIONS;
-export type CollectionCaption = z.output<(typeof GALLERY_COLLECTIONS)[GalleryCollectionName]['captionSchema']>;
-export type CollectionSidecar = z.output<(typeof GALLERY_COLLECTIONS)[GalleryCollectionName]['sidecarSchema']>;
+/** The caption of any registered collection, for code that serves whichever collection it was told to (the sync). */
+export type AnyCollectionCaption = z.output<(typeof GALLERY_COLLECTIONS)[GalleryCollectionName]['captionSchema']>;
+/** The sidecar of any registered collection. */
+export type AnyCollectionSidecar = z.output<(typeof GALLERY_COLLECTIONS)[GalleryCollectionName]['sidecarSchema']>;
+/**
+ * The caption of a named collection; photography unless said otherwise. The default is transitional: the photography
+ * page and the home collage were written against one collection's caption and keep compiling until they are made
+ * generic over the collection.
+ */
+export type CollectionCaption<Name extends GalleryCollectionName = 'photography'> = z.output<
+    (typeof GALLERY_COLLECTIONS)[Name]['captionSchema']
+>;
+export type CollectionSidecar<Name extends GalleryCollectionName = 'photography'> = z.output<
+    (typeof GALLERY_COLLECTIONS)[Name]['sidecarSchema']
+>;
 
 export function isGalleryCollection(name: string): name is GalleryCollectionName {
     return Object.hasOwn(GALLERY_COLLECTIONS, name);
@@ -159,13 +199,22 @@ export function assertGalleryCollection(name: string): asserts name is GalleryCo
     }
 }
 
+// Overloads: a literal name keeps its own collection's types (a page of photography sees photography captions), and a
+// plain string (the sync, which takes the name from the command line) sees the union.
+export function galleryCollection<Name extends GalleryCollectionName>(name: Name): (typeof GALLERY_COLLECTIONS)[Name];
+export function galleryCollection(name: string): (typeof GALLERY_COLLECTIONS)[GalleryCollectionName];
 export function galleryCollection(name: string): (typeof GALLERY_COLLECTIONS)[GalleryCollectionName] {
     assertGalleryCollection(name);
     return GALLERY_COLLECTIONS[name];
 }
 
 /** Validates the parsed contents of `src/data/gallery/<collection>.json` (an array of entries). */
-export function parseGallery(collection: string, data: unknown): GalleryEntry<CollectionCaption>[] {
+export function parseGallery<Name extends GalleryCollectionName>(
+    collection: Name,
+    data: unknown,
+): GalleryEntry<z.output<(typeof GALLERY_COLLECTIONS)[Name]['captionSchema']>>[];
+export function parseGallery(collection: string, data: unknown): GalleryEntry<AnyCollectionCaption>[];
+export function parseGallery(collection: string, data: unknown): GalleryEntry<AnyCollectionCaption>[] {
     const { captionSchema, categories, extensions } = galleryCollection(collection);
     return z.array(galleryEntrySchema(collection, captionSchema, categories, extensions)).parse(data);
 }

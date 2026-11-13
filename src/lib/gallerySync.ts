@@ -4,7 +4,7 @@ import { parse } from 'yaml';
 import {
     galleryCollection,
     assertGalleryCollection,
-    type CollectionCaption,
+    type AnyCollectionSidecar,
     type CollectionSidecar,
     type CuratedEntry,
     type GalleryCollectionName,
@@ -12,7 +12,6 @@ import {
     type GalleryExtension,
 } from './gallery';
 import type { PhotoLocation } from './location';
-import { comparePhotographyEntries } from './photography';
 
 export type { CuratedEntry };
 
@@ -239,7 +238,17 @@ export function keyExtension(key: string): GalleryExtension {
 const CONTENT_TYPES: Record<GalleryExtension, string> = { jpg: 'image/jpeg', png: 'image/png' };
 
 /** Parses and validates a hand-written sidecar, naming the file in the error. */
-export function parseSidecar(collection: GalleryCollectionName, yamlText: string, source: string): CollectionSidecar {
+export function parseSidecar<Name extends GalleryCollectionName>(
+    collection: Name,
+    yamlText: string,
+    source: string,
+): CollectionSidecar<Name>;
+export function parseSidecar(collection: GalleryCollectionName, yamlText: string, source: string): AnyCollectionSidecar;
+export function parseSidecar(
+    collection: GalleryCollectionName,
+    yamlText: string,
+    source: string,
+): AnyCollectionSidecar {
     const result = galleryCollection(collection).sidecarSchema.safeParse(parse(yamlText));
     if (!result.success) {
         throw new Error(`${source}: invalid sidecar\n${z.prettifyError(result.error)}`);
@@ -254,8 +263,8 @@ export function parseSidecar(collection: GalleryCollectionName, yamlText: string
 export function parseSidecars(
     collection: GalleryCollectionName,
     files: readonly { basename: string; source: string; text: string }[],
-): { sidecars: Map<string, CollectionSidecar>; problems: string[] } {
-    const sidecars = new Map<string, CollectionSidecar>();
+): { sidecars: Map<string, AnyCollectionSidecar>; problems: string[] } {
+    const sidecars = new Map<string, AnyCollectionSidecar>();
     const problems: string[] = [];
     for (const { basename, source, text } of files) {
         try {
@@ -320,12 +329,12 @@ export function syncSummary(
 /**
  * Builds the new data file from the entries of the images that exist now, sorted, and reports the keys that were in the
  * old file but whose source is gone. Those entries are dropped from the data; their R2 objects are not deleted.
- * `compare` is the collection's `compareEntries`; it defaults to photography's order.
+ * `compare` is the collection's `compareEntries`.
  */
 export function mergeGallery<Caption>(
     current: readonly CuratedEntry<Caption>[],
     previous: readonly Pick<GalleryEntry<unknown>, 'key'>[],
-    compare: (a: CuratedEntry<Caption>, b: CuratedEntry<Caption>) => number = comparePhotographyEntries as never,
+    compare: (a: CuratedEntry<Caption>, b: CuratedEntry<Caption>) => number,
 ): { entries: GalleryEntry<Caption>[]; dropped: string[] } {
     const currentKeys = new Set(current.map(({ entry }) => entry.key));
     return {
@@ -335,41 +344,53 @@ export function mergeGallery<Caption>(
 }
 
 /**
- * The entry with the sidecar's `pin` applied: `pin: true` when the sidecar pins it, and no `pin` key otherwise, so
- * removing `pin` from a sidecar unpins a photo whose previous entry still carries it.
+ * The entry with the sidecar's collage flags applied: `pin: true` only when the sidecar pins it, and `homeOrder` only
+ * when it sets one. Stale values are removed first, so taking either out of a sidecar clears it from an entry that
+ * still carries it.
  */
-export function withPin<Caption>(entry: GalleryEntry<Caption>, pin: boolean | undefined): GalleryEntry<Caption> {
-    const { pin: _previous, ...rest } = entry;
-    return pin === true ? { ...rest, pin: true } : rest;
+export function withSidecarFlags<Caption>(
+    entry: GalleryEntry<Caption>,
+    { pin, homeOrder }: { pin?: boolean | undefined; homeOrder?: number | undefined },
+): GalleryEntry<Caption> {
+    const { pin: _pin, homeOrder: _homeOrder, ...rest } = entry;
+    return {
+        ...rest,
+        ...(pin === true ? { pin: true as const } : {}),
+        ...(homeOrder === undefined ? {} : { homeOrder }),
+    };
+}
+
+/** The part of a sidecar every collection has: what the entry takes from it besides the caption. */
+export interface EntrySidecar {
+    alt: string;
+    category: string;
+    pin?: boolean | undefined;
+    homeOrder?: number | undefined;
 }
 
 /** The collection hooks the entry composition needs; `galleryCollection(name)` satisfies it. */
-export interface EntryCollection {
+export interface EntryCollection<Caption, Sidecar extends EntrySidecar> {
     readsCamera: boolean;
-    captionFor(input: {
-        sidecar: CollectionSidecar;
-        camera: CollectionCaption | undefined;
-        location: PhotoLocation | undefined;
-    }): CollectionCaption;
+    captionFor(input: { sidecar: Sidecar; camera: Caption | undefined; location: PhotoLocation | undefined }): Caption;
 }
 
 /**
  * The entry of an image whose source and recipe are unchanged: the previous entry with the alt text, category, caption
  * and pin taken from the sidecar again, none of which is part of the uploaded file, so a change needs no re-upload.
  */
-export function composeUnchangedEntry(
-    collection: EntryCollection,
+export function composeUnchangedEntry<Caption, Sidecar extends EntrySidecar>(
+    collection: EntryCollection<Caption, Sidecar>,
     {
         existing,
         sidecar,
         location,
     }: {
-        existing: GalleryEntry<CollectionCaption>;
-        sidecar: CollectionSidecar;
+        existing: GalleryEntry<Caption>;
+        sidecar: Sidecar;
         location: PhotoLocation | undefined;
     },
-): GalleryEntry<CollectionCaption> {
-    return withPin(
+): GalleryEntry<Caption> {
+    return withSidecarFlags(
         {
             ...existing,
             alt: sidecar.alt,
@@ -380,22 +401,22 @@ export function composeUnchangedEntry(
                 location,
             }),
         },
-        sidecar.pin,
+        sidecar,
     );
 }
 
 /** What processing one image yields that the entry needs. */
-export interface ProcessedFacts {
+export interface ProcessedFacts<Caption> {
     width: number;
     height: number;
     thumbhash: string;
     /** The camera caption read from the source; undefined when the collection does not read the camera. */
-    caption: CollectionCaption | undefined;
+    caption: Caption | undefined;
 }
 
 /** The entry of a new or changed image, from what processing read and the sidecar. */
-export function composeProcessedEntry(
-    collection: EntryCollection,
+export function composeProcessedEntry<Caption, Sidecar extends EntrySidecar>(
+    collection: EntryCollection<Caption, Sidecar>,
     {
         key,
         sourceSha256,
@@ -405,12 +426,12 @@ export function composeProcessedEntry(
     }: {
         key: string;
         sourceSha256: string;
-        processed: ProcessedFacts;
-        sidecar: CollectionSidecar;
+        processed: ProcessedFacts<Caption>;
+        sidecar: Sidecar;
         location: PhotoLocation | undefined;
     },
-): GalleryEntry<CollectionCaption> {
-    return withPin(
+): GalleryEntry<Caption> {
+    return withSidecarFlags(
         {
             key,
             width: processed.width,
@@ -422,9 +443,23 @@ export function composeProcessedEntry(
             category: sidecar.category,
             caption: collection.captionFor({ sidecar, camera: processed.caption, location }),
         },
-        sidecar.pin,
+        sidecar,
     );
 }
+
+/**
+ * Throws when a file's real format (from its bytes) is not the one its name claims, so a PNG renamed `.jpg` cannot
+ * be published under a key and content type that lie about it.
+ */
+export function checkSourceFormat(file: string, claimed: GalleryExtension, actual: GalleryExtension): void {
+    if (claimed !== actual) {
+        throw new Error(
+            `"${file}" is really a ${FORMAT_NAMES[actual]} file, not a ${FORMAT_NAMES[claimed]}: rename it to match.`,
+        );
+    }
+}
+
+const FORMAT_NAMES: Record<GalleryExtension, string> = { jpg: 'JPEG', png: 'PNG' };
 
 /** A warning when more photos are pinned than the home page's collage shows, naming the ones it leaves out. */
 export function pinLimitWarning(entries: readonly GalleryEntry<unknown>[], limit: number): string | undefined {

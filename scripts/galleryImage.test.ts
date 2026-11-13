@@ -4,7 +4,17 @@ import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 
 import type { Place } from '../src/lib/geonames.ts';
-import { assertNoLocation, deriveSourceLocation, processImage } from './galleryImage.ts';
+import { createHash } from 'node:crypto';
+import { crc32 } from 'node:zlib';
+
+import {
+    assertNoLocation,
+    assertPngChunks,
+    deriveSourceLocation,
+    pngChunkTypes,
+    processImage,
+    sourceExtension,
+} from './galleryImage.ts';
 
 const GPS_BLOCK = {
     GPSLatitudeRef: 'N',
@@ -258,5 +268,110 @@ describe('deriveSourceLocation', () => {
         expect(await exifr.gps(jpeg)).toBeUndefined();
         expect(caption).not.toHaveProperty('location');
         await expect(assertNoLocation(jpeg, 'lisbon.jpg')).resolves.toBeUndefined();
+    });
+});
+
+// A PNG chunk: length, type, data, CRC over type and data.
+function chunk(type: string, data: Buffer): Buffer {
+    const body = Buffer.concat([Buffer.from(type, 'latin1'), data]);
+    const out = Buffer.alloc(body.length + 8);
+    out.writeUInt32BE(data.length, 0);
+    body.copy(out, 4);
+    out.writeUInt32BE(crc32(body), body.length + 4);
+    return out;
+}
+
+// Inserts chunks right before IEND, which is how a tool appends metadata.
+function injectChunks(png: Buffer, extra: Buffer[]): Buffer {
+    const iend = png.length - 12;
+    return Buffer.concat([png.subarray(0, iend), ...extra, png.subarray(iend)]);
+}
+
+const LEAKY_CHUNKS = [
+    chunk('eXIf', Buffer.from('MM *     GPS')),
+    chunk('tEXt', Buffer.from('Comment at 38.7223, -9.1393')),
+    chunk('iTXt', Buffer.from('XML:com.adobe.xmp     <x:xmpmeta/>')),
+    chunk('zTXt', Buffer.from('Title  x')),
+];
+
+async function alphaPng(): Promise<Buffer> {
+    const pixels = Buffer.alloc(8 * 6 * 4);
+    for (let i = 0; i < 8 * 6; i++) pixels.set([200, 30, 60, i % 2 === 0 ? 255 : 100], i * 4);
+    return sharp(pixels, { raw: { width: 8, height: 6, channels: 4 } })
+        .png()
+        .toBuffer();
+}
+
+describe('processImage for a PNG', () => {
+    it('keeps only allowed chunks and the alpha channel, whatever metadata the source carried', async () => {
+        const source = injectChunks(await alphaPng(), LEAKY_CHUNKS);
+        expect(pngChunkTypes(source)).toEqual(expect.arrayContaining(['eXIf', 'tEXt', 'iTXt', 'zTXt']));
+
+        const { bytes, width, height, caption, thumbhash } = await processImage(source, {
+            readsCamera: false,
+            label: 'art.png',
+        });
+        const allowed = ['IHDR', 'PLTE', 'tRNS', 'IDAT', 'IEND', 'sRGB', 'iCCP', 'gAMA', 'cHRM', 'pHYs'];
+        for (const type of pngChunkTypes(bytes)) expect(allowed).toContain(type);
+        expect(bytes.subarray(1, 4).toString()).toBe('PNG');
+        expect([width, height, caption]).toEqual([8, 6, undefined]);
+        expect(thumbhash.length).toBeGreaterThan(0);
+
+        const { hasAlpha } = await sharp(bytes).metadata();
+        expect(hasAlpha).toBe(true);
+        const { data } = await sharp(bytes).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+        expect([data[3], data[7]]).toEqual([255, 100]);
+    });
+
+    it('is lossless: the pixels survive', async () => {
+        const source = await alphaPng();
+        const { bytes } = await processImage(source, { readsCamera: false, label: 'art.png' });
+        const raw = (png: Buffer) => sharp(png).ensureAlpha().raw().toBuffer();
+        expect((await raw(bytes)).equals(await raw(source))).toBe(true);
+    });
+});
+
+describe('assertPngChunks', () => {
+    it('accepts a clean PNG', async () => {
+        const png = await alphaPng();
+        expect(() => assertPngChunks(png, 'a.png')).not.toThrow();
+    });
+
+    it.each(['eXIf', 'tEXt', 'iTXt', 'zTXt'])('rejects a PNG with a %s chunk', async (type) => {
+        const leaky = injectChunks(await alphaPng(), [chunk(type, Buffer.from('x y'))]);
+        expect(() => assertPngChunks(leaky, 'a.png')).toThrow(`not allowed (${type})`);
+    });
+
+    it('rejects bytes that are not a well-formed PNG', async () => {
+        expect(() => pngChunkTypes(Buffer.from('not a png at all'))).toThrow(/signature/);
+        const png = await alphaPng();
+        expect(() => pngChunkTypes(png.subarray(0, png.length - 5))).toThrow(/truncated/);
+        expect(() => assertPngChunks(png.subarray(0, png.length - 12), 'a.png')).toThrow(/IEND/);
+    });
+});
+
+describe('sourceExtension', () => {
+    it('reads the real format from the bytes', async () => {
+        expect(await sourceExtension(await alphaPng())).toBe('png');
+        expect(await sourceExtension(await tinyJpeg())).toBe('jpg');
+        const webp = await sharp({ create: { width: 2, height: 2, channels: 3, background: '#fff' } })
+            .webp()
+            .toBuffer();
+        await expect(sourceExtension(webp)).rejects.toThrow(/webp file; only JPEG and PNG/);
+    });
+});
+
+// Pins the JPEG recipe: the output bytes of a fixed fixture must not change unless the processing is changed on
+// purpose (and PROCESSING_VERSION bumped). If libvips or sharp is upgraded and this fails, review the change first.
+describe('the JPEG recipe', () => {
+    it('produces the pinned bytes for a fixed fixture', async () => {
+        const original = await tinyJpeg(CAMERA_EXIF, { profile: 'p3', orientation: 6 });
+        const run = async () =>
+            createHash('sha256')
+                .update((await processImage(original, { readsCamera: true, label: 'f.jpg' })).bytes)
+                .digest('hex');
+        const first = await run();
+        expect(await run()).toBe(first);
+        expect(first).toBe('910554464db2d82a0deb1df2be85d6dc540eccaacdb0c5e8a025d82ecfa6d950');
     });
 });

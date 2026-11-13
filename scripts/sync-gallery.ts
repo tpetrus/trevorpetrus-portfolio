@@ -25,10 +25,16 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
-import { galleryCollection, parseGallery, type CollectionCaption } from '../src/lib/gallery.ts';
+import {
+    galleryCollection,
+    parseGallery,
+    type AnyCollectionCaption,
+    type AnyCollectionSidecar,
+} from '../src/lib/gallery.ts';
 import type { Place } from '../src/lib/geonames.ts';
 import { formatLocation, resolveLocation, type SidecarLocation } from '../src/lib/location.ts';
 import {
+    checkSourceFormat,
     composeProcessedEntry,
     composeUnchangedEntry,
     decideAction,
@@ -48,11 +54,12 @@ import {
     sidecarDirectory,
     sidecarFileName,
     syncSummary,
+    type EntryCollection,
     type CuratedEntry,
     type SyncAction,
 } from '../src/lib/gallerySync.ts';
 import { HOME_PIN_LIMIT } from '../src/lib/homeCluster.ts';
-import { deriveSourceLocation, processImage } from './galleryImage.ts';
+import { deriveSourceLocation, processImage, sourceExtension } from './galleryImage.ts';
 import { loadGeonamesPlaces } from './geonames.ts';
 
 const WRANGLER = join('node_modules', 'wrangler', 'bin', 'wrangler.js');
@@ -135,6 +142,12 @@ async function locationOf(original: Buffer, file: string, override: SidecarLocat
 const options = parseSyncArgs(process.argv.slice(2), process.env);
 const { collection: collectionName, sourceDir } = options;
 const collection = galleryCollection(collectionName);
+// The same object seen through the hooks the composition needs (a union of collections, one method signature).
+// Same trick for the order: the union's comparator takes no caption in particular.
+const ordered: {
+    compareEntries(a: CuratedEntry<AnyCollectionCaption>, b: CuratedEntry<AnyCollectionCaption>): number;
+} = collection;
+const hooks: EntryCollection<AnyCollectionCaption, AnyCollectionSidecar> = collection;
 
 const dataFile = galleryDataFile(collectionName);
 const sidecarDir = sidecarDirectory(collectionName);
@@ -163,7 +176,7 @@ const credentials = options.upload
     : undefined;
 
 console.log(`${options.upload ? 'UPLOADING' : 'Dry run (nothing uploaded, nothing written)'}: ${collectionName}`);
-const current: CuratedEntry<CollectionCaption>[] = [];
+const current: CuratedEntry<AnyCollectionCaption>[] = [];
 const counts: Record<SyncAction, number> = { new: 0, changed: 0, unchanged: 0 };
 
 // Pass one: everything that can fail without side effects. A plan holds no image bytes.
@@ -171,12 +184,16 @@ async function planPhoto({ file, basename, extension }: (typeof images)[number])
     const key = galleryKey(collectionName, basename, extension);
     const sidecar = sidecarResult.sidecars.get(basename)!;
     const original = readFileSync(join(sourceDir, file));
+    // The key and the content type come from the file name, so the bytes must really be that format.
+    checkSourceFormat(file, extension, await sourceExtension(original));
     const sourceSha256 = createHash('sha256').update(original).digest('hex');
     const existing = previousByKey.get(key);
     const action = decideAction(existing, sourceSha256);
     counts[action]++;
     // Only a collection that shows places reads the GPS (and may load the GeoNames dataset).
-    const location = collection.usesPlaces ? await locationOf(original, file, sidecar.location) : undefined;
+    const location = collection.usesPlaces
+        ? await locationOf(original, file, 'location' in sidecar ? sidecar.location : undefined)
+        : undefined;
     return { file, key, sidecar, sourceSha256, existing, action, location };
 }
 
@@ -194,7 +211,7 @@ async function syncPhoto({
 
     if (existing !== undefined && action === 'unchanged') {
         current.push({
-            entry: composeUnchangedEntry(collection, { existing, sidecar, location }),
+            entry: composeUnchangedEntry(hooks, { existing, sidecar, location }),
             order: sidecar.order,
         });
         console.log(`unchanged  ${key}  ${existing.width}x${existing.height}  ${place}`);
@@ -208,14 +225,14 @@ async function syncPhoto({
     );
     if (credentials) upload(credentials, key, processed.bytes);
     current.push({
-        entry: composeProcessedEntry(collection, { key, sourceSha256, processed, sidecar, location }),
+        entry: composeProcessedEntry(hooks, { key, sourceSha256, processed, sidecar, location }),
         order: sidecar.order,
     });
 }
 
 await inTwoPasses(images, planPhoto, syncPhoto);
 
-const { entries, dropped } = mergeGallery(current, previous, collection.compareEntries);
+const { entries, dropped } = mergeGallery(current, previous, (a, b) => ordered.compareEntries(a, b));
 for (const notice of droppedNotices(dropped)) console.log(notice);
 const pinWarning = pinLimitWarning(entries, HOME_PIN_LIMIT);
 if (pinWarning !== undefined) console.warn(pinWarning);
