@@ -1,0 +1,30 @@
+---
+// The pause control of the home page's falling leaves (contract C4). Behavior lives in src/scripts/homeLeaves.ts.
+---
+
+{/* The leaves move for more than five seconds next to the content, so they can be stopped (WCAG 2.2.2). The visible text
+    is the action and so is the accessible name; the script changes both. It stays disabled until the script runs,
+    because without JavaScript there is nothing to pause, and it is never shown to a visitor who prefers reduced motion,
+    who only ever sees the still leaves. It keeps its space while disabled, so enabling it shifts nothing. */}
+<button
+    type="button"
+    data-leaves-toggle
+    data-state="running"
+    aria-label="Pause falling leaves"
+    disabled
+    class="leaves-toggle mt-4 py-2 font-mono text-step-n1 tracking-[0.05em] text-ink-muted uppercase hover:text-ink disabled:hover:text-ink-muted"
+>
+    Pause falling leaves
+</button>
+
+<script>
+    import '../scripts/homeLeaves.ts';
+</script>
+
+<style>
+    @media (prefers-reduced-motion: reduce) {
+        .leaves-toggle {
+            display: none;
+        }
+    }
+</style>
