@@ -49,10 +49,12 @@ function bind(layer: HTMLElement): () => void {
     let pausedByUser = false;
     let lastScrollY = window.scrollY;
 
-    // Only the leaves the tier CSS shows are moved; the others stay hidden at their still position.
+    // Only the leaves the tier CSS shows are moved; the others stay hidden at their still position. The count comes from
+    // innerWidth because the tier media queries measure that (a classic scrollbar included); the layer, which the
+    // scrollbar narrows, only sizes the motion.
     const measure = (): void => {
         viewport = { width: layer.clientWidth, height: layer.clientHeight };
-        active = leaves.slice(0, leafCount(viewport.width));
+        active = leaves.slice(0, leafCount(window.innerWidth));
     };
 
     const loop = (now: number): void => {

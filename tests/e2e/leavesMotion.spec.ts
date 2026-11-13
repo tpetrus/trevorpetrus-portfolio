@@ -159,6 +159,29 @@ test.describe('home leaf layer, in motion', () => {
         expect(median(gust)).toBeGreaterThan(median(calm) + 20);
     });
 
+    test('moves every leaf the tier CSS shows when the layer is narrower than the viewport', async ({ page }) => {
+        // The tier media queries measure the viewport including a classic scrollbar (15-17 px on Windows), which the
+        // fixed layer does not cover. At 1290 px they show all 15 leaves while the layer is about 1273 px wide, so a
+        // count taken from the layer would leave the top tier's extra leaves frozen. Headless browsers hide their
+        // scrollbars, so the layer is narrowed by the same amount instead.
+        await page.setViewportSize({ width: 1290, height: 900 });
+        await page.addInitScript(() => {
+            document.addEventListener('DOMContentLoaded', () => {
+                const style = document.createElement('style');
+                style.textContent = '[data-leaves] { right: 20px !important; }';
+                document.head.append(style);
+            });
+        });
+        await openRunning(page);
+        expect(await layer(page).evaluate((node) => window.innerWidth - node.clientWidth)).toBe(20);
+
+        const before = await transforms(page);
+        await page.waitForTimeout(500);
+        const after = await transforms(page);
+        expect(after).toHaveLength(15);
+        for (const [index, transform] of after.entries()) expect(transform, `leaf ${index}`).not.toBe(before[index]);
+    });
+
     test('a mouse nudges a nearby leaf away from it', async ({ page, isMobile }) => {
         test.skip(isMobile, 'Only a mouse or a pen pushes the leaves; a finger does not.');
         await openRunning(page);
