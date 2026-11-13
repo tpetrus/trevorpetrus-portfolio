@@ -10,6 +10,9 @@
  * - Links, UI borders and the focus ring on paper use accent-deep.
  * - A purely decorative accent fill (the band above the footer, a status square, the 3D offset of the project hover box)
  *   carries no meaning and needs no contrast, so the accent may appear there, always next to an ink or accent-deep cue.
+ * - paper-3 and accent-tint are the fills of the home page's falling leaves, which pass behind text. They are opaque (so
+ *   two overlapping leaves are no darker than one) and pale enough that ink, ink-muted and accent-deep text still
+ *   clear 4.5:1 on them.
  * Add any new pair to the spec in the same change that introduces it.
  */
 @theme {
@@ -20,6 +23,8 @@
     --color-ink-muted-on-ink: #a8a49a;
     --color-accent: #ff4d1f;
     --color-accent-deep: #b82e00;
+    --color-paper-3: #e4e0d6;
+    --color-accent-tint: #f5ddd0;
 
     /* The Fonts API (astro.config.mjs) defines --font-archivo, --font-inter and --font-plex-mono with their fallbacks. */
     --font-display: var(--font-archivo);
@@ -185,4 +190,23 @@ body:has([data-wordmark]) [data-header-name]:focus-visible {
     body:has([data-wordmark]) [data-header-name] {
         transform: none;
     }
+}
+
+/*
+ * The home page's leaf layer ([data-leaves], the first child of body, fixed and z-index 0) sits behind the content. A
+ * positioned z-0 layer would paint over every non-positioned block after it, so where it exists the body becomes its own
+ * stacking context and main, the footer and the running head are lifted above it. The sticky header (z-20) and the skip
+ * link (z-30) are above it already. Pages without the layer are untouched.
+ */
+body:has(> [data-leaves]) {
+    isolation: isolate;
+}
+
+body:has(> [data-leaves]) > :is(main, footer) {
+    position: relative;
+    z-index: 10;
+}
+
+body:has(> [data-leaves]) > [data-running-head] {
+    z-index: 10;
 }
