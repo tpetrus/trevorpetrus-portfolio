@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { leafCount } from '../../src/lib/leaves';
+
 // The home page's leaves in motion: the loop, its pause button, the tab and preference changes, the wind and the View
 // Transitions lifecycle. The still composition is covered by leavesStill.spec.ts.
 
@@ -66,14 +68,16 @@ test.describe('home leaf layer, in motion', () => {
         for (const [index, point] of after.entries()) expect(point.y).not.toBe(before[index]?.y);
     });
 
-    test('puts the pause button at the start of the header, before the site name, as an icon', async ({ page }) => {
+    test('puts the pause button in the footer, after the copyright, as an icon', async ({ page }) => {
         await openRunning(page);
 
-        const header = page.locator('[data-site-header]');
-        await expect(header.locator('[data-leaves-toggle]')).toHaveCount(1);
+        await expect(page.locator('[data-site-header] [data-leaves-toggle]')).toHaveCount(0);
+        const footer = page.locator('body > footer');
+        await expect(footer.locator('[data-leaves-toggle]')).toHaveCount(1);
+        await toggle(page).scrollIntoViewIfNeeded();
         const button = await toggle(page).boundingBox();
-        const name = await header.locator('[data-header-name]').boundingBox();
-        expect(button && name && button.x + button.width <= name.x).toBe(true);
+        const copyright = await footer.locator('p').first().boundingBox();
+        expect(button && copyright && copyright.x + copyright.width <= button.x).toBe(true);
         // No visible text: the icon shows the action and the accessible name says it.
         await expect(toggle(page)).toHaveText('');
         await expect(toggle(page).locator('.icon-pause')).toBeVisible();
@@ -206,7 +210,7 @@ test.describe('home leaf layer, in motion', () => {
 
     test('moves every leaf the tier CSS shows when the layer is narrower than the viewport', async ({ page }) => {
         // The tier media queries measure the viewport including a classic scrollbar (15-17 px on Windows), which the
-        // fixed layer does not cover. At 1290 px they show all 15 leaves while the layer is about 1273 px wide, so a
+        // fixed layer does not cover. At 1290 px they show every leaf while the layer is about 1273 px wide, so a
         // count taken from the layer would leave the top tier's extra leaves frozen. Headless browsers hide their
         // scrollbars, so the layer is narrowed by the same amount instead.
         await page.setViewportSize({ width: 1290, height: 900 });
@@ -223,7 +227,7 @@ test.describe('home leaf layer, in motion', () => {
         const before = await transforms(page);
         await page.waitForTimeout(500);
         const after = await transforms(page);
-        expect(after).toHaveLength(15);
+        expect(after).toHaveLength(leafCount(1290));
         for (const [index, transform] of after.entries()) expect(transform, `leaf ${index}`).not.toBe(before[index]);
     });
 
