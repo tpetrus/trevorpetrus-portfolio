@@ -1,4 +1,4 @@
-import { assertGalleryCollection, type GalleryCollectionName } from './gallery';
+import { assertGalleryCollection, type GalleryCollectionName, type GalleryExtension } from './gallery';
 import { acceptImages, defaultSourceDir, sidecarFileName, type SourceImage } from './gallerySync';
 
 export interface ScaffoldOptions {
@@ -46,13 +46,17 @@ export interface ScaffoldPlan {
     create: SourceImage[];
     /** Accepted images whose sidecar already exists; it is never touched. */
     skip: SourceImage[];
-    /** Files in the source directory the sync would reject (not JPEGs, hidden, duplicate names). */
+    /** Files in the source directory the sync would reject (a format the collection does not take, hidden, duplicate names). */
     rejected: string[];
 }
 
 /** Decides which sidecars to create: one per accepted image that lacks one. Existing sidecars are only ever skipped. */
-export function planScaffold(imageFiles: readonly string[], sidecarFiles: readonly string[]): ScaffoldPlan {
-    const { images, problems } = acceptImages(imageFiles);
+export function planScaffold(
+    imageFiles: readonly string[],
+    sidecarFiles: readonly string[],
+    extensions: readonly GalleryExtension[],
+): ScaffoldPlan {
+    const { images, problems } = acceptImages(imageFiles, extensions);
     const existing = new Set(sidecarFiles);
     return {
         create: images.filter(({ basename }) => !existing.has(sidecarFileName(basename))),
