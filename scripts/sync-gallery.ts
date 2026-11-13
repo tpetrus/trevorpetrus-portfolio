@@ -1,9 +1,9 @@
 // Publishes a gallery collection by hand: `npm run sync:gallery -- <collection> [options]`. Nothing here runs at build
 // time (the site makes no network calls then).
 //
-// For every JPEG in the source directory (default gallery-originals/<collection>, never committed) it
+// For every image (JPEG, or PNG for a collection that takes them) in the source directory (default gallery-originals/<collection>, never committed) it
 //   1. re-encodes the image for upload (sRGB, auto-oriented, camera EXIF only, no GPS; see scripts/galleryImage.ts),
-//   2. uploads it to the R2 bucket as <collection>/<name>.jpg, and
+//   2. uploads it to the R2 bucket as <collection>/<name>.<jpg|png>, and
 //   3. records its size, ThumbHash and caption, with the alt text from src/content/<collection>/<name>.yml, in
 //      src/data/gallery/<collection>.json, which is committed.
 // A file whose bytes and processing version are unchanged is neither processed nor uploaded again. Its place name is
@@ -25,12 +25,15 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
-import { galleryCollection, parseGallery, type CollectionCaption, type GalleryEntry } from '../src/lib/gallery.ts';
+import { galleryCollection, parseGallery, type CollectionCaption } from '../src/lib/gallery.ts';
 import type { Place } from '../src/lib/geonames.ts';
-import { captionWithLocation, formatLocation, resolveLocation, type SidecarLocation } from '../src/lib/location.ts';
+import { formatLocation, resolveLocation, type SidecarLocation } from '../src/lib/location.ts';
 import {
+    composeProcessedEntry,
+    composeUnchangedEntry,
     decideAction,
     inTwoPasses,
+    keyExtension,
     droppedNotices,
     galleryDataFile,
     galleryKey,
@@ -39,14 +42,12 @@ import {
     parseSyncArgs,
     pinLimitWarning,
     planInputs,
-    PROCESSING_VERSION,
     r2UploadArgs,
     R2_TOKEN_ENV,
     serializeGallery,
     sidecarDirectory,
     sidecarFileName,
     syncSummary,
-    withPin,
     type CuratedEntry,
     type SyncAction,
 } from '../src/lib/gallerySync.ts';
@@ -95,12 +96,12 @@ function writeIfChanged(path: string, data: string): boolean {
 function upload(
     { bucket, account, token }: { bucket: string; account: string; token: string },
     key: string,
-    jpeg: Buffer,
+    bytes: Buffer,
 ): void {
     const directory = mkdtempSync(join(tmpdir(), 'sync-gallery-'));
     try {
-        const file = join(directory, 'upload.jpg');
-        writeFileSync(file, jpeg);
+        const file = join(directory, `upload.${keyExtension(key)}`);
+        writeFileSync(file, bytes);
         const { [R2_TOKEN_ENV]: _unused, ...inherited } = process.env;
         const result = spawnSync(process.execPath, [WRANGLER, ...r2UploadArgs(bucket, key, file)], {
             env: { ...inherited, CLOUDFLARE_API_TOKEN: token, CLOUDFLARE_ACCOUNT_ID: account },
@@ -134,14 +135,10 @@ async function locationOf(original: Buffer, file: string, override: SidecarLocat
 const options = parseSyncArgs(process.argv.slice(2), process.env);
 const { collection: collectionName, sourceDir } = options;
 const collection = galleryCollection(collectionName);
-if (!collection.keepsCameraExif) {
-    // Collections without camera EXIF (art) take their caption from the sidecar, which is not built yet.
-    throw new Error(`${collectionName}: captions from sidecars are not supported yet.`);
-}
 
 const dataFile = galleryDataFile(collectionName);
 const sidecarDir = sidecarDirectory(collectionName);
-const { images, problems } = planInputs(listFiles(sourceDir), listFiles(sidecarDir));
+const { images, problems } = planInputs(listFiles(sourceDir), listFiles(sidecarDir), collection.extensions);
 if (problems.length > 0) {
     throw new Error(`Cannot sync ${collectionName} from ${sourceDir}:\n${problems.map((p) => `  - ${p}`).join('\n')}`);
 }
@@ -170,15 +167,16 @@ const current: CuratedEntry<CollectionCaption>[] = [];
 const counts: Record<SyncAction, number> = { new: 0, changed: 0, unchanged: 0 };
 
 // Pass one: everything that can fail without side effects. A plan holds no image bytes.
-async function planPhoto({ file, basename }: (typeof images)[number]) {
-    const key = galleryKey(collectionName, basename);
+async function planPhoto({ file, basename, extension }: (typeof images)[number]) {
+    const key = galleryKey(collectionName, basename, extension);
     const sidecar = sidecarResult.sidecars.get(basename)!;
     const original = readFileSync(join(sourceDir, file));
     const sourceSha256 = createHash('sha256').update(original).digest('hex');
     const existing = previousByKey.get(key);
     const action = decideAction(existing, sourceSha256);
     counts[action]++;
-    const location = await locationOf(original, file, sidecar.location);
+    // Only a collection that shows places reads the GPS (and may load the GeoNames dataset).
+    const location = collection.usesPlaces ? await locationOf(original, file, sidecar.location) : undefined;
     return { file, key, sidecar, sourceSha256, existing, action, location };
 }
 
@@ -195,17 +193,8 @@ async function syncPhoto({
     const place = location === undefined ? 'no place' : `${formatLocation(location)} (${location.source})`;
 
     if (existing !== undefined && action === 'unchanged') {
-        // The alt text and the place are not part of the uploaded file, so a change to either needs no re-upload.
         current.push({
-            entry: withPin(
-                {
-                    ...existing,
-                    alt: sidecar.alt,
-                    category: sidecar.category,
-                    caption: captionWithLocation(existing.caption, location),
-                },
-                sidecar.pin,
-            ),
+            entry: composeUnchangedEntry(collection, { existing, sidecar, location }),
             order: sidecar.order,
         });
         console.log(`unchanged  ${key}  ${existing.width}x${existing.height}  ${place}`);
@@ -213,35 +202,31 @@ async function syncPhoto({
     }
 
     const original = readFileSync(join(sourceDir, file));
-    const processed = await processImage(original, { keepCameraExif: collection.keepsCameraExif, label: file });
+    const processed = await processImage(original, { readsCamera: collection.readsCamera, label: file });
     console.log(
-        `${action.padEnd(9)}  ${key}  ${processed.width}x${processed.height}  ${kilobytes(processed.jpeg.length)}  ${place}`,
+        `${action.padEnd(9)}  ${key}  ${processed.width}x${processed.height}  ${kilobytes(processed.bytes.length)}  ${place}`,
     );
-    if (credentials) upload(credentials, key, processed.jpeg);
-    const entry: GalleryEntry<CollectionCaption> = {
-        key,
-        width: processed.width,
-        height: processed.height,
-        thumbhash: processed.thumbhash,
-        sourceSha256,
-        processingVersion: PROCESSING_VERSION,
-        alt: sidecar.alt,
-        category: sidecar.category,
-        caption: captionWithLocation(processed.caption ?? {}, location),
-    };
-    current.push({ entry: withPin(entry, sidecar.pin), order: sidecar.order });
+    if (credentials) upload(credentials, key, processed.bytes);
+    current.push({
+        entry: composeProcessedEntry(collection, { key, sourceSha256, processed, sidecar, location }),
+        order: sidecar.order,
+    });
 }
 
 await inTwoPasses(images, planPhoto, syncPhoto);
 
-const { entries, dropped } = mergeGallery(current, previous);
+const { entries, dropped } = mergeGallery(current, previous, collection.compareEntries);
 for (const notice of droppedNotices(dropped)) console.log(notice);
 const pinWarning = pinLimitWarning(entries, HOME_PIN_LIMIT);
 if (pinWarning !== undefined) console.warn(pinWarning);
 console.log(syncSummary(counts, dropped.length, entries.length, dataFile, options.upload));
 
+const serialized = serializeGallery(entries);
 if (credentials) {
     // Only after every upload succeeded, so the committed data never lists an object that is not in the bucket.
-    const changed = writeIfChanged(dataFile, serializeGallery(entries));
+    const changed = writeIfChanged(dataFile, serialized);
     console.log(`${dataFile}: ${changed ? 'updated' : 'unchanged'}`);
+} else {
+    const changed = !readIfPresent(dataFile)?.equals(Buffer.from(serialized));
+    console.log(`${dataFile}: ${changed ? 'would be updated' : 'would be unchanged'}`);
 }
