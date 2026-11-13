@@ -79,12 +79,18 @@ export function gallerySections(
 }
 
 /** Everything the gallery template needs for each entry, in order. Decoding the placeholders is why it is async. */
-export async function galleryTiles(
-    collection: GalleryCollectionName,
-    entries: readonly GalleryEntry<CollectionCaption>[],
+export async function galleryTiles<Name extends GalleryCollectionName>(
+    collection: Name,
+    entries: readonly GalleryEntry<CollectionCaption<Name>>[],
     { eager = true }: GalleryTilesOptions = {},
 ): Promise<GalleryTile[]> {
-    const { formatCaption, formatTileCaption } = GALLERY_COLLECTIONS[collection];
+    // Indexing the registry with a generic name gives a union of every collection's formatters, which TypeScript can
+    // only call with a caption that is all of them at once. The entries are typed by the same name, so each formatter
+    // gets the caption of its own collection.
+    const { formatCaption, formatTileCaption } = GALLERY_COLLECTIONS[collection] as {
+        formatCaption: (caption: CollectionCaption<Name>) => string;
+        formatTileCaption: (caption: CollectionCaption<Name>) => string;
+    };
     const largestLightboxWidth = Math.max(...LIGHTBOX_WIDTHS);
     const placements = placeTiles(entries.map(({ width, height }) => aspectRatio(width, height)));
     return Promise.all(

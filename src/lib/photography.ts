@@ -52,6 +52,8 @@ export const photographySidecarSchema = z.object({
     order: z.int().optional(),
     /** Shows the photo in the home page's collage (the first eight pinned photos, in the gallery's order). */
     pin: z.boolean().optional(),
+    /** Fixes the photo's position in the home page's collage, lowest first. */
+    homeOrder: z.int().optional(),
     /** The place shown in the caption instead of the one derived from the GPS, or `false` for none. */
     location: sidecarLocationSchema.optional(),
 });
@@ -66,10 +68,12 @@ export function photographySidecarTemplate(basename: string): string {
 #   The sync refuses the placeholder below until it is replaced.
 # order (optional): a whole number that fixes this photo's position, lowest first, ahead of photos without one.
 # pin (optional): true shows this photo in the home page's collage (at most eight, in the gallery's order).
+# homeOrder (optional): a whole number that fixes this photo's position in the home page's collage, lowest first.
 alt: "${ALT_PLACEHOLDER_MARKER}: describe this photo"
 category: "${ALT_PLACEHOLDER_MARKER}: ${PHOTOGRAPHY_CATEGORY_IDS.join(', ')}"
 # order: 1
 # pin: true
+# homeOrder: 1
 # location (optional): the place the caption starts with. By default the sync derives a city and a country from the
 #   photo's GPS (offline, with GeoNames). Uncomment to name another place (also for a photo with no GPS), or write
 #   "location: false" to show none.

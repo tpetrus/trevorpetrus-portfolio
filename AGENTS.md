@@ -123,9 +123,11 @@ src/
                         script and the page; topicMap.ts: GitHub topic slugs to chip names; projectSync.ts: the sync's
                         flags, exit codes, copy validation, capture plan and run summary; captureGuard.ts: the
                         blank-screenshot guard; date.ts: UTC date formatting;
-                        gallery.ts: the collection registry (GALLERY_COLLECTIONS) and the entry schema; photography.ts:
+                        gallery.ts: the collection registry (GALLERY_COLLECTIONS, with each collection's capability
+                        flags) and the entry schema; photography.ts:
                         the photography caption/sidecar schemas and template, EXIF mapping and caption
-                        formatting; sidecarPlaceholder.ts: the TODO alt marker the schema rejects; gallerySync.ts:
+                        formatting; art.ts: the art categories, caption/sidecar schemas, template, caption
+                        formatting and order; sidecarPlaceholder.ts: the TODO alt marker the schema rejects; gallerySync.ts:
                         sync arguments, planning, merging and the wrangler arguments; gallerySidecars.ts: the scaffold's
                         arguments and plan; galleryView.ts: the per-entry view
                         model the Gallery renders and the category sections; imageUrl.ts: original and resized-variant URLs and the fixed width
@@ -421,8 +423,23 @@ section crossing 40% of the viewport (the last one at the page end) carries `ari
 the back-to-top links show and the legend does not.
 
 The Photography page renders `src/data/gallery/photography.json` through `components/Gallery.astro`, which takes a
-`collection` name and the parsed entries, so a later `art` collection reuses it (each collection registers its caption
-schema, sidecar schema and caption formatter in `GALLERY_COLLECTIONS` in `src/lib/gallery.ts`; `art` is not built).
+`collection` name and the parsed entries, so the `art` collection reuses it. Each collection registers its caption
+schema, sidecar schema, template, caption formatters and categories in `GALLERY_COLLECTIONS` in `src/lib/gallery.ts`,
+plus the capabilities the sync reads instead of ever testing a collection's name: `readsCamera` (read and keep the camera
+EXIF), `usesPlaces` (derive a place; see "Where it was taken"), `extensions` (the source formats it takes: photography
+`jpg`, art `jpg` and `png`), `captionFor` (builds the caption from the sidecar, the camera fields and the place) and
+`compareEntries` (the order of the data file). `src/lib/galleryGolden.test.ts` rebuilds the committed
+`photography.json` from its sidecars through the sync's own code and fails unless the bytes are identical, so a sync change
+cannot reorder or rewrite the published photos unnoticed; it reads the committed files, so it changes with them.
+
+**Art** (`src/lib/art.ts`, data `src/data/gallery/art.json`, `[]` until the first upload, sidecars
+`src/content/art/<basename>.yml`): the sync reads no camera EXIF and looks up no place for it. Its sidecar is strict:
+`alt` and `title` (required), `category` (`drawing` or `digital`, `ART_CATEGORIES`, in that order), and the
+optional `medium` ("graphite on paper"), `dimensions` (free text), `year` (1900 to 2100), `order`, `pin` and `homeOrder`. The
+caption is built from those fields only, so editing them needs no re-upload; the lightbox line is
+"Title, medium, dimensions, year" (absent fields left out) and the tile shows the title. Entries are ordered by category,
+then `order` (lowest first, unordered after), then key. The workflow is the photography one below with `art` in place of
+`photography`; originals go in `gallery-originals/art/`.
 Images are never in git: originals live in an R2 bucket served from `PHOTOS_ORIGIN` in `src/config/site.ts` (the one place
 the host is set; Cloudflare Images transformations only run on a hostname in the Cloudflare zone, never on workers.dev).
 The page uses resized variants from `<origin>/cdn-cgi/image/<options>/<key>` (helpers in `src/lib/imageUrl.ts`) and links
@@ -444,7 +461,9 @@ With no entries the page shows "Photos are on their way." and references no Phot
    run.
 4. Dry run: `npm run sync:gallery -- photography`. It processes in memory and prints what it would do; it touches neither
    R2 nor the JSON. Check the sizes and captions. Its last line says so: `49 new, ... entries (dry run: src/data/gallery/photography.json
-   not written; re-run with --upload to publish)`, so the count of entries is not mistaken for a write.
+   not written; re-run with --upload to publish)`, so the count of entries is not mistaken for a write. It then prints
+   `src/data/gallery/photography.json: would be updated` or `would be unchanged`: on unchanged originals and sidecars it
+   must say unchanged.
 5. Upload: `npm run sync:gallery -- photography --upload`. The bucket defaults to `portfolio-photos` (override with
    `--bucket` or `R2_BUCKET`). The account ID is deliberately not in the repo: the script reads the user-scope environment
    variable `CLOUDFLARE_ACCOUNT_ID` (the 32-character number in any Cloudflare dashboard URL,
@@ -462,7 +481,19 @@ and written into a fresh EXIF block), and re-encodes as a quality-92 4:4:4 JPEG.
 `FocalLength`, `FNumber`, `ExposureTime`, `ISO` and `DateTimeOriginal` (with the time of day) exactly as the camera
 wrote them. The sync throws, before anything is uploaded, if the output still has any location data (`assertNoLocation`)
 or if the camera fields do not round-trip. A file whose bytes and `PROCESSING_VERSION` (in `src/lib/gallerySync.ts`;
-bump it when the processing changes) are unchanged is skipped.
+bump it when the processing changes; it covers the JPEG and the PNG recipe alike) are unchanged is skipped.
+
+A PNG original (art only) stays a PNG: the output format is decided from the file's bytes, and a file whose name and bytes
+disagree fails. It is auto-oriented, converted to sRGB, re-encoded without palette quantizing, with its alpha channel, and
+uploaded as `art/<basename>.png` with content type `image/png`. sharp writes no text or EXIF chunks, and
+`assertPngChunks` checks it: the output may hold only `IHDR`, `PLTE`, `tRNS`, `IDAT`, `IEND`, `sRGB`, `iCCP`, `gAMA`,
+`cHRM` and `pHYs`, and anything else (`eXIf`, `tEXt`, `iTXt`, `zTXt`, `tIME`, an APNG chunk) fails before the upload.
+`assertNoLocation` runs on PNG output too. A 16-bit PNG currently comes out at 8 bits per channel. The JPEG recipe is pinned
+by a sha256 of a fixture's output in `scripts/galleryImage.test.ts`: a sharp or libvips bump that changes the bytes fails
+it on purpose. sharp's prebuilt libvips writes different bytes on each platform, so there is one digest per platform
+(`JPEG_RECIPE_DIGESTS`: `linux` for CI, `win32` for local Windows runs; other platforms skip the pin). Check the new
+output, then update both digests (the Linux one is the "Received" value in the failing CI log) and bump
+`PROCESSING_VERSION` if uploads should be redone.
 
 **Where it was taken.** Each photo's caption starts with the city and country (`Lisbon, Portugal · Canon EOS R5 · ...`),
 stored as `caption.location: { city, country, source }` in the JSON. Exact GPS coordinates are still stripped from the
@@ -499,7 +530,9 @@ shows the photos whose sidecar has `pin: true`, in the gallery's order, at most 
 composition for each count from 1 to 8. With nothing pinned it shows the first three photos. Like the alt text, `pin`
 reaches the page through the sync: it is stored as `"pin": true` in the data file (absent when unpinned), so pinning or
 unpinning needs no re-upload but does need `npm run sync:gallery -- photography --upload` to rewrite the JSON. The sync
-warns, naming the photos left out, when more than eight are pinned.
+warns, naming the photos left out, when more than eight are pinned. Both sidecar schemas (photography and art) also take
+an optional integer `homeOrder`, stored like `pin` (only when set). Nothing reads it yet: it is for the planned
+cross-collection collage, where pinned art joins the pinned photos.
 
 **R2 objects are never deleted by the script.** A photo whose source is gone is dropped from the JSON with a notice; remove
 its object by hand.
