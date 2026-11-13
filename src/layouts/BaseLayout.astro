@@ -50,13 +50,17 @@ const canonicalUrl = new URL(Astro.url.pathname, Astro.site);
         {/* Sticky on every page, above the page content (incl. the running head) and below the skip link (z-30). */}
         <header data-site-header class="sticky top-0 z-20 border-b border-ink bg-paper">
             <div class="column flex flex-wrap items-center justify-between gap-x-gutter py-3">
-                <a
-                    href="/"
-                    data-header-name
-                    class="font-display text-step-n1 font-bold tracking-[0.06em] whitespace-nowrap uppercase"
-                >
-                    {siteName}
-                </a>
+                {/* header-start holds a page's own control before the name: the home page's leaves pause button. */}
+                <div class="flex items-center gap-3">
+                    <slot name="header-start" />
+                    <a
+                        href="/"
+                        data-header-name
+                        class="font-display text-step-n1 font-bold tracking-[0.06em] whitespace-nowrap uppercase"
+                    >
+                        {siteName}
+                    </a>
+                </div>
                 <nav aria-label="Primary">
                     <ul role="list" class="flex gap-gutter">
                         {NAV_ITEMS.map(({ label, href }) => (

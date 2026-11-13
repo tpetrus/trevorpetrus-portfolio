@@ -66,6 +66,43 @@ test.describe('home leaf layer, in motion', () => {
         for (const [index, point] of after.entries()) expect(point.y).not.toBe(before[index]?.y);
     });
 
+    test('puts the pause button at the start of the header, before the site name, as an icon', async ({ page }) => {
+        await openRunning(page);
+
+        const header = page.locator('[data-site-header]');
+        await expect(header.locator('[data-leaves-toggle]')).toHaveCount(1);
+        const button = await toggle(page).boundingBox();
+        const name = await header.locator('[data-header-name]').boundingBox();
+        expect(button && name && button.x + button.width <= name.x).toBe(true);
+        // No visible text: the icon shows the action and the accessible name says it.
+        await expect(toggle(page)).toHaveText('');
+        await expect(toggle(page).locator('.icon-pause')).toBeVisible();
+        await expect(toggle(page).locator('.icon-play')).toBeHidden();
+    });
+
+    test('shows a tooltip that says the action on hover, and Escape hides it', async ({ page }) => {
+        await openRunning(page);
+        const canHover = await page.evaluate(() => matchMedia('(hover: hover)').matches);
+        test.skip(!canHover, 'A device that cannot hover shows the tooltip on keyboard focus only.');
+        const tooltip = () =>
+            toggle(page).evaluate((node) => {
+                const style = getComputedStyle(node, '::after');
+                return { display: style.display, content: style.content };
+            });
+
+        expect((await tooltip()).display).toBe('none');
+        await toggle(page).hover();
+        expect(await tooltip()).toEqual({ display: 'block', content: '"Pause falling leaves"' });
+        await toggle(page).click();
+        expect(await tooltip()).toEqual({ display: 'block', content: '"Play falling leaves"' });
+        await page.keyboard.press('Escape');
+        expect((await tooltip()).display).toBe('none');
+        // Leaving the button re-arms it.
+        await page.mouse.move(5, 500);
+        await toggle(page).hover();
+        expect((await tooltip()).display).toBe('block');
+    });
+
     test('keeps falling at any scroll position, fixed to the viewport', async ({ page }) => {
         await openRunning(page);
         await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
@@ -83,8 +120,9 @@ test.describe('home leaf layer, in motion', () => {
         await toggle(page).click();
         await expect(layer(page)).toHaveAttribute('data-leaves-state', 'paused');
         await expect(toggle(page)).toHaveAccessibleName('Play falling leaves');
-        await expect(toggle(page)).toHaveText('Play falling leaves');
         await expect(toggle(page)).toHaveAttribute('data-state', 'paused');
+        await expect(toggle(page).locator('.icon-play')).toBeVisible();
+        await expect(toggle(page).locator('.icon-pause')).toBeHidden();
         const paused = await transforms(page);
         await page.waitForTimeout(500);
         expect(await transforms(page)).toEqual(paused);

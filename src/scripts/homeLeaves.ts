@@ -103,10 +103,9 @@ function bind(layer: HTMLElement): () => void {
         }
         if (!toggle) return;
         toggle.hidden = state === 'still';
-        // Named by its action, so the label never has to be read together with a pressed state.
-        const label = pausedByUser ? 'Play falling leaves' : 'Pause falling leaves';
-        toggle.setAttribute('aria-label', label);
-        toggle.textContent = label;
+        // Named by its action, so the label never has to be read together with a pressed state. The tooltip and the
+        // icon follow from the label and data-state in CSS.
+        toggle.setAttribute('aria-label', `${pausedByUser ? 'Play' : 'Pause'} falling leaves`);
         toggle.dataset.state = state === 'still' ? 'paused' : state;
     };
 
