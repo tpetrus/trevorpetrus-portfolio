@@ -38,6 +38,7 @@ const toggle = (page: Page) => page.locator('[data-title-video-toggle]');
 test.describe('page titles', () => {
     for (const [path, name] of [
         ['/photography/', 'Photography'],
+        ['/art/', 'Art'],
         ['/projects/', 'Projects'],
     ] as const) {
         test(`${path} has the title as its one h1, with no wordmark marker`, async ({ page }) => {
@@ -81,9 +82,9 @@ test.describe('page titles', () => {
         });
     }
 
-    test('does not scroll sideways at 320px on either page', async ({ page }) => {
+    test('does not scroll sideways at 320px on any page', async ({ page }) => {
         await page.setViewportSize({ width: 320, height: 800 });
-        for (const path of ['/photography/', '/projects/']) {
+        for (const path of ['/photography/', '/art/', '/projects/']) {
             await open(page, path);
             const overflow = await page.evaluate(
                 () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

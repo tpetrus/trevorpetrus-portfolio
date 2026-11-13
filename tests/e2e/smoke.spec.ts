@@ -6,6 +6,9 @@ const PAGES = [
     { path: '/projects/', link: 'Projects', heading: 'Projects' },
 ] as const;
 
+// Pages that are not in the nav yet: loaded directly, never reached by a nav click.
+const UNLINKED_PAGES = [{ path: '/art/', heading: 'Art' }] as const;
+
 // Collects everything that would show up as a red entry in the browser console.
 function collectErrors(page: Page): string[] {
     const errors: string[] = [];
@@ -17,7 +20,7 @@ function collectErrors(page: Page): string[] {
 }
 
 test.describe('site @smoke', () => {
-    for (const { path, heading } of PAGES) {
+    for (const { path, heading } of [...PAGES, ...UNLINKED_PAGES]) {
         test(`${path} loads with one h1 "${heading}"`, async ({ page }) => {
             const errors = collectErrors(page);
 
