@@ -130,11 +130,17 @@ async function thumbhashOf(jpeg: Buffer): Promise<string> {
  * The output's chunk list is checked against the allow list before anything is uploaded.
  */
 async function processPng(original: Buffer, label: string): Promise<ProcessedImage> {
-    const bytes = await sharp(original)
-        .rotate()
-        .withIccProfile('srgb')
-        .png({ compressionLevel: 9, palette: false })
-        .toBuffer();
+    // A 16-bit source stays 16-bit: forcing 8 bits would quantize smooth gradients in the artwork. sharp's PNG options
+    // have no bit depth, so the output colorspace is what keeps it.
+    const { depth, icc } = await sharp(original).metadata();
+    const sixteenBit = depth === 'ushort';
+    let pipeline = sharp(original).rotate();
+    if (sixteenBit) pipeline = pipeline.toColourspace('rgb16');
+    // Tagging an untagged 16-bit image as sRGB runs it through a color transform that shifts the samples, so a 16-bit
+    // source without a profile is left untagged (viewers read an untagged PNG as sRGB). One with a profile is still
+    // converted to sRGB, like every other original.
+    if (!sixteenBit || icc !== undefined) pipeline = pipeline.withIccProfile('srgb');
+    const bytes = await pipeline.png({ compressionLevel: 9, palette: false }).toBuffer();
     assertPngChunks(bytes, label);
     await assertNoLocation(bytes, label);
     const { width, height } = await sharp(bytes).metadata();
