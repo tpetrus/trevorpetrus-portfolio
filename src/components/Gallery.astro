@@ -1,12 +1,12 @@
 ---
-import type { CollectionCaption, GalleryCollectionName, GalleryEntry } from '../lib/gallery';
+import type { AnyCollectionCaption, GalleryCollectionName, GalleryEntry } from '../lib/gallery';
 import { galleryTiles } from '../lib/galleryView';
 import PhotoCaption from './PhotoCaption.astro';
 
 interface Props {
     /** Which collection the entries belong to; it decides how their captions read. */
     collection: GalleryCollectionName;
-    entries: GalleryEntry<CollectionCaption>[];
+    entries: GalleryEntry<AnyCollectionCaption>[];
     /** Whether the first photo loads eagerly (the page's LCP image). Only the page's first gallery passes true. */
     eager?: boolean;
 }

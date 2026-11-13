@@ -1,4 +1,10 @@
-import { GALLERY_COLLECTIONS, type CollectionCaption, type GalleryCollectionName, type GalleryEntry } from './gallery';
+import {
+    GALLERY_COLLECTIONS,
+    type AnyCollectionCaption,
+    type CollectionCaption,
+    type GalleryCollectionName,
+    type GalleryEntry,
+} from './gallery';
 import { aspectRatio, placeTiles, tileSizes, type TilePlacement } from './galleryLayout';
 import { GRID_WIDTHS, imageSrcset, LIGHTBOX_WIDTHS, originalImageUrl, transformedImageUrl } from './imageUrl';
 import { photoAnchorId } from './photoLink';
@@ -59,7 +65,7 @@ export interface GalleryTilesOptions {
 export interface GallerySection {
     id: string;
     label: string;
-    entries: GalleryEntry<CollectionCaption>[];
+    entries: GalleryEntry<AnyCollectionCaption>[];
 }
 
 /**
@@ -69,7 +75,7 @@ export interface GallerySection {
  */
 export function gallerySections(
     collection: GalleryCollectionName,
-    entries: readonly GalleryEntry<CollectionCaption>[],
+    entries: readonly GalleryEntry<AnyCollectionCaption>[],
 ): GallerySection[] {
     return GALLERY_COLLECTIONS[collection].categories.map(({ id, label }) => ({
         id,

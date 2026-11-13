@@ -1,7 +1,7 @@
 ---
-// The Photography page's gallery body: a jump nav, then one section per category (a gallery, or a short line while the
-// category has no photos), then the GeoNames credit. Grouping lives in gallerySections (src/lib/galleryView.ts).
-import type { CollectionCaption, GalleryEntry } from '../lib/gallery';
+// A gallery page's body, shared by the Photography and Art pages: a jump nav, then one section per category (a gallery,
+// or a short line while the category is empty), then the GeoNames credit when a derived place is shown. Grouping lives in gallerySections (src/lib/galleryView.ts).
+import type { AnyCollectionCaption, GalleryCollectionName, GalleryEntry } from '../lib/gallery';
 import { gallerySections } from '../lib/galleryView';
 import { showsGeonamesPlace } from '../lib/location';
 import Gallery from './Gallery.astro';
@@ -9,19 +9,30 @@ import GeonamesCredit from './GeonamesCredit.astro';
 import SectionLegend from './SectionLegend.astro';
 
 interface Props {
-    /** Every photography entry, in the data file's order. */
-    entries: GalleryEntry<CollectionCaption>[];
+    collection: GalleryCollectionName;
+    /** Every entry of the collection, in the data file's order. */
+    entries: GalleryEntry<AnyCollectionCaption>[];
+    /** The aria-label of the jump nav. */
+    jumpLabel: string;
+    /** Shown when the whole collection has no entries. */
+    emptyLine: string;
+    /** Shown in a category with no entries; takes the category's label. */
+    sectionEmptyLine: (label: string) => string;
 }
 
-const { entries } = Astro.props;
-const sections = gallerySections('photography', entries);
+const { collection, entries, jumpLabel, emptyLine, sectionEmptyLine } = Astro.props;
+const sections = gallerySections(collection, entries);
 // Only the page's first photo can be the LCP image, so only the first section that has photos loads eagerly.
+// A place can only be on a caption of a collection that uses places; a caption without a `location` key has none.
+const showCredit = showsGeonamesPlace(
+    entries.map(({ caption }) => ('location' in caption ? { caption } : { caption: {} })),
+);
 const firstFilledId = sections.find((section) => section.entries.length > 0)?.id;
 ---
 
 {entries.length > 0 ? (
     <div class="mt-10 md:mt-14" data-sections-root>
-        <nav aria-label="Photo categories" data-jump-nav>
+        <nav aria-label={jumpLabel} data-jump-nav>
             <ul role="list" class="flex flex-wrap gap-x-6 gap-y-2 font-mono text-step-n1 tracking-[0.06em] uppercase">
                 {sections.map((section) => (
                     <li>
@@ -62,16 +73,16 @@ const firstFilledId = sections.find((section) => section.entries.length > 0)?.id
                     </a>
                 </div>
                 {section.entries.length > 0 ? (
-                    <Gallery collection="photography" entries={section.entries} eager={section.id === firstFilledId} />
+                    <Gallery collection={collection} entries={section.entries} eager={section.id === firstFilledId} />
                 ) : (
-                    <p class="max-w-measure text-ink-muted-on-ink">{section.label} photos are on their way.</p>
+                    <p class="max-w-measure text-ink-muted-on-ink">{sectionEmptyLine(section.label)}</p>
                 )}
             </section>
         ))}
-        {showsGeonamesPlace(entries) && <GeonamesCredit />}
+        {showCredit && <GeonamesCredit />}
     </div>
 ) : (
-    <p class="mt-8 max-w-measure text-ink-muted-on-ink">Photos are on their way.</p>
+    <p class="mt-8 max-w-measure text-ink-muted-on-ink">{emptyLine}</p>
 )}
 
 <style>
