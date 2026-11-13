@@ -27,16 +27,15 @@ function piece(
     };
 }
 
-// Painting has two pieces (one a PNG), drawing none, digital one: so the empty category sits between filled ones.
+// Drawing has two pieces (one a PNG) and digital none, so one section renders a gallery and the other its empty line.
 const ART = [
-    piece('Oil Study.png', 'painting', {
-        title: 'Oil study',
-        medium: 'Oil on canvas',
+    piece('Ink Study.png', 'drawing', {
+        title: 'Ink study',
+        medium: 'Ink on paper',
         dimensions: '24 x 36 in',
         year: 2024,
     }),
-    piece('harbor.jpg', 'painting', { title: 'Harbor' }, 2000, 3000),
-    piece('pixels.jpg', 'digital', { title: 'Pixels', year: 2025 }),
+    piece('harbor.jpg', 'drawing', { title: 'Harbor', year: 2025 }, 2000, 3000),
 ];
 
 const PROPS = {
@@ -66,38 +65,31 @@ describe('GallerySections with the art collection', () => {
     });
 
     it('has one h2 section per category, in the registry order', () => {
-        expect(textOf(html, 'h2')).toEqual(['Painting', 'Drawing', 'Digital']);
-        expect(tagsOf(html, 'section').map((tag) => /id="([^"]*)"/.exec(tag)?.[1])).toEqual([
-            'painting',
-            'drawing',
-            'digital',
-        ]);
+        expect(textOf(html, 'h2')).toEqual(['Drawing', 'Digital']);
+        expect(tagsOf(html, 'section').map((tag) => /id="([^"]*)"/.exec(tag)?.[1])).toEqual(['drawing', 'digital']);
     });
 
     it('names the jump nav and links every section', () => {
         expect(html).toContain('aria-label="Art categories"');
         const nav = /<nav\b[\s\S]*?<\/nav>/.exec(html)?.[0] ?? '';
-        expect([...nav.matchAll(/href="([^"]*)"/g)].map(([, href]) => href)).toEqual([
-            '#painting',
-            '#drawing',
-            '#digital',
-        ]);
+        expect([...nav.matchAll(/href="([^"]*)"/g)].map(([, href]) => href)).toEqual(['#drawing', '#digital']);
     });
 
     it('has a back-to-top link per section and the legend', () => {
-        expect(html.match(/data-back-to-top/g)).toHaveLength(3);
+        expect(html.match(/data-back-to-top/g)).toHaveLength(2);
         expect(html).toContain('Jump to a section');
     });
 
     it("shows an empty category's line instead of a gallery", () => {
-        expect(html).toContain('Drawing pieces are on their way.');
-        expect(html.match(/data-gallery/g)).toHaveLength(2);
+        expect(html).toContain('Digital pieces are on their way.');
+        expect(html).not.toContain('Drawing pieces are on their way.');
+        expect(html.match(/data-gallery/g)).toHaveLength(1);
     });
 
     it('shows the title under a tile and the full line in the lightbox caption', () => {
-        expect(textOf(html, 'p')).toEqual(expect.arrayContaining(['Oil study', 'Harbor', 'Pixels']));
+        expect(textOf(html, 'p')).toEqual(expect.arrayContaining(['Ink study', 'Harbor']));
         const captions = [...html.matchAll(/data-caption="([^"]*)"/g)].map(([, caption]) => caption);
-        expect(captions).toEqual(['Oil study, Oil on canvas, 24 x 36 in, 2024', 'Harbor', 'Pixels, 2025']);
+        expect(captions).toEqual(['Ink study, Ink on paper, 24 x 36 in, 2024', 'Harbor, 2025']);
     });
 
     it('never credits GeoNames, since art has no places', () => {
