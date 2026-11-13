@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
     GUST_MAX,
     LEAF_FILLS,
+    LEAF_MAX_PX,
+    LEAF_MIN_PX,
     LEAF_SCALE_MAX,
     LEAF_SCALE_REF_PX,
     LEAF_SEED,
@@ -73,9 +75,9 @@ describe('leaf scale', () => {
 });
 
 describe('tiers', () => {
-    it('is ascending, strictly increasing in count, from 4 to 15', () => {
-        expect(LEAF_TIERS[0]).toEqual({ minWidthRem: 0, count: 4 });
-        expect(LEAF_TIERS.at(-1)).toEqual({ minWidthRem: 80, count: 15 });
+    it('is ascending, strictly increasing in count, from 7 to 24', () => {
+        expect(LEAF_TIERS[0]).toEqual({ minWidthRem: 0, count: 7 });
+        expect(LEAF_TIERS.at(-1)).toEqual({ minWidthRem: 80, count: 24 });
         for (let i = 1; i < LEAF_TIERS.length; i++) {
             expect(LEAF_TIERS[i].minWidthRem).toBeGreaterThan(LEAF_TIERS[i - 1].minWidthRem);
             expect(LEAF_TIERS[i].count).toBeGreaterThan(LEAF_TIERS[i - 1].count);
@@ -86,8 +88,8 @@ describe('tiers', () => {
     it('counts leaves by width, with exact boundaries', () => {
         expect(leafCount(320)).toBe(LEAF_TIERS[0].count);
         expect(leafCount(768)).toBe(LEAF_TIERS[1].count);
-        expect(leafCount(1280)).toBe(15);
-        expect(leafCount(1920)).toBe(15);
+        expect(leafCount(1280)).toBe(24);
+        expect(leafCount(1920)).toBe(24);
         for (const tier of LEAF_TIERS) {
             expect(leafCount(tier.minWidthRem * 16)).toBe(tier.count);
         }
@@ -138,8 +140,8 @@ describe('createLeaves', () => {
                 expect(Number.isInteger(l.shape)).toBe(true);
                 expect(l.shape).toBeGreaterThanOrEqual(0);
                 expect(l.shape).toBeLessThan(LEAF_SHAPES);
-                expect(l.size).toBeGreaterThanOrEqual(18);
-                expect(l.size).toBeLessThanOrEqual(40);
+                expect(l.size).toBeGreaterThanOrEqual(LEAF_MIN_PX);
+                expect(l.size).toBeLessThanOrEqual(LEAF_MAX_PX);
                 expect([l.vx, l.vy]).toEqual([0, 0]);
             });
         }
