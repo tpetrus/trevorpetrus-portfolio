@@ -363,6 +363,14 @@ describe('sourceExtension', () => {
 
 // Pins the JPEG recipe: the output bytes of a fixed fixture must not change unless the processing is changed on
 // purpose (and PROCESSING_VERSION bumped). If libvips or sharp is upgraded and this fails, review the change first.
+// sharp's prebuilt libvips differs per platform and writes different JPEG bytes, so each platform has its own digest:
+// Linux is what CI (and the sync's real uploads on the runner image) produces, win32 is a local Windows run. Any other
+// platform skips the pin and only checks the output is stable.
+const JPEG_RECIPE_DIGESTS: Partial<Record<NodeJS.Platform, string>> = {
+    linux: '2cee33ef793388e49b86e49a2caef30ca90281c5828de4d2445744fa4a6b3d19',
+    win32: '910554464db2d82a0deb1df2be85d6dc540eccaacdb0c5e8a025d82ecfa6d950',
+};
+
 describe('the JPEG recipe', () => {
     it('produces the pinned bytes for a fixed fixture', async () => {
         const original = await tinyJpeg(CAMERA_EXIF, { profile: 'p3', orientation: 6 });
@@ -372,6 +380,7 @@ describe('the JPEG recipe', () => {
                 .digest('hex');
         const first = await run();
         expect(await run()).toBe(first);
-        expect(first).toBe('910554464db2d82a0deb1df2be85d6dc540eccaacdb0c5e8a025d82ecfa6d950');
+        const pinned = JPEG_RECIPE_DIGESTS[process.platform];
+        if (pinned !== undefined) expect(first).toBe(pinned);
     });
 });
