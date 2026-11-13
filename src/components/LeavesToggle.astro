@@ -1,0 +1,84 @@
+---
+// The pause control of the home page's falling leaves (contract C4), an icon button at the start of the header (the
+// layout's header-start slot). Behavior lives in src/scripts/homeLeaves.ts.
+---
+
+{/* The leaves move for more than five seconds next to the content, so they can be stopped (WCAG 2.2.2). The accessible
+    name is the action ("Pause/Play falling leaves"); the script changes it and data-state, and CSS swaps the icon. The
+    tooltip is the button's own ::after, drawn from that aria-label, so it always says what a screen reader hears and
+    the script has nothing else to update. It is flush below the button, so the pointer can move onto it without it
+    closing (WCAG 1.4.13), shows on hover only on a device that can hover (a tap leaves nothing open) and on keyboard
+    focus, and Escape hides it through tooltipDismiss.ts (data-tooltip marks the button as a tooltip owner). The button
+    stays disabled until the script runs, because without JavaScript there is nothing to pause, and it is never shown to
+    a visitor who prefers reduced motion, who only ever sees the still leaves. -my-2 keeps the 36px hit area without
+    making the header row taller (on phones the row is only the name's height, and a taller header would outgrow the
+    html scroll-padding-top). */}
+<button
+    type="button"
+    data-leaves-toggle
+    data-tooltip
+    data-state="running"
+    aria-label="Pause falling leaves"
+    disabled
+    class="leaves-toggle relative -my-2 inline-flex size-9 shrink-0 items-center justify-center text-ink-muted transition-colors hover:bg-accent hover:text-ink focus-visible:bg-accent focus-visible:text-ink disabled:bg-transparent disabled:text-ink-muted motion-reduce:transition-none"
+>
+    <svg class="icon-pause size-4" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        <path d="M3 2h3.5v12H3zM9.5 2H13v12H9.5z" fill="currentColor" />
+    </svg>
+    <svg class="icon-play size-4" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        <path d="M4 2l10 6-10 6z" fill="currentColor" />
+    </svg>
+</button>
+
+<script>
+    import '../scripts/homeLeaves.ts';
+</script>
+
+{/* A script of its own: imported together with the leaves, the shared module would turn the leaves script into an
+    _astro chunk too, and it is small enough to be inlined into the page only on its own (see "Budgets" in AGENTS.md). */}
+<script>
+    import '../scripts/tooltipDismiss';
+</script>
+
+<style>
+    /* The icon shows what a press does: pause while the leaves run, play while they are paused. */
+    .leaves-toggle[data-state='running'] .icon-play,
+    .leaves-toggle[data-state='paused'] .icon-pause {
+        display: none;
+    }
+    /* Below the button and left-aligned, so it opens into the page and never past the viewport's left edge; the header
+       (z-20) is above main, so the tooltip is not covered by the content under it. */
+    .leaves-toggle::after {
+        content: attr(aria-label);
+        position: absolute;
+        top: 100%;
+        left: 0;
+        display: none;
+        border: 1px solid var(--color-ink);
+        background: var(--color-paper);
+        padding: 0.25rem 0.5rem;
+        font-family: var(--font-mono);
+        font-size: var(--text-step-n1);
+        line-height: 1;
+        white-space: nowrap;
+        color: var(--color-ink);
+        pointer-events: auto;
+    }
+    @media (hover: hover) {
+        .leaves-toggle:enabled:hover::after {
+            display: block;
+        }
+    }
+    .leaves-toggle:focus-visible::after {
+        display: block;
+    }
+    /* More specific than the two rules above, so Escape wins while the button stays hovered or focused. */
+    :global(html[data-tooltip-dismissed]) .leaves-toggle[data-tooltip]::after {
+        display: none;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .leaves-toggle {
+            display: none;
+        }
+    }
+</style>
