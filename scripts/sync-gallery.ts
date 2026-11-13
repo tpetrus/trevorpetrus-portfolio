@@ -34,7 +34,8 @@ import {
 import type { Place } from '../src/lib/geonames.ts';
 import { formatLocation, resolveLocation, type SidecarLocation } from '../src/lib/location.ts';
 import {
-    checkSourceFormat,
+    checkSourceFormats,
+    anchorCollisionProblems,
     composeProcessedEntry,
     composeUnchangedEntry,
     decideAction,
@@ -152,6 +153,7 @@ const hooks: EntryCollection<AnyCollectionCaption, AnyCollectionSidecar> = colle
 const dataFile = galleryDataFile(collectionName);
 const sidecarDir = sidecarDirectory(collectionName);
 const { images, problems } = planInputs(listFiles(sourceDir), listFiles(sidecarDir), collection.extensions);
+problems.push(...anchorCollisionProblems(collectionName, images));
 if (problems.length > 0) {
     throw new Error(`Cannot sync ${collectionName} from ${sourceDir}:\n${problems.map((p) => `  - ${p}`).join('\n')}`);
 }
@@ -179,13 +181,23 @@ console.log(`${options.upload ? 'UPLOADING' : 'Dry run (nothing uploaded, nothin
 const current: CuratedEntry<AnyCollectionCaption>[] = [];
 const counts: Record<SyncAction, number> = { new: 0, changed: 0, unchanged: 0 };
 
+// Every file's real format is checked before anything else, so all renamed files are reported in one error.
+checkSourceFormats(
+    await Promise.all(
+        images.map(async ({ file, extension }) => ({
+            file,
+            claimed: extension,
+            actual: await sourceExtension(readFileSync(join(sourceDir, file))),
+        })),
+    ),
+);
+
 // Pass one: everything that can fail without side effects. A plan holds no image bytes.
 async function planPhoto({ file, basename, extension }: (typeof images)[number]) {
     const key = galleryKey(collectionName, basename, extension);
     const sidecar = sidecarResult.sidecars.get(basename)!;
     const original = readFileSync(join(sourceDir, file));
     // The key and the content type come from the file name, so the bytes must really be that format.
-    checkSourceFormat(file, extension, await sourceExtension(original));
     const sourceSha256 = createHash('sha256').update(original).digest('hex');
     const existing = previousByKey.get(key);
     const action = decideAction(existing, sourceSha256);
@@ -207,21 +219,26 @@ async function syncPhoto({
     action,
     location,
 }: Awaited<ReturnType<typeof planPhoto>>): Promise<void> {
-    const place = location === undefined ? 'no place' : `${formatLocation(location)} (${location.source})`;
+    // Only a collection that shows places has a place column.
+    const place = !collection.usesPlaces
+        ? ''
+        : location === undefined
+          ? '  no place'
+          : `  ${formatLocation(location)} (${location.source})`;
 
     if (existing !== undefined && action === 'unchanged') {
         current.push({
             entry: composeUnchangedEntry(hooks, { existing, sidecar, location }),
             order: sidecar.order,
         });
-        console.log(`unchanged  ${key}  ${existing.width}x${existing.height}  ${place}`);
+        console.log(`unchanged  ${key}  ${existing.width}x${existing.height}${place}`);
         return;
     }
 
     const original = readFileSync(join(sourceDir, file));
     const processed = await processImage(original, { readsCamera: collection.readsCamera, label: file });
     console.log(
-        `${action.padEnd(9)}  ${key}  ${processed.width}x${processed.height}  ${kilobytes(processed.bytes.length)}  ${place}`,
+        `${action.padEnd(9)}  ${key}  ${processed.width}x${processed.height}  ${kilobytes(processed.bytes.length)}${place}`,
     );
     if (credentials) upload(credentials, key, processed.bytes);
     current.push({
