@@ -1,0 +1,70 @@
+---
+import { LEAF_SEED, createLeaves, leafSizeCss, leafTierCss, stillTransform, type LeafFill } from '../lib/leaves';
+
+// The same seed every build, so the still composition (what reduced motion and no-JS visitors see) never changes.
+const leaves = createLeaves(LEAF_SEED);
+
+// Written out in full so Tailwind sees the class names: it only emits a theme color's variable when a class uses it, so a
+// leaf colored with an inline var(--color-paper-3) alone would fall back to ink.
+const FILL_CLASS = {
+    'paper-2': 'text-paper-2',
+    'paper-3': 'text-paper-3',
+    'accent-tint': 'text-accent-tint',
+} as const satisfies Record<LeafFill, string>;
+
+// Flat paper-cut silhouettes in a 32x32 box: an ovate leaf, a lobed (maple-like) leaf and a narrow willow leaf, each
+// with its stem. One color each, from the leaf's own `color`.
+const SHAPES = [
+    'M16 2C25 8 27 18 17 27V31H15V27C5 18 7 8 16 2Z',
+    'M16 1L19 8L25 5L23 13L30 14L24 19L27 25L19 23L17 27V31H15V27L13 23L5 25L8 19L2 14L9 13L7 5L13 8Z',
+    'M16 1C21 8 22 18 17 26V31H15V26C10 18 11 8 16 1Z',
+];
+---
+
+{/* Decorative only, so it is hidden from assistive technology and never takes a click, a tap or focus. It is fixed to
+    the viewport behind the page (global.css lifts main, the footer and the running head above it). The server renders
+    a still composition; src/scripts/homeLeaves.ts sets it in motion unless the visitor prefers reduced motion. */}
+<div
+    data-leaves
+    data-leaves-state="still"
+    aria-hidden="true"
+    class="pointer-events-none fixed inset-0 z-0 overflow-hidden select-none"
+>
+    <svg width="0" height="0" class="absolute" focusable="false">
+        <defs>
+            {SHAPES.map((d, shape) => (
+                <symbol id={`leaf-shape-${shape}`} viewBox="0 0 32 32">
+                    <path d={d} fill="currentColor" />
+                </symbol>
+            ))}
+        </defs>
+    </svg>
+    {/* Each leaf is its own small svg (not a child of one big one), so the browser can move it on its own compositor
+        layer instead of repainting the whole viewport every frame. Positions are percentages of the viewport, so the
+        still composition fits any screen without JavaScript. */}
+    {leaves.map((leaf) => (
+        <svg
+            data-leaf
+            data-leaf-index={leaf.index}
+            class:list={['leaf', FILL_CLASS[leaf.fill]]}
+            viewBox="0 0 32 32"
+            width={leaf.size}
+            height={leaf.size}
+            focusable="false"
+            style={`left:${leaf.homeX}%;top:${leaf.homeY}%;width:${leafSizeCss(leaf.size)};height:${leafSizeCss(leaf.size)};transform:${stillTransform(leaf)}`}
+        >
+            <use href={`#leaf-shape-${leaf.shape}`} />
+        </svg>
+    ))}
+    {/* The leaf count follows the viewport width (LEAF_TIERS), so the density stays alike from a phone to a desktop. */}
+    <Fragment set:html={`<style>${leafTierCss()}</style>`} />
+</div>
+
+<style>
+    .leaf {
+        position: absolute;
+        will-change: transform;
+        transform-box: fill-box;
+        transform-origin: center;
+    }
+</style>

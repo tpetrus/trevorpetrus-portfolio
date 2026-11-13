@@ -1,5 +1,7 @@
 ---
 import HomeCluster from '../components/HomeCluster.astro';
+import HomeLeaves from '../components/HomeLeaves.astro';
+import LeavesToggle from '../components/LeavesToggle.astro';
 import Wordmark from '../components/Wordmark.astro';
 import photographyJson from '../data/gallery/photography.json';
 import BaseLayout from '../layouts/BaseLayout.astro';
@@ -9,6 +11,8 @@ const entries = parseGallery('photography', photographyJson);
 ---
 
 <BaseLayout title="Home" description="Trevor Petrus: software projects and photography.">
+    <HomeLeaves slot="backdrop" />
+    <LeavesToggle slot="header-start" />
     <Wordmark first="Trevor" second="Petrus" />
     {/* The accent band is decorative, the same mark that tops the footer. */}
     <p class="mt-8 max-w-measure border-t-4 border-accent pt-4 text-step-1 text-pretty">
@@ -23,5 +27,6 @@ const entries = parseGallery('photography', photographyJson);
         </a>
         , if I made it, you'll most likely find it here.
     </p>
+
     <HomeCluster entries={entries} />
 </BaseLayout>
