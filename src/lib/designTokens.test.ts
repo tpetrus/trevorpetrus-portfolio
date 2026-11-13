@@ -21,6 +21,8 @@ const inkMuted = token('ink-muted');
 const inkMutedOnInk = token('ink-muted-on-ink');
 const accent = token('accent');
 const accentDeep = token('accent-deep');
+const paper3 = token('paper-3');
+const accentTint = token('accent-tint');
 
 describe('design tokens', () => {
     it('keeps the theme-color meta equal to the paper background', () => {
@@ -41,6 +43,13 @@ describe('design tokens', () => {
         ['accent-deep on paper', accentDeep, paper, WCAG.text, 5.43],
         ['accent-deep on paper-2', accentDeep, paper2, WCAG.text, 4.87],
         ['paper on accent-deep', paper, accentDeep, WCAG.text, 5.43],
+        // The leaf fills behind the home page's text (opaque, so overlapping leaves never darken the background).
+        ['ink on paper-3', ink, paper3, WCAG.enhancedText, 14.66],
+        ['ink-muted on paper-3', inkMuted, paper3, WCAG.text, 5.91],
+        ['accent-deep on paper-3', accentDeep, paper3, WCAG.text, 4.65],
+        ['ink on accent-tint', ink, accentTint, WCAG.enhancedText, 14.85],
+        ['ink-muted on accent-tint', inkMuted, accentTint, WCAG.text, 5.99],
+        ['accent-deep on accent-tint', accentDeep, accentTint, WCAG.text, 4.71],
     ] as const;
 
     it.each(passingPairs)('%s clears its WCAG bar', (_name, foreground, background, minimum, expected) => {
