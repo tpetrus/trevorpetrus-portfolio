@@ -1,6 +1,6 @@
 ---
+import GallerySections from '../components/GallerySections.astro';
 import PageTitle from '../components/PageTitle.astro';
-import PhotographySections from '../components/PhotographySections.astro';
 import photographyJson from '../data/gallery/photography.json';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { parseGallery } from '../lib/gallery';
@@ -16,7 +16,13 @@ const entries = parseGallery('photography', photographyJson);
     <section class="surface-ink relative z-[1] flex flex-1 flex-col border-b border-ink-muted-on-ink/40">
         <div class="column flex-1 pt-12 pb-6 md:pt-16">
             <PageTitle text="Photography" video={PHOTOGRAPHY_TITLE_VIDEO} />
-            <PhotographySections entries={entries} />
+            <GallerySections
+                collection="photography"
+                entries={entries}
+                jumpLabel="Photo categories"
+                emptyLine="Photos are on their way."
+                sectionEmptyLine={(label) => `${label} photos are on their way.`}
+            />
         </div>
     </section>
 </BaseLayout>
