@@ -12,13 +12,9 @@ const FILL_CLASS = {
     'accent-tint': 'text-accent-tint',
 } as const satisfies Record<LeafFill, string>;
 
-// Flat paper-cut silhouettes in a 32x32 box: an ovate leaf, a lobed (maple-like) leaf and a narrow willow leaf, each
-// with its stem. One color each, from the leaf's own `color`.
-const SHAPES = [
-    'M16 2C25 8 27 18 17 27V31H15V27C5 18 7 8 16 2Z',
-    'M16 1L19 8L25 5L23 13L30 14L24 19L27 25L19 23L17 27V31H15V27L13 23L5 25L8 19L2 14L9 13L7 5L13 8Z',
-    'M16 1C21 8 22 18 17 26V31H15V26C10 18 11 8 16 1Z',
-];
+// Flat paper-cut silhouettes in a 32x32 box: an ovate leaf and a narrow willow leaf, each with its stem
+// (a lobed maple leaf was dropped: at this size it read as a star). One color each, from the leaf's own `color`.
+const SHAPES = ['M16 2C25 8 27 18 17 27V31H15V27C5 18 7 8 16 2Z', 'M16 1C21 8 22 18 17 26V31H15V26C10 18 11 8 16 1Z'];
 ---
 
 {/* Decorative only, so it is hidden from assistive technology and never takes a click, a tap or focus. It is fixed to
