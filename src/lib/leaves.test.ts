@@ -7,6 +7,7 @@ import {
     LEAF_TIERS,
     MAX_FRAME_MS,
     MAX_LEAVES,
+    MIN_STILL_FLIP,
     POINTER_RADIUS_PX,
     applyGust,
     createLeaves,
@@ -136,14 +137,30 @@ describe('step', () => {
         expect(leaf.y).toBeGreaterThanOrEqual(-(40 / viewport.height) * 100 - 1);
     });
 
-    it('keeps x inside the width when pushed off the left', () => {
+    it('lets a leaf leave the left edge out of sight before it comes back on the right', () => {
         const [leaf] = createLeaves(3, 1);
-        leaf.x = 0;
+        Object.assign(leaf, { size: 40 });
+        const across = (40 / viewport.width) * 100;
         const wind = createWind();
-        wind.gust = -GUST_MAX;
-        step([leaf], 50, wind, viewport);
-        expect(leaf.x).toBeGreaterThanOrEqual(0);
-        expect(leaf.x).toBeLessThan(100);
+        // Partly off the left, still partly visible: it stays where it is.
+        leaf.x = -across / 2;
+        step([leaf], 0, wind, viewport);
+        expect(leaf.x).toBe(-across / 2);
+        // Fully off the left: it re-enters from just past the right edge, out of sight.
+        leaf.x = -across - 0.01;
+        step([leaf], 0, wind, viewport);
+        expect(leaf.x).toBe(100);
+    });
+
+    it('lets a leaf leave the right edge out of sight before it comes back on the left', () => {
+        const [leaf] = createLeaves(3, 1);
+        Object.assign(leaf, { size: 40 });
+        leaf.x = 99.9;
+        step([leaf], 0, createWind(), viewport);
+        expect(leaf.x).toBe(99.9);
+        leaf.x = 100;
+        step([leaf], 0, createWind(), viewport);
+        expect(leaf.x).toBe(-(40 / viewport.width) * 100);
     });
 
     it('pushes only leaves within the pointer radius, away from it', () => {
@@ -245,6 +262,12 @@ describe('transforms', () => {
         for (const leaf of createLeaves(LEAF_SEED)) {
             expect(leafTransform(leaf, viewport)).toBe(stillTransform(leaf));
             expect(stillTransform(leaf)).toContain('translate3d(0px, 0px, 0)');
+        }
+    });
+
+    it('never starts a leaf edge-on, so the still composition has no slivers', () => {
+        for (const seed of [1, 2, 3, LEAF_SEED, 99]) {
+            for (const leaf of createLeaves(seed)) expect(Math.abs(leaf.flip)).toBeGreaterThanOrEqual(MIN_STILL_FLIP);
         }
     });
 

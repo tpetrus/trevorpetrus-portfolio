@@ -46,6 +46,8 @@ export const MAX_FRAME_MS = 50;
 export const DECAY_S = 0.6;
 export const GUST_GAIN = 4;
 export const POINTER_PUSH = 500;
+// The smallest |scaleX| a leaf starts with, so no leaf of the still composition is drawn edge-on.
+export const MIN_STILL_FLIP = 0.4;
 
 export interface Leaf {
     readonly index: number;
@@ -99,7 +101,10 @@ export function createLeaves(seed: number, max: number = MAX_LEAVES): Leaf[] {
         const homeY = clamp(frac(oy + index * 0.5698402909) * 100 + between(r, -3, 3), 0, 100);
         // Every fourth leaf may be the accent: at most 1 in 4 overall.
         const fill = index % 4 === 3 && r() < 0.6 ? 'accent-tint' : LEAF_FILLS[Math.floor(r() * 2)];
-        const phase = r() * Math.PI * 2;
+        // The flip starts at cos(phase); near a zero crossing the still leaf would be drawn edge-on, a sliver. A quarter
+        // turn moves it to where |cos| is above 0.9, without drawing another random number (the rest stays as seeded).
+        const drawn = r() * Math.PI * 2;
+        const phase = Math.abs(Math.cos(drawn)) < MIN_STILL_FLIP ? drawn + Math.PI / 2 : drawn;
         return {
             index,
             shape: Math.floor(r() * LEAF_SHAPES),
@@ -168,12 +173,20 @@ export function step(leaves: Leaf[], dtMs: number, wind: Wind, viewport: Viewpor
         l.rotation += l.spin * dt;
         l.flip = Math.cos(l.phase + l.t * l.flipRate);
         const below = 100 + (l.size / h) * 100;
+        // The leaf's width in percent: x is its left edge, so it is fully off the left at -across and off the right at 100.
+        const across = (l.size / w) * 100;
         if (l.y > below) {
-            // No RNG here: a fixed, per-leaf shift keeps the respawns from lining up.
+            // No RNG here: a fixed, per-leaf shift keeps the respawns from lining up. The leaf is above the top, out of
+            // sight, so it may land anywhere across the width.
             l.y = -(l.size / h) * 100;
-            l.x += 31 + l.index * 7;
+            l.x = (((l.x + 31 + l.index * 7) % 100) + 100) % 100;
+        } else if (l.x >= 100) {
+            // Blown off the right, it comes back in from just past the left edge (and the other way round), so a leaf
+            // never pops into view or out of it.
+            l.x = -across;
+        } else if (l.x < -across) {
+            l.x = 100;
         }
-        if (l.x < 0 || l.x >= 100) l.x = ((l.x % 100) + 100) % 100;
     }
 }
 
