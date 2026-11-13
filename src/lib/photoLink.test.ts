@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
+import artJson from '../data/gallery/art.json';
 import photographyJson from '../data/gallery/photography.json';
 import { parseGallery } from './gallery';
-import { PHOTOGRAPHY_PATH, photoAnchorId, photoIdFromHash, photoPageHref } from './photoLink';
+import {
+    PHOTOGRAPHY_PATH,
+    anchorIdFromHash,
+    collectionAnchorId,
+    collectionHref,
+    photoAnchorId,
+    photoIdFromHash,
+    photoPageHref,
+} from './photoLink';
 
 describe('photoAnchorId', () => {
     it('is the file name without the collection or the extension', () => {
@@ -34,5 +43,42 @@ describe('photoIdFromHash', () => {
 
     it.each(['', '#', '#landscape', '#photo-', '#photo-a b', '#photo-"x"'])('ignores %j', (hash) => {
         expect(photoIdFromHash(hash)).toBeUndefined();
+    });
+});
+
+describe('collectionAnchorId', () => {
+    it('keeps photography on the photo- prefix', () => {
+        expect(collectionAnchorId('photography', 'photography/MiamiV1.jpg')).toBe('photo-MiamiV1');
+    });
+
+    it('uses the art- prefix for art and drops a .png or .jpg extension', () => {
+        expect(collectionAnchorId('art', 'art/Oil Study (2).png')).toBe('art-Oil-Study--2-');
+        expect(collectionAnchorId('art', 'art/harbor.jpg')).toBe('art-harbor');
+    });
+
+    it('is unique for every committed art piece', () => {
+        const ids = parseGallery('art', artJson).map(({ key }) => collectionAnchorId('art', key));
+        expect(new Set(ids).size).toBe(ids.length);
+    });
+});
+
+describe('collectionHref', () => {
+    it('points at the tile on the collection page', () => {
+        expect(collectionHref('art', 'art/harbor.png')).toBe('/art/#art-harbor');
+        expect(collectionHref('photography', 'photography/MiamiV1.jpg')).toBe(photoPageHref('photography/MiamiV1.jpg'));
+    });
+});
+
+describe('anchorIdFromHash', () => {
+    it.each(['#photo-MiamiV1', 'art-harbor', '#art-Oil-Study--2-'])('accepts %j', (hash) => {
+        expect(anchorIdFromHash(hash)).toBe(hash.replace(/^#/, ''));
+    });
+
+    it.each(['', '#', '#drawing', '#art-', '#photo-', '#art-a b', '#other-x'])('ignores %j', (hash) => {
+        expect(anchorIdFromHash(hash)).toBeUndefined();
+    });
+
+    it('is not a photo link when it names an art piece', () => {
+        expect(photoIdFromHash('#art-harbor')).toBeUndefined();
     });
 });

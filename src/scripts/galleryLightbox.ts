@@ -4,7 +4,7 @@
 import PhotoSwipeLightbox from 'photoswipe/lightbox';
 import 'photoswipe/style.css';
 
-import { photoIdFromHash } from '../lib/photoLink';
+import { anchorIdFromHash } from '../lib/photoLink';
 import '../styles/lightbox.css';
 
 // An arrow leaving a box: "open the original in a new tab". It reuses PhotoSwipe's own button markup, so it gets the
@@ -23,6 +23,15 @@ function createLightbox(): PhotoSwipeLightbox {
         // PhotoSwipe's core is loaded on the first click, not with the page.
         pswpModule: () => import('photoswipe'),
     });
+
+    // An art piece may be a PNG with transparent areas; its viewer shows it on paper, as the tile does, never on the
+    // dark lightbox backdrop. The class is toggled per slide because the element is reused when sliding.
+    const markBackdrop = (content: { element?: HTMLElement; data: { element?: HTMLElement } }) => {
+        const onPaper = content.data.element?.closest('[data-collection="art"]') != null;
+        content.element?.classList.toggle('pswp__img--on-paper', onPaper);
+    };
+    lightbox.on('contentActivate', ({ content }) => markBackdrop(content));
+    lightbox.on('loadComplete', ({ content }) => markBackdrop(content));
 
     lightbox.on('uiRegister', () => {
         const ui = lightbox.pswp?.ui;
@@ -66,7 +75,7 @@ function createLightbox(): PhotoSwipeLightbox {
     // A deep link's fragment would reopen the viewer on reload or Back after it closes, so it is dropped on close.
     // history.state is kept because Astro's ClientRouter stores its navigation state there.
     lightbox.on('close', () => {
-        if (photoIdFromHash(location.hash) !== undefined) {
+        if (anchorIdFromHash(location.hash) !== undefined) {
             history.replaceState(history.state, '', location.pathname + location.search);
         }
     });
@@ -105,10 +114,10 @@ const afterNextPaint = (): Promise<void> =>
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
     });
 
-// Opens the photo a "/photography/#photo-<name>" link names (the home collage links this way). The index must be
+// Opens the piece a "/photography/#photo-<name>" or "/art/#art-<name>" link names (the home collage links this way). The index must be
 // among the links of its own gallery, because that is the list PhotoSwipe navigates.
 function openFromHash(instance: PhotoSwipeLightbox): void {
-    const id = photoIdFromHash(location.hash);
+    const id = anchorIdFromHash(location.hash);
     if (id === undefined) return;
     const photo = document.getElementById(id)?.querySelector<HTMLAnchorElement>('a.photo');
     const gallery = photo?.closest<HTMLElement>('[data-gallery]');

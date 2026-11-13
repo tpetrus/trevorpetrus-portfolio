@@ -20,6 +20,7 @@ const MAX_CAPTURE_HEIGHT = 8000;
 const PAGES = [
     { name: 'home', path: '/' },
     { name: 'photography', path: '/photography/' },
+    { name: 'art', path: '/art/' },
     { name: 'projects', path: '/projects/' },
 ] as const;
 
