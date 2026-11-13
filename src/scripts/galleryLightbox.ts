@@ -25,10 +25,17 @@ function createLightbox(): PhotoSwipeLightbox {
     });
 
     // An art piece may be a PNG with transparent areas; its viewer shows it on paper, as the tile does, never on the
-    // dark lightbox backdrop. The class is toggled per slide because the element is reused when sliding.
-    const markBackdrop = (content: { element?: HTMLElement; data: { element?: HTMLElement } }) => {
+    // dark lightbox backdrop. The class is toggled per slide because the element is reused when sliding. The
+    // placeholder (the tile's image, shown while the full size loads) gets it too, or a transparent piece would flash
+    // on the dark backdrop first.
+    const markBackdrop = (content: {
+        element?: HTMLElement;
+        placeholder?: { element?: HTMLElement | null };
+        data: { element?: HTMLElement };
+    }) => {
         const onPaper = content.data.element?.closest('[data-collection="art"]') != null;
         content.element?.classList.toggle('pswp__img--on-paper', onPaper);
+        content.placeholder?.element?.classList.toggle('pswp__img--on-paper', onPaper);
     };
     lightbox.on('contentActivate', ({ content }) => markBackdrop(content));
     lightbox.on('loadComplete', ({ content }) => markBackdrop(content));

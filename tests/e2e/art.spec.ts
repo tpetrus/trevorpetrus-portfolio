@@ -32,6 +32,13 @@ test.describe('art page', () => {
         await page.waitForLoadState('networkidle');
 
         expect(assets.filter((url) => /galleryLightbox|photoswipe|pswp/i.test(url))).toEqual([]);
+        // The lightbox glue ships in the Gallery component's module script, so the page must not reference it at all
+        // (a lazy chunk that was simply never requested would pass the network check above).
+        const scripts = await page
+            .locator('script[type="module"][src]')
+            .evaluateAll((elements) => elements.map((element) => element.getAttribute('src') ?? ''));
+        expect(scripts.filter((src) => /Gallery|galleryLightbox|photoswipe/i.test(src))).toEqual([]);
+        await expect(page.locator('[data-gallery]')).toHaveCount(0);
         await expect(page.locator('link[href*="photoswipe"], style:has-text(".pswp")')).toHaveCount(0);
     });
 
@@ -80,7 +87,18 @@ test.describe('art lightbox', () => {
         await page.locator('[data-gallery] a').first().click();
 
         await expect(page.getByRole('dialog')).toBeVisible();
-        await expect(page.locator('.pswp__img--on-paper').first()).toBeVisible();
+        const image = page.locator('.pswp__img--on-paper').first();
+        await expect(image).toBeVisible();
+        // The theme's paper color, resolved the same way the browser resolves the image's background.
+        const paper = await page.evaluate(() => {
+            const probe = document.createElement('div');
+            probe.style.backgroundColor = 'var(--color-paper)';
+            document.body.append(probe);
+            const color = getComputedStyle(probe).backgroundColor;
+            probe.remove();
+            return color;
+        });
+        await expect(image).toHaveCSS('background-color', paper);
     });
 
     test('opens the piece an #art- fragment names, and drops the fragment on close', async ({ page }) => {
