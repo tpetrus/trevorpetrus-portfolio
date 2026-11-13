@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { WCAG, contrastRatio } from './contrast';
+import { LEAF_FILLS } from './leaves';
 import { THEME_COLOR } from './theme';
 
 // The CSS is the one source of the palette; the spec reads it so a changed color is checked, not just a copy of it.
@@ -66,4 +67,13 @@ describe('design tokens', () => {
     ] as const)('%s stays out of use because it fails 3:1', (_name, foreground, background) => {
         expect(contrastRatio(foreground, background)).toBeLessThan(WCAG.largeTextOrUi);
     });
+
+    // The home page's leaves pass behind its text. They are opaque, so a stack of them is no darker than one, and every
+    // fill they use must keep each text color on the page at the WCAG text bar. A new fill fails here until it does.
+    it.each(LEAF_FILLS.flatMap((fill) => (['ink', 'ink-muted', 'accent-deep'] as const).map((text) => [text, fill])))(
+        '%s text over a %s leaf clears 4.5:1',
+        (text, fill) => {
+            expect(contrastRatio(token(text), token(fill))).toBeGreaterThanOrEqual(WCAG.text);
+        },
+    );
 });

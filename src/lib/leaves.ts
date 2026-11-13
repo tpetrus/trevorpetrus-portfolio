@@ -24,12 +24,15 @@ export function leafCount(widthPx: number): number {
 
 // Without JavaScript this is what limits the visible leaves. A later tier first
 // restores every leaf, then hides its own surplus, so the blocks do not depend on
-// what the earlier ones hid.
+// what the earlier ones hid. The restore selector has the same specificity as the
+// hide selectors, (0,2,0), so it wins by coming later; a plain [data-leaf] would lose.
 export function leafTierCss(): string {
     return LEAF_TIERS.map((tier, t) => {
         const hide = [];
         for (let i = tier.count; i < MAX_LEAVES; i++) hide.push(`[data-leaf][data-leaf-index="${i}"]`);
-        const rules = (t ? '[data-leaf]{display:revert}' : '') + `${hide.join(',')}{display:none}`;
+        const rules =
+            (t ? '[data-leaf][data-leaf-index]{display:revert}' : '') +
+            (hide.length ? `${hide.join(',')}{display:none}` : '');
         return t ? `@media (min-width:${tier.minWidthRem}rem){${rules}}` : rules;
     }).join('\n');
 }

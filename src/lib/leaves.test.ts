@@ -54,6 +54,10 @@ describe('tiers', () => {
             const hidden = [...block.matchAll(/data-leaf-index="(\d+)"/g)].map((m) => Number(m[1]));
             const expected = Array.from({ length: MAX_LEAVES - tier.count }, (_, i) => tier.count + i);
             expect(hidden).toEqual(expected);
+            // Each later tier restores the earlier tiers' hidden leaves with a selector as specific as theirs.
+            if (t > 0) expect(block).toContain('[data-leaf][data-leaf-index]{display:revert}');
+            // No rule with an empty selector list.
+            expect(block).not.toMatch(/(^|[{}])\{/);
         });
     });
 });
