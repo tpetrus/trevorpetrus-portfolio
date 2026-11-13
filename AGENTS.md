@@ -22,7 +22,7 @@ is real but pre-hero: the giant name, a short statement and, once photos exist, 
 | Bundle-size budget (reads the existing build) | `npm run size` |
 | End-to-end tests (Playwright, 3 projects; the build must exist, served via wrangler) | `npm run test:e2e` (first time: `npm run test:e2e:install`) |
 | Smoke tests (Chromium projects only) against `BASE_URL`, default the site URL in `src/config/site.ts` | `npm run test:smoke` |
-| Lighthouse budget on all three pages, mobile then desktop (reads the existing build) | `npm run lighthouse` |
+| Lighthouse budget on every page, mobile then desktop (reads the existing build) | `npm run lighthouse` |
 | Refresh the generated project data by hand (GitHub dates, About text and topics, live-site screenshots; `--check` writes nothing and exits 2 when an output would change; `--force` recaptures every screenshot; see "Projects") | `npm run sync:projects -- [--check] [--force]` |
 | Publish a gallery collection by hand: processes JPEGs from `gallery-originals/<collection>` and, with `--upload`, uploads them to R2 and rewrites `src/data/gallery/<collection>.json`; a dry run without `--upload` (see "Gallery") | `npm run sync:gallery -- <collection> [--source <dir>] [--upload] [--bucket <name>] [--account <id>]` (the bucket defaults to `portfolio-photos`) |
 | Serve the build locally like production | `npm run preview` (builds, then `wrangler dev`) |
@@ -111,7 +111,7 @@ src/
   config/site.ts        THE site-config module: SITE_URL and PROJECTS_DOMAIN (the one place the domain is set), projectUrl(),
                         and PHOTOS_ORIGIN (the one place the image host is set)
   lib/                  pure, unit-tested logic (nav.ts; numbering.ts: stable index numbers by date, used by
-                        Projects; photoLink.ts: the Photography page's deep-link format (tile ids and hrefs);
+                        Projects; photoLink.ts: the collection pages' deep-link format (tile ids and hrefs);
                         pageTitle.ts: the page-title video files; projects.ts: the project schema and card helpers; projectMeta.ts
                         (the generated meta schema and its canonical serializer), projectSource.ts: parsing for the sync
                         script and the page; topicMap.ts: GitHub topic slugs to chip names; projectSync.ts: the sync's
@@ -138,14 +138,15 @@ src/
   content/<collection>/ one <image basename>.yml sidecar per photo with the `alt` text, the `category` and an optional `order`
                         (e.g. content/photography/); hand-written
   layouts/              BaseLayout.astro: head/meta, skip link, running-head header and nav, View Transitions, ink footer
-  pages/                index, photography, projects (default exports required by Astro)
+  pages/                index, photography, art (not in the nav yet), projects (default exports required by Astro)
   styles/global.css     Tailwind entry and theme
   styles/lightbox.css   the lightbox caption styles
   components/           ProjectCard.astro, Caption.astro (label/title/byline/credit stack, slots for title, `byline`,
                         `credit`), SectionIndex.astro (numbered `role="list"` rows with 1px ink rules, one named slot per
                         row id), GitHubIcon.astro, Gallery.astro (generic over the collection),
-                        PhotographySections.astro (the Photography page body: the category jump links, one section
-                        and Gallery per category with a back-to-top link in its heading row, the credit),
+                        GallerySections.astro (the body of a collection page, Photography and Art: the category jump
+                        links, one section and Gallery per category with a back-to-top link in its heading row, the
+                        GeoNames credit when a place came from it; the copy comes in as props),
                         SectionLegend.astro (the floating section legend; its rules are in lib/sectionNav.ts), PhotoCaption.astro (the place under a tile),
                         PageTitle.astro (the giant subpage `h1`, optionally with the loop video),
                         GeonamesCredit.astro (the CC BY 4.0 credit line),
@@ -358,7 +359,7 @@ source" dialog that v0.2.7 showed). Look at a new screenshot before committing i
 links are verified only by the smoke tests reading the `href`, never by following them.
 
 ## Gallery
-**Sections.** The Photography page (`PhotographySections.astro`) has one section per category in
+**Sections.** The Photography page (`GallerySections.astro`) has one section per category in
 `GALLERY_COLLECTIONS.photography.categories` (`PHOTOGRAPHY_CATEGORIES` in `src/lib/photography.ts`: `landscape`,
 `portrait`, `car`, in that order), each with an `h2`, its own grid (tiles are placed per section) and the anchor id of the
 category, after a row of jump links. A category with no photos shows a short line instead of a grid. Every entry carries
@@ -402,6 +403,18 @@ The page uses resized variants from `<origin>/cdn-cgi/image/<options>/<key>` (he
 "View original" to `<origin>/<key>`. The data file is committed and holds, per photo, the key, size, ThumbHash, caption
 (camera settings and the place) and alt text; the build makes no network calls, and the ThumbHash becomes a small WebP placeholder at build time.
 With no entries the page shows "Photos are on their way." and references no PhotoSwipe JavaScript.
+
+**The Art page** (`src/pages/art.astro`, `/art/`) is the Photography page for the `art` collection: the same ink section,
+`GallerySections` with the art copy ("Art categories", "Art is on its way.", "<Category> pieces are on their way."), the
+`PageTitle` "Art" with no video, sections Painting, Drawing and Digital. It is not in the header nav yet: the link ships
+with the first real art upload, so the public nav never points at an empty page, and until then the running head shows
+only the site name on `/art/` (it reads page names from the nav). Deep links are per collection
+(`collectionAnchorId`/`collectionHref` in `src/lib/photoLink.ts`): `#photo-<name>` on Photography (unchanged) and
+`#art-<name>` on Art, and the lightbox opens either prefix (`anchorIdFromHash`). Art images can be transparent PNGs, so
+their tiles (`data-collection="art"` on the gallery) and their lightbox image (`.pswp__img--on-paper`, set by
+`galleryLightbox.ts`) sit on solid paper, never on the ink. `tests/e2e/art.spec.ts` checks the empty page; its lightbox
+and deep-link tests skip while `art.json` is `[]`. `/art/` is in the a11y, smoke (direct load only), shell, pageTitle and
+visual specs and in `lighthouserc.json`.
 
 **Add photos:**
 1. Put the JPEGs in `gallery-originals/photography/` (gitignored; create the folder if it does not exist).
