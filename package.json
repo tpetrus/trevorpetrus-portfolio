@@ -2,7 +2,7 @@
   "name": "trevorpetrus-portfolio-site",
   "private": true,
   "type": "module",
-  "version": "0.23.10",
+  "version": "0.23.11",
   "engines": {
     "node": ">=24"
   },
