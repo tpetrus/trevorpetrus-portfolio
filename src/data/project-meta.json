@@ -1,6 +1,6 @@
 {
   "audio-visualizer": {
-    "capturedSha": "43ee54b1705f9d25ed7ccbd917733b9af7f56e92",
+    "capturedSha": "9184734e6c08b21c83b51ba57c3eda223e026421",
     "created": "2026-10-12T23:34:12Z",
     "description": "Fun, customizable visualizations for the audio coming through your computer.  Originally intended to be used for DJ sets, but feel free to use it for whatever you'd like.",
     "tech": [
@@ -9,7 +9,7 @@
       "three.js",
       "TypeScript"
     ],
-    "updated": "2026-11-25T03:37:13Z"
+    "updated": "2026-11-26T00:13:01Z"
   },
   "ci-workflows": {
     "created": "2026-10-23T15:03:10Z",
@@ -24,7 +24,7 @@
       "Vitest",
       "XML"
     ],
-    "updated": "2026-10-27T00:19:38Z"
+    "updated": "2026-11-25T19:24:18Z"
   },
   "claude-code-workflows": {
     "created": "2026-10-28T01:28:57Z",
