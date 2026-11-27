@@ -53,7 +53,7 @@ jobs:
       exit-code: ${{ steps.sync.outputs.exit-code }}
     steps:
       # Checks out without leaving a credential on disk, sets up Node from .nvmrc, checks the lockfile, runs npm ci.
-      - uses: tpetrus/ci-workflows/actions/setup@v0.3.1
+      - uses: tpetrus/ci-workflows/actions/setup@v0.3.2
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
@@ -405,7 +405,7 @@ jobs:
       - name: Determine the expected version
         id: expected-version
         if: steps.fresh.outputs.fresh == 'true' && steps.copy.outputs.changed == 'true'
-        uses: tpetrus/ci-workflows/actions/release-cli@v0.3.1
+        uses: tpetrus/ci-workflows/actions/release-cli@v0.3.2
         with:
           command: expected-version
           args: |
@@ -430,7 +430,7 @@ jobs:
 
       - name: Write the version
         if: steps.fresh.outputs.fresh == 'true' && steps.copy.outputs.changed == 'true'
-        uses: tpetrus/ci-workflows/actions/release-cli@v0.3.1
+        uses: tpetrus/ci-workflows/actions/release-cli@v0.3.2
         with:
           command: write-version
           args: |
